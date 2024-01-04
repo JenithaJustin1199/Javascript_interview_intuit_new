@@ -22,4 +22,4 @@ function minimumPalindromemoves(s) {
 }
 
 // Example usage:
-console.log(minimumPalindromemoves("abaaccle"));
+console.log(minimumPalindromemoves("abaaccle")); O(N)
