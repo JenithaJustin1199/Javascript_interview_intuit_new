@@ -1,0 +1,43 @@
+ccss selectors:
+User
+CSS Selectors and its types with example
+
+ChatGPT
+CSS selectors are patterns used to select and style HTML elements in a document. They define the criteria for selecting specific elements, and CSS rules are applied to those elements. Here are some common CSS selectors and their types:
+
+1. Universal Selector *:
+Selects all elements on the page.
+Example: * { margin: 0; padding: 0; }
+2. Type Selector:
+Selects all elements of a specified type.
+Example: p { color: blue; }
+3. Class Selector .classname:
+Selects all elements with a specified class attribute.
+Example: .highlight { background-color: yellow; }
+4. ID Selector #id:
+Selects a single element with a specified id attribute.
+Example: #header { font-size: 20px; }
+5. Attribute Selector [attribute=value]:
+Selects elements with a specific attribute and value.
+Example: [type="text"] { border: 1px solid #ccc; }
+6. Descendant Selector ancestor descendant:
+Selects all descendants of a specified ancestor.
+Example: article p { font-style: italic; }
+7. Child Selector parent > child:
+Selects all direct children of a specified parent.
+Example: ul > li { list-style-type: square; }
+8. Adjacent Sibling Selector element + element:
+Selects an element that is immediately preceded by a specified element.
+Example: h2 + p { font-weight: bold; }
+9. General Sibling Selector element ~ element:
+Selects all siblings that follow a specified element.
+Example: h2 ~ p { color: red; }
+10. Pseudo-classes :pseudo-class:
+Selects elements based on their state or position.
+Example: a:hover { text-decoration: underline; }
+11. Pseudo-elements ::pseudo-element:
+Selects parts of an element or generates content.
+Example: p::first-line { font-weight: bold; }
+12. Grouping Selector:
+Groups multiple selectors together to apply the same style.
+Example: h1, h2, h3 { color: green; }
