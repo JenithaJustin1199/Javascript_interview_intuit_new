@@ -51,3 +51,57 @@ const Pagination = ({ itemsPerPage, data }) => {
 };
 
 export default Pagination;
+
+/* Pagination.css */
+
+/* Step 1: Style the container */
+.pagination-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+
+/* Step 2: Style the list items */
+.pagination-list {
+  list-style: none;
+  padding: 0;
+}
+
+.pagination-list li {
+  background-color: #f2f2f2; /* Step 3: Set background color for list items */
+  margin-bottom: 5px;
+  padding: 10px;
+}
+
+/* Step 4: Style the pagination controls */
+.pagination-controls {
+  margin-top: 10px;
+}
+
+/* Step 5: Style the pagination buttons */
+.pagination-controls button {
+  background-color: #4caf50; /* Step 6: Set background color for buttons */
+  color: white;
+  border: none;
+  padding: 10px;
+  margin: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease; /* Step 7: Add a smooth transition */
+}
+
+/* Step 8: Style the hover effect for buttons */
+.pagination-controls button:hover {
+  background-color: #45a049;
+}
+
+/* Step 9: Style disabled buttons */
+.pagination-controls button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Step 10: Style the active page button */
+.pagination-controls button.active {
+  background-color: #45a049;
+}
