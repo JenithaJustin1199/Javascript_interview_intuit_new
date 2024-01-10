@@ -1,4 +1,6 @@
+// Pagination.js
 import React, { useState } from 'react';
+import './Pagination.css'; // Import the CSS file for styling
 
 const Pagination = ({ itemsPerPage, data }) => {
   // Step 1: Use state to manage the current page
@@ -20,22 +22,24 @@ const Pagination = ({ itemsPerPage, data }) => {
   };
 
   return (
-    <div>
+    <div className="pagination-container">
       {/* Step 6: Render the current page items */}
-      <ul>
+      <ul className="pagination-list">
         {currentItems.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
       </ul>
 
       {/* Step 7: Render pagination controls */}
-      <div>
+      <div className="pagination-controls">
         {Array.from({ length: totalPages }, (_, index) => index + 1).map(
           (page) => (
+            // Step 8: Render button for each page
             <button
               key={page}
               onClick={() => handlePageChange(page)}
               disabled={currentPage === page}
+              className={currentPage === page ? 'active' : ''} // Step 9: Add 'active' class for the current page
             >
               {page}
             </button>
@@ -46,13 +50,4 @@ const Pagination = ({ itemsPerPage, data }) => {
   );
 };
 
-// Example usage
-const App = () => {
-  // Step 8: Create an array of sample data
-  const data = Array.from({ length: 20 }, (_, index) => `Item ${index + 1}`);
-
-  // Step 9: Render the Pagination component with itemsPerPage set to 5
-  return <Pagination itemsPerPage={5} data={data} />;
-};
-
-export default App;
+export default Pagination;
