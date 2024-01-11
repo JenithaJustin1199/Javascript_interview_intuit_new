@@ -50,3 +50,19 @@ The App component has a state (person), and it renders MyPureComponent with the 
 When the "Update Person" button is clicked, it updates the state, triggering a re-render of the App component. However, since the MyPureComponent only depends on the name and age props, it will not re-render unless those props change.
 
 This is a basic example to illustrate the concept of a pure component using the React.memo function. In a real-world scenario, consider using class-based pure components if you need to implement lifecycle methods or have more complex logic.
+
+
+  //pure functions:
+  import React from 'react';
+
+// Pure Function Component
+const Greeting = ({ name }) => {
+  const greet = (name) => {
+    return `Hello, ${name}!`;
+  };
+
+  return <div>{greet(name)}</div>;
+};
+
+export default Greeting;
+
