@@ -1,0 +1,25 @@
+he SOLID principles are a set of five design principles for writing maintainable and scalable software. They were introduced by Robert C. Martin and are widely used in object-oriented programming. The SOLID acronym stands for:
+
+Single Responsibility Principle (SRP):
+
+A class should have only one reason to change.
+It states that a class should have only one responsibility or job.
+Each class or module should focus on a specific task, and if there are multiple reasons to change, those should be separated into different classes or modules.
+Open/Closed Principle (OCP):
+
+Software entities (classes, modules, functions) should be open for extension but closed for modification.
+It encourages the use of abstract classes, interfaces, and polymorphism to allow new functionalities to be added without altering existing code.
+Liskov Substitution Principle (LSP):
+
+Objects of a superclass should be replaceable with objects of a subclass without affecting the correctness of the program.
+It ensures that objects of derived classes can be used in place of objects of the base class without introducing errors.
+Interface Segregation Principle (ISP):
+
+A class should not be forced to implement interfaces it does not use.
+It promotes the idea of having small, specific interfaces rather than large, general-purpose ones. Classes should not be burdened with implementing methods they do not need.
+Dependency Inversion Principle (DIP):
+
+High-level modules should not depend on low-level modules. Both should depend on abstractions.
+Abstractions should not depend on details; details should depend on abstractions.
+It encourages the use of dependency injection and inversion of control to create loosely coupled systems.
+These principles provide guidelines for creating maintainable, scalable, and adaptable software. Following SOLID principles can lead to code that is easier to understand, modify, and extend over time.
