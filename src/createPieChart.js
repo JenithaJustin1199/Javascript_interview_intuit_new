@@ -25,15 +25,17 @@
   <h1>Dynamic Pie Chart with Slider</h1>
 
   <!-- Step 4: Slider input to control the pie chart size -->
-  <input
-    type="range"
-    id="pieSizeSlider"
-    min="10"
-    max="200"
-    value="100"
-    step="1"
-    oninput="updatePieChart()"
-  >
+ <!-- HTML input element of type range -->
+<input
+  type="range"       <!-- Specifies that the input should be a slider -->
+  id="pieSizeSlider" <!-- Unique identifier for the input element -->
+  min="10"           <!-- Minimum value allowed for the slider -->
+  max="200"          <!-- Maximum value allowed for the slider -->
+  value="100"        <!-- Initial/default value of the slider -->
+  step="1"           <!-- Incremental step between values as the slider moves -->
+  oninput="updatePieChart()" <!-- Event handler triggered when the slider value changes -->
+>
+
 
   <!-- Step 5: Container div for the pie chart with a unique ID -->
   <div id="pieChart" class="pie-chart"></div>
