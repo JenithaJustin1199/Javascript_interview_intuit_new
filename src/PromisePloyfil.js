@@ -129,6 +129,64 @@ PromisepolyFill.all = (promisesArr) => {
     });
   });
 };
+// Check if Promise.allSettled is not supported by the environment
+if (!Promise.allSettled) {
+  // Define Promise.allSettled polyfill
+  Promise.allSettled = (promisesArr) => {
+    // Return a new Promise
+    return new Promise((resolve) => {
+      // Initialize an array to store settled results
+      let settledResults = [];
+
+      // If the promises array is empty, resolve immediately with an empty result array
+      if (!promisesArr.length) {
+        resolve(settledResults);
+        return;
+      }
+
+      // Counter to track the number of promises yet to be settled
+      let pending = promisesArr.length;
+
+      // Iterate through promises and update the settledResults array when each promise is settled
+      promisesArr.forEach((promise, idx) => {
+        // Convert each item in the array to a Promise (using Promise.resolve)
+        Promise.resolve(promise)
+          .then(
+            // On fulfillment, store the result as an object with 'status' and 'value' properties
+            (value) => {
+              settledResults[idx] = { status: 'fulfilled', value };
+            }
+          )
+          .catch(
+            // On rejection, store the reason as an object with 'status' and 'reason' properties
+            (reason) => {
+              settledResults[idx] = { status: 'rejected', reason };
+            }
+          )
+          .finally(() => {
+            // Decrease the pending count for each settled promise
+            pending--;
+
+            // If all promises are settled, resolve with the settledResults array
+            if (pending === 0) {
+              resolve(settledResults);
+            }
+          });
+      });
+    });
+  };
+}
+
+// Example usage:
+const promises = [
+  Promise.resolve(1),
+  Promise.reject("Error"),
+  Promise.resolve("Success"),
+];
+
+Promise.allSettled(promises).then((results) => {
+  console.log(results);
+});
 
 // Step 13: Add a static method for 'race' to resolve or reject as soon as one of the promises settles
 PromisepolyFill.race = (promisesArr) => {
@@ -139,3 +197,60 @@ PromisepolyFill.race = (promisesArr) => {
     });
   });
 };
+
+// Check if Promise.any is not supported by the environment
+if (!Promise.any) {
+  // Define Promise.any polyfill
+  Promise.any = (promisesArr) => {
+    // Return a new Promise
+    return new Promise((resolve, reject) => {
+      // If the promises array is empty, reject immediately with an AggregateError
+      if (!promisesArr.length) {
+        reject(new AggregateError("No promises to race", { errors: [] }));
+        return;
+      }
+
+      // Counter to track the number of promises yet to settle
+      let pending = promisesArr.length;
+
+      // Iterate through promises and resolve as soon as one settles
+      promisesArr.forEach((promise) => {
+        // Convert each item in the array to a Promise (using Promise.resolve)
+        Promise.resolve(promise)
+          .then(
+            // On fulfillment, immediately resolve with the fulfilled value
+            (value) => {
+              resolve(value);
+            }
+          )
+          .catch(
+            // On rejection, store the reason in the errors array
+            (reason) => {
+              pending--;
+
+              // If all promises are rejected, reject with an AggregateError
+              if (pending === 0) {
+                reject(new AggregateError("All promises were rejected", { errors: promisesArr }));
+              }
+            }
+          );
+      });
+    });
+  };
+}
+
+// Example usage:
+const promises = [
+  Promise.reject("First error"),
+  Promise.resolve("Success"),
+  Promise.reject("Second error"),
+];
+
+Promise.any(promises)
+  .then((result) => {
+    console.log(result);
+  })
+  .catch((error) => {
+    console.error(error);
+  });
+
