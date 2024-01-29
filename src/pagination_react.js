@@ -105,3 +105,23 @@ export default Pagination;
 .pagination-controls button.active {
   background-color: #45a049;
 }
+
+//Driver code for pagination:
+// App.js
+import React from 'react';
+import Pagination from './Pagination';
+
+const App = () => {
+  // Sample data
+  const data = Array.from({ length: 50 }, (_, index) => `Item ${index + 1}`);
+
+  return (
+    <div>
+      <h1>Pagination Example</h1>
+      <Pagination itemsPerPage={5} data={data} />
+    </div>
+  );
+};
+
+export default App;
+
