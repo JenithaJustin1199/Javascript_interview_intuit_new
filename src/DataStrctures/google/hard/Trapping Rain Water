@@ -1,0 +1,108 @@
+The problem of trapping rainwater is a classic example of using techniques like dynamic programming and two pointers to optimize time and space complexity.
+
+Let's solve this problem using two different approaches: Two Pointers and Dynamic Programming.
+
+Approach 1: Two Pointers (Efficient)
+This approach uses the two-pointer technique to reduce time complexity to O(n) and space complexity to O(1).
+
+Explanation:
+We maintain two pointers, left and right, starting from both ends of the array.
+We also maintain two variables, leftMax and rightMax, which store the maximum height encountered so far from the left and right sides, respectively.
+The idea is to move the pointers inward and calculate the trapped water at each step based on the current leftMax and rightMax. The amount of water trapped at a point is determined by the difference between the minimum of the two maximums (leftMax, rightMax) and the current height.
+Algorithm:
+Start with left at the beginning of the array and right at the end.
+If height[left] < height[right], move the left pointer inward, update leftMax, and calculate the water trapped.
+Otherwise, move the right pointer inward, update rightMax, and calculate the water trapped.
+Repeat the process until left and right pointers meet.
+Code Implementation (Two Pointers):
+javascript
+Copy code
+function trap(height) {
+    let left = 0;
+    let right = height.length - 1;
+    let leftMax = 0;
+    let rightMax = 0;
+    let waterTrapped = 0;
+    
+    while (left < right) {
+        if (height[left] < height[right]) {
+            if (height[left] >= leftMax) {
+                leftMax = height[left]; // Update left max
+            } else {
+                waterTrapped += leftMax - height[left]; // Calculate water trapped at left
+            }
+            left++;
+        } else {
+            if (height[right] >= rightMax) {
+                rightMax = height[right]; // Update right max
+            } else {
+                waterTrapped += rightMax - height[right]; // Calculate water trapped at right
+            }
+            right--;
+        }
+    }
+    
+    return waterTrapped;
+}
+
+// Example usage:
+let height1 = [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1];
+console.log(trap(height1));  // Output: 6
+
+let height2 = [4, 2, 0, 3, 2, 5];
+console.log(trap(height2));  // Output: 9
+Time Complexity:
+O(n): We only traverse the array once with the two-pointer technique.
+Space Complexity:
+O(1): We use only a few extra variables (constant space).
+Approach 2: Dynamic Programming
+This approach uses pre-computed arrays to store the maximum height to the left and the maximum height to the right for each bar, and it calculates how much water can be trapped at each bar.
+
+Explanation:
+We use two arrays, leftMax and rightMax, to store the maximum height encountered from the left and from the right, respectively, at each index.
+The trapped water at each index is determined by the minimum of leftMax[i] and rightMax[i], minus the current height height[i].
+Algorithm:
+Pre-compute leftMax and rightMax for each index.
+The trapped water at each index is the difference between the minimum of leftMax[i] and rightMax[i] and height[i].
+Sum the trapped water for all indices to get the total amount.
+Code Implementation (Dynamic Programming):
+javascript
+Copy code
+function trapDP(height) {
+    let n = height.length;
+    if (n === 0) return 0;
+    
+    let leftMax = new Array(n).fill(0);
+    let rightMax = new Array(n).fill(0);
+    let waterTrapped = 0;
+    
+    // Fill leftMax array
+    leftMax[0] = height[0];
+    for (let i = 1; i < n; i++) {
+        leftMax[i] = Math.max(leftMax[i - 1], height[i]);
+    }
+    
+    // Fill rightMax array
+    rightMax[n - 1] = height[n - 1];
+    for (let i = n - 2; i >= 0; i--) {
+        rightMax[i] = Math.max(rightMax[i + 1], height[i]);
+    }
+    
+    // Calculate the water trapped at each index
+    for (let i = 0; i < n; i++) {
+        waterTrapped += Math.min(leftMax[i], rightMax[i]) - height[i];
+    }
+    
+    return waterTrapped;
+}
+
+// Example usage:
+let height1 = [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1];
+console.log(trapDP(height1));  // Output: 6
+
+let height2 = [4, 2, 0, 3, 2, 5];
+console.log(trapDP(height2));  // Output: 9
+Time Complexity:
+O(n): We iterate through the array three times: once for computing leftMax, once for rightMax, and once for calculating the trapped water.
+Space Complexity:
+O(n): We use two arrays of size n, leftMax and rightMax.
