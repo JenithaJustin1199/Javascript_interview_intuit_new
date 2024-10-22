@@ -1,0 +1,151 @@
+The provided solution for the 3Sum problem employs a two-pointer technique after sorting the input array. Here’s a detailed explanation of the algorithm, along with its time complexity (TC) and space complexity (SC).
+/**
+ * @param {number[]} nums
+ * @return {number[][]}
+ */
+var threeSum = function(nums) {
+    nums.sort((a,b)=>a-b) //O(logn)
+    let result = []
+
+    for (let i=0; i< nums.length; i++){
+        if(i>0 && nums[i] === nums[i-1]) continue;
+        let left = i+1
+        let right = nums.length-1
+
+        while(left<right){
+            if(nums[i]+nums[left]+nums[right] === 0){
+                result.push([nums[i], nums[left], nums[right]])
+            }else if(nums[i]+nums[left]+nums[right] > 0){
+                right--
+                continue
+            }else if(nums[i]+nums[left]+nums[right] < 0){
+                left++
+                continue
+            }
+            left++
+            while(left < nums.length && nums[left] === nums[left-1]) left++;
+        }
+    }
+return result
+    
+};
+Algorithm Explanation
+Sorting the Array:
+
+The first step is to sort the input array. This is done to make it easier to identify and skip duplicates and to apply the two-pointer technique effectively.
+javascript
+Copy code
+nums.sort((a, b) => a - b); // O(n log n)
+Iterating Through the Array:
+
+We iterate through the sorted array using a for-loop. The variable i represents the first element of the potential triplet.
+javascript
+Copy code
+for (let i = 0; i < nums.length; i++) {
+    // Skip duplicates for `i`
+    if (i > 0 && nums[i] === nums[i - 1]) continue;
+Setting Up Two Pointers:
+
+For each selected nums[i], we initialize two pointers:
+left starts at i + 1, which is the next element after i.
+right starts at the end of the array (nums.length - 1).
+javascript
+Copy code
+let left = i + 1;
+let right = nums.length - 1;
+Finding Triplets:
+
+While left is less than right, we check the sum of the three numbers:
+javascript
+Copy code
+while (left < right) {
+    const sum = nums[i] + nums[left] + nums[right];
+    if (sum === 0) {
+        result.push([nums[i], nums[left], nums[right]]);
+        // Move both pointers to find the next potential triplet
+        left++;
+        right--;
+        // Skip duplicates for `left`
+        while (left < nums.length && nums[left] === nums[left - 1]) left++;
+        // Skip duplicates for `right`
+        while (right >= 0 && nums[right] === nums[right + 1]) right--;
+    } else if (sum > 0) {
+        right--; // We need a smaller sum, move `right` pointer left
+    } else {
+        left++; // We need a larger sum, move `left` pointer right
+    }
+}
+Returning Results:
+
+After all iterations, we return the result containing all unique triplets that sum to zero.
+javascript
+Copy code
+return result;
+Example Walkthrough
+Consider the input array:
+
+javascript
+Copy code
+nums = [-1, 0, 1, 2, -1, -4]
+Sort the array: [-4, -1, -1, 0, 1, 2]
+First iteration (i = 0, nums[i] = -4):
+Set left = 1, right = 5
+Sum: -4 + (-1) + 2 = -3 (move left right)
+New left: left = 2, sum: -4 + (-1) + 2 = -3 (move left right)
+New left: left = 3, sum: -4 + 0 + 2 = -2 (move left right)
+New left: left = 4, sum: -4 + 1 + 2 = -1 (move left right)
+New left: left = 5, loop exits.
+Second iteration (i = 1, nums[i] = -1):
+Set left = 2, right = 5
+Sum: -1 + (-1) + 2 = 0 (found triplet [-1, -1, 2], move both pointers)
+New left: left = 3, right = 4, sum: -1 + 0 + 1 = 0 (found triplet [-1, 0, 1], move both pointers)
+Loop exits as left is not less than right.
+Skip duplicate for i = 2 and continue to next iterations.
+Time Complexity
+Sorting: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn)
+Two-pointer traversal: Each triplet search runs in 
+𝑂
+(
+𝑛
+)
+O(n) because, in the worst case, we may traverse the entire array for each i.
+Overall Time Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), where 
+𝑛
+n is the number of elements in nums.
+Space Complexity
+Result Storage: The space used to store the result can be up to 
+𝑂
+(
+𝑛
+)
+O(n) in the worst case if all numbers are valid triplets.
+Auxiliary Space: The space used by the sorting algorithm (if it's in-place) can be considered as 
+𝑂
+(
+1
+)
+O(1).
+Overall Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n).
+Summary
+The algorithm effectively finds all unique triplets in the array that sum to zero using sorting and the two-pointer technique, while avoiding duplicates efficiently. The complexity considerations make it suitable for larger input sizes within the given constraints.
