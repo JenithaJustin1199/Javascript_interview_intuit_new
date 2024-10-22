@@ -1,0 +1,120 @@
+The "Number of Islands" problem involves counting the number of distinct islands in a given 2D binary grid where '1's represent land and '0's represent water. An island is formed by connecting adjacent lands either horizontally or vertically.
+
+Problem Explanation:
+Input:
+
+A 2D binary grid, where each cell is either '1' (land) or '0' (water).
+Output:
+
+The total number of islands in the grid.
+Constraints:
+
+The grid edges are surrounded by water.
+Islands are formed by connecting adjacent land cells (up, down, left, right).
+Key Observations:
+Each time we encounter a '1' (land), it indicates the start of a new island.
+To count that island, we can use Depth-First Search (DFS) or Breadth-First Search (BFS) to traverse all connected land cells and mark them as visited (by changing them to '0' or some other marker).
+We keep a count of how many times we initiate a DFS/BFS, as each initiation indicates a new island.
+Efficient Solution (DFS Approach):
+DFS Function: A recursive function that will mark all connected land cells as visited.
+Traversal: Loop through each cell in the grid. When a '1' is found, increment the island count and call the DFS function to mark the entire island.
+Implementation in JavaScript:
+Here’s how we can implement this:
+
+javascript
+Copy code
+/**
+ * @param {character[][]} grid
+ * @return {number}
+ */
+var numIslands = function(grid) {
+    if (!grid || grid.length === 0) return 0;
+
+    const rows = grid.length;
+    const cols = grid[0].length;
+    let islandCount = 0;
+
+    // Helper function for DFS
+    const dfs = (r, c) => {
+        // Check boundaries and if the cell is water
+        if (r < 0 || r >= rows || c < 0 || c >= cols || grid[r][c] === '0') {
+            return;
+        }
+
+        // Mark the cell as visited (by sinking the island)
+        grid[r][c] = '0';
+
+        // Explore all four directions
+        dfs(r + 1, c); // down
+        dfs(r - 1, c); // up
+        dfs(r, c + 1); // right
+        dfs(r, c - 1); // left
+    };
+
+    // Traverse each cell in the grid
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            // If we find land, perform a DFS
+            if (grid[r][c] === '1') {
+                islandCount++;
+                dfs(r, c); // Call DFS to mark the entire island
+            }
+        }
+    }
+
+    return islandCount;
+};
+
+// Example usage:
+const grid1 = [
+  ["1","1","1","1","0"],
+  ["1","1","0","1","0"],
+  ["1","1","0","0","0"],
+  ["0","0","0","0","0"]
+];
+
+const grid2 = [
+  ["1","1","0","0","0"],
+  ["1","1","0","0","0"],
+  ["0","0","1","0","0"],
+  ["0","0","0","1","1"]
+];
+
+console.log(numIslands(grid1)); // Output: 1
+console.log(numIslands(grid2)); // Output: 3
+Explanation of the Code:
+Initial Checks: We first check if the grid is empty. If it is, we return 0.
+
+DFS Function:
+
+This function recursively marks all connected '1's (land) as '0's (water), effectively "sinking" the island.
+It checks boundaries to avoid going out of the grid.
+Main Loop:
+
+We iterate over every cell in the grid.
+When a '1' is encountered, it indicates a new island. We increment the islandCount and call the DFS function.
+Final Count: After processing the entire grid, islandCount will hold the number of distinct islands.
+
+Time Complexity:
+The time complexity is 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n), where 
+𝑚
+m is the number of rows and 
+𝑛
+n is the number of columns in the grid. Each cell is visited at most once.
+Space Complexity:
+The space complexity is 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n) in the worst case due to the recursion stack used by the DFS, which can go as deep as the number of cells in the grid.
+This solution efficiently counts the number of islands by leveraging the DFS technique to traverse and mark the land cells.
