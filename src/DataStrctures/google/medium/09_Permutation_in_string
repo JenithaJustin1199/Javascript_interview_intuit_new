@@ -1,0 +1,90 @@
+Sure! The problem asks to check if a permutation of string s1 is a substring of string s2.
+
+Key Points:
+A permutation of a string is a rearrangement of its characters.
+We need to check if any permutation of s1 exists as a contiguous substring in s2.
+Approach: Sliding Window + Frequency Count
+We can solve this problem using the Sliding Window technique along with Frequency Counting. Here’s the step-by-step explanation:
+
+Frequency Count for s1: Since we are looking for permutations, the frequency of each character in s1 is important. So, first, we calculate the frequency of each character in s1.
+
+Sliding Window for s2: We slide a window of size equal to s1's length over s2. For each window, we check if the frequency of characters in the current window matches the frequency of characters in s1.
+
+Check Match: If the frequencies match, that means the current window is a permutation of s1, and we return true. If no such window is found, we return false.
+
+Algorithm:
+Initialize two arrays count1 and count2 of size 26 (for 26 lowercase English letters) to store the frequency of characters in s1 and the current window of s2, respectively.
+Fill count1 with the frequency of characters in s1.
+Traverse through s2 using a sliding window of size s1.length:
+Add the current character to count2.
+Remove the character that falls out of the window from count2.
+After every addition and removal, compare count1 and count2. If they are the same, return true.
+If no permutation is found, return false.
+Code Implementation:
+javascript
+Copy code
+/**
+ * @param {string} s1
+ * @param {string} s2
+ * @return {boolean}
+ */
+var checkInclusion = function(s1, s2) {
+    if (s1.length > s2.length) return false;
+
+    // Initialize character frequency arrays for s1 and s2
+    let count1 = Array(26).fill(0);  // For s1
+    let count2 = Array(26).fill(0);  // For the sliding window in s2
+
+    // Fill count1 with frequency of characters in s1
+    for (let i = 0; i < s1.length; i++) {
+        count1[s1.charCodeAt(i) - 'a'.charCodeAt(0)]++;
+        count2[s2.charCodeAt(i) - 'a'.charCodeAt(0)]++;
+    }
+
+    // Sliding window over s2, starting from the length of s1
+    for (let i = s1.length; i < s2.length; i++) {
+        if (arraysEqual(count1, count2)) return true;
+
+        // Slide the window: remove the first character and add the next one
+        count2[s2.charCodeAt(i) - 'a'.charCodeAt(0)]++;  // Add new char to window
+        count2[s2.charCodeAt(i - s1.length) - 'a'.charCodeAt(0)]--;  // Remove old char from window
+    }
+
+    // Final check for the last window
+    return arraysEqual(count1, count2);
+};
+
+// Helper function to compare two arrays
+function arraysEqual(arr1, arr2) {
+    for (let i = 0; i < 26; i++) {
+        if (arr1[i] !== arr2[i]) return false;
+    }
+    return true;
+}
+Explanation of Code:
+Initial Setup: We first check if s1 is longer than s2. If it is, return false immediately since s1 can't fit into s2.
+
+Counting Frequencies: We count the frequency of characters in s1 and also the first window of size s1.length in s2 using the count1 and count2 arrays.
+
+Sliding Window: We slide the window over s2. For each new character in the window, we add it to the count2 array and remove the character that falls out of the window. After updating the window, we check if count1 and count2 are equal.
+
+Check Final Window: After the loop, we do a final check for the last window.
+
+Helper Function: The arraysEqual function checks if two arrays (representing the character frequencies) are identical.
+
+Time Complexity:
+O(n), where n is the length of s2. We go through s2 once with a sliding window, and each comparison between two frequency arrays takes constant time O(26).
+Space Complexity:
+O(1), because the count1 and count2 arrays are always of fixed size 26 (since we are only dealing with lowercase English letters).
+Example Walkthrough:
+Example 1:
+
+Input: s1 = "ab", s2 = "eidbaooo"
+After initializing count1 and the first window in s2, the sliding window will eventually match the substring "ba" in s2 (starting at index 3).
+Output: true
+Example 2:
+
+Input: s1 = "ab", s2 = "eidboaoo"
+The sliding window never matches any permutation of s1.
+Output: false
+This approach is efficient for checking if s2 contains a permutation of s1 as a substring.
