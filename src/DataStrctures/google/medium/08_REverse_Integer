@@ -1,0 +1,65 @@
+Yes, let's solve the problem step by step. The task is to reverse the digits of a given signed 32-bit integer x while making sure that the reversed value stays within the 32-bit signed integer range. The 32-bit signed integer range is from -2^31 to 2^31 - 1, which is from -2147483648 to 2147483647.
+
+Approach:
+Handle the sign: If x is negative, handle it separately by converting it to its absolute value, reversing the digits, and then adding the negative sign back at the end.
+Reverse the digits: Convert the integer to a string, reverse the string, and then convert it back to an integer.
+Check for overflow: After reversing, if the result is outside the 32-bit signed integer range, return 0.
+Edge cases: Handle cases where x is 0, or a number with trailing zeros like 120.
+Solution in JavaScript:
+javascript
+Copy code
+/**
+ * @param {number} x
+ * @return {number}
+ */
+var reverse = function(x) {
+    // Define the 32-bit signed integer range
+    const MIN = -Math.pow(2, 31);
+    const MAX = Math.pow(2, 31) - 1;
+    
+    // Get the absolute value of x and reverse its digits
+    let reversed = parseInt(Math.abs(x).toString().split('').reverse().join(''));
+    
+    // Restore the negative sign if x is negative
+    if (x < 0) {
+        reversed = -reversed;
+    }
+    
+    // Check if the reversed number is within the 32-bit integer range
+    if (reversed < MIN || reversed > MAX) {
+        return 0;
+    }
+    
+    return reversed;
+};
+Explanation:
+32-bit integer range: We define the minimum and maximum values for 32-bit integers, MIN = -2147483648 and MAX = 2147483647.
+
+Absolute and reverse: Convert the absolute value of the number x to a string, split it into individual characters, reverse the array, and join it back together to get the reversed number as a string. Convert the string back to an integer using parseInt.
+
+Negative numbers: If x was negative, we restore the negative sign by multiplying the reversed number by -1.
+
+Overflow check: After reversing, we check if the result is within the 32-bit integer range. If it's outside, return 0.
+
+Time Complexity:
+O(n) where n is the number of digits in x. Reversing the digits involves converting the number to a string, reversing the string, and converting it back, which is linear in the number of digits.
+Space Complexity:
+O(n) for the space required to store the string representation of x and the reversed result.
+Example Walkthroughs:
+Example 1:
+
+Input: x = 123
+Reverse the digits: 321
+Output: 321
+Example 2:
+
+Input: x = -123
+Reverse the digits: 321
+Restore negative sign: -321
+Output: -321
+Example 3:
+
+Input: x = 120
+Reverse the digits: 021 (which is 21)
+Output: 21
+This solution ensures that the reversed integer stays within the 32-bit range and handles all edge cases efficiently.
