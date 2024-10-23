@@ -1,0 +1,93 @@
+A ramp in an integer array nums is defined as a pair (i, j) where:
+
+i < j (the left index is smaller than the right index), and
+nums[i] <= nums[j] (the value at i is less than or equal to the value at j).
+The width of the ramp is defined as j - i, the difference between the two indices.
+
+The goal of the problem is to find the maximum width of any valid ramp in the array nums. If no such ramp exists, return 0.
+
+Example Walkthroughs:
+Example 1:
+plaintext
+Copy code
+Input: nums = [6,0,8,2,1,5]
+Output: 4
+Explanation: The maximum width ramp is at (i, j) = (1, 5): nums[1] = 0 and nums[5] = 5. The width is j - i = 5 - 1 = 4.
+Example 2:
+plaintext
+Copy code
+Input: nums = [9,8,1,0,1,9,4,0,4,1]
+Output: 7
+Explanation: The maximum width ramp is at (i, j) = (2, 9): nums[2] = 1 and nums[9] = 1. The width is j - i = 9 - 2 = 7.
+Approach:
+We need to find two indices i and j such that:
+
+i < j
+nums[i] <= nums[j]
+The difference (j - i) is maximized.
+A brute-force approach would involve checking all pairs of i and j, but this would result in O(n^2) time complexity, which is inefficient for large arrays (nums.length can be as large as 50,000). Instead, we need an optimized approach.
+
+Optimized Approach: Monotonic Stack
+Monotonic Decreasing Stack:
+
+We can use a stack to store indices of the array where the elements form a decreasing sequence. This will allow us to efficiently find candidate indices i that are smaller than j.
+Maximizing the Ramp Width:
+
+Once we have stored indices in a stack (such that nums[stack[top]] >= nums[stack[top-1]]), we can iterate over the array again, from the end to the beginning, to try and find j that satisfy the condition nums[i] <= nums[j] (by popping from the stack).
+Why does this work?
+
+The stack ensures that for each valid pair (i, j), the difference (j - i) is maximized because we are popping the smallest i for the largest possible j.
+Algorithm:
+Traverse the array once and build a monotonic decreasing stack of indices.
+Traverse the array in reverse and pop from the stack to check if there is a valid i such that nums[i] <= nums[j]. Keep track of the maximum width.
+Code:
+javascript
+Copy code
+var maxWidthRamp = function(nums) {
+    let stack = [];
+    let maxRamp = 0;
+
+    // Step 1: Build a decreasing stack of indices
+    for (let i = 0; i < nums.length; i++) {
+        // Only push to stack if it forms a decreasing sequence
+        if (stack.length === 0 || nums[stack[stack.length - 1]] > nums[i]) {
+            stack.push(i);
+        }
+    }
+
+    // Step 2: Traverse from the end and find the maximum width ramp
+    for (let j = nums.length - 1; j >= 0; j--) {
+        while (stack.length > 0 && nums[stack[stack.length - 1]] <= nums[j]) {
+            let i = stack.pop();
+            maxRamp = Math.max(maxRamp, j - i);
+        }
+    }
+
+    return maxRamp;
+};
+Explanation of Code:
+Monotonic Stack:
+
+The stack stores indices where nums[i] are in decreasing order. This ensures that if we later find nums[j] such that nums[j] >= nums[i], we maximize j - i.
+Traversing from End:
+
+Starting from the last element (j = nums.length - 1), we attempt to find the largest possible index j for each i in the stack (which are valid candidates for i because nums[i] is smaller).
+Maximizing the Ramp:
+
+For each valid pair (i, j), we compute the ramp width (j - i) and update maxRamp with the largest width encountered.
+Time Complexity:
+O(n): We traverse the array twice—once to build the stack and once to compute the maximum ramp width. Each element is pushed and popped from the stack at most once, so the time complexity is linear in the size of the input array.
+Space Complexity:
+O(n): The stack can store up to n indices, so the space complexity is linear in the size of the input array.
+Example Walkthrough:
+Example 1: nums = [6, 0, 8, 2, 1, 5]
+Building the stack:
+Stack after iteration: [0, 1] (index 0, 1 are pushed because nums[0] = 6 > nums[1] = 0)
+Finding the max ramp:
+Traverse from the end (j = 5), and find that nums[1] = 0 <= nums[5] = 5. The ramp width is 5 - 1 = 4, so maxRamp = 4.
+Example 2: nums = [9, 8, 1, 0, 1, 9, 4, 0, 4, 1]
+Building the stack:
+Stack after iteration: [0, 1, 3, 7] (index 0, 1, 3, 7 are pushed because they form a decreasing sequence)
+Finding the max ramp:
+Traverse from the end (j = 9), and find that nums[2] = 1 <= nums[9] = 1. The ramp width is 9 - 2 = 7, so maxRamp = 7.
+This approach is efficient and works well for large inputs.
