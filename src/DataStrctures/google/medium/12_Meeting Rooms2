@@ -1,0 +1,95 @@
+To solve the problem of determining the minimum number of conference rooms required to accommodate a given set of meeting time intervals, we can utilize a sweep line algorithm combined with a priority queue (or min-heap) to manage the end times of ongoing meetings. Here's a detailed breakdown of the approach:
+
+Approach
+Sort the Intervals: First, sort the meeting intervals based on their start times. This will allow us to process the meetings in the order they begin.
+
+Use a Min-Heap: We will use a min-heap (priority queue) to keep track of the end times of meetings that are currently ongoing. The min-heap allows us to efficiently determine when the earliest meeting ends.
+
+Iterate Through Meetings:
+
+For each meeting, check if the room associated with the earliest ending meeting (the root of the min-heap) is free. If the current meeting starts after the earliest meeting ends, pop the heap (remove the earliest end time) as that room is now available.
+Push the current meeting's end time into the min-heap. If the room was not free, it means we need an additional room.
+Count the Rooms: The size of the min-heap at any point in time will represent the number of rooms currently being used. The maximum size of the min-heap during the process will give us the minimum number of rooms required.
+
+Implementation
+Here’s the JavaScript implementation of the above approach:
+
+javascript
+Copy code
+function minMeetingRooms(intervals) {
+    if (intervals.length === 0) return 0;
+
+    // Initialize a min-heap
+    const endTimes = [];
+    
+    // Sort the meetings in increasing order of their start times
+    intervals.sort((a, b) => a[0] - b[0]);
+
+    // Add the end time of the first meeting
+    endTimes.push(intervals[0][1]);
+
+    for (let i = 1; i < intervals.length; i++) {
+        // If the meeting starts after the earliest meeting ends, reuse the room
+        if (intervals[i][0] >= endTimes[0]) {
+            endTimes.shift(); // Remove the room that got free
+        }
+
+        // Add the current meeting's end time to the min-heap
+        endTimes.push(intervals[i][1]);
+
+        // Keep the heap sorted by end times
+        endTimes.sort((a, b) => a - b);
+    }
+
+    // The size of the min-heap is the number of rooms needed
+    return endTimes.length;
+}
+Explanation of the Code
+Sort the Intervals: We sort the intervals based on the start time.
+Manage End Times with a Min-Heap:
+We initially add the end time of the first meeting.
+For each subsequent meeting, we check if it can use a room that has become available (if its start time is greater than or equal to the earliest end time).
+We update the min-heap with the new meeting's end time.
+Return the Number of Rooms: The number of rooms required is determined by the size of the heap at the end.
+Time and Space Complexity
+Time Complexity:
+
+Sorting the intervals takes 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn), where 
+𝑛
+n is the number of meetings.
+Each meeting is added to and removed from the heap at most once, making the heap operations 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn).
+Overall, the time complexity is 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn).
+Space Complexity:
+
+The space complexity is 
+𝑂
+(
+𝑛
+)
+O(n) for the min-heap in the worst case (if all meetings overlap and we need a separate room for each).
+Conclusion
+This approach is efficient for the given problem constraints and ensures that we use the minimum number of conference rooms required for the overlapping meetings.
