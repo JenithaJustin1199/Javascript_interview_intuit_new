@@ -1,0 +1,73 @@
+I see the issue more clearly now. The problem asks for the minimum number of adjacent swaps to move all black balls (1s) to the right and all white balls (0s) to the left. We want to minimize the number of steps (adjacent swaps) to achieve this.
+
+Key Insight:
+The idea is that the black balls (1s) need to move past the white balls (0s) to the right. The optimal solution is to count how many 1s need to "jump over" the 0s. The number of swaps will be the minimum distance required to shift the 1s over the 0s.
+
+Approach:
+Identify positions of 1s: For every 1 in the string, we want to know how many 0s it needs to move past.
+Count the gaps: The 1s need to shift left, filling the positions where 0s currently exist, and we can calculate how many swaps are needed for that.
+Efficient Calculation: We keep track of how many 0s have been encountered and how many 1s are in the wrong positions as we iterate over the string.
+Optimized Solution:
+javascript
+Copy code
+var minSwaps = function(s) {
+    let onesCount = 0;  // To count the number of black balls (1's)
+    let swaps = 0;      // To count the total number of swaps required
+    let misplacedOnes = 0;  // To track the number of black balls out of place
+
+    // Traverse the string
+    for (let i = 0; i < s.length; i++) {
+        if (s[i] === '1') {
+            // Increment the count of black balls (1's)
+            onesCount++;
+            // Misplaced '1' will contribute to swaps (moving past white balls)
+            misplacedOnes++;
+        } else if (s[i] === '0' && misplacedOnes > 0) {
+            // For each white ball (0) encountered, it reduces the swaps
+            swaps += misplacedOnes;  // Each white ball needs to swap with the misplaced '1's
+        }
+    }
+
+    return swaps;
+};
+Explanation:
+onesCount: Keeps track of how many 1s we have encountered so far.
+misplacedOnes: Tracks how many 1s need to be shifted left to their correct positions.
+swaps: For each 0, we increase the swap count by the number of 1s that need to jump over that 0.
+Example Walkthrough:
+Example 1: s = "101"
+Initial string: "101"
+onesCount = 0, misplacedOnes = 0, swaps = 0
+At i = 0, s[0] = '1':
+Increment onesCount to 1.
+Increment misplacedOnes to 1.
+At i = 1, s[1] = '0':
+We have one misplaced 1 that needs to jump over this 0, so swaps += 1.
+At i = 2, s[2] = '1':
+Increment onesCount to 2, but no 0s after this, so no more swaps needed.
+Output: 1
+Example 2: s = "100"
+Initial string: "100"
+onesCount = 0, misplacedOnes = 0, swaps = 0
+At i = 0, s[0] = '1':
+Increment onesCount to 1.
+Increment misplacedOnes to 1.
+At i = 1, s[1] = '0':
+We have one misplaced 1 that needs to jump over this 0, so swaps += 1.
+At i = 2, s[2] = '0':
+We still have one misplaced 1 that needs to jump over this 0, so swaps += 1.
+Output: 2
+Example 3: s = "0111"
+Initial string: "0111"
+onesCount = 0, misplacedOnes = 0, swaps = 0
+At i = 0, s[0] = '0': No swap needed.
+At i = 1, s[1] = '1': Increment onesCount and misplacedOnes to 1.
+At i = 2, s[2] = '1': Increment onesCount to 2.
+At i = 3, s[3] = '1': Increment onesCount to 3.
+All 1s are already on the right, so no swaps are needed.
+Output: 0
+Time Complexity:
+O(n): We are traversing the string once, where n is the length of the string s.
+Space Complexity:
+O(1): We are using a constant amount of extra space for counters.
+This approach efficiently calculates the minimum number of adjacent swaps needed to group all black balls (1s) to the right and all white balls (0s) to the left.
