@@ -1,0 +1,88 @@
+The problem "Group Anagrams" requires us to group strings that are anagrams of each other. An anagram is a word formed by rearranging the letters of another word. For example, "eat" and "tea" are anagrams.
+
+Approach:
+To solve this problem, we can use a hashing approach to group anagrams efficiently. The idea is to map each group of anagrams to a unique key so that we can store and group them together.
+
+Steps:
+Sort each string: Since anagrams consist of the same letters, sorting each string will give the same result for all anagrams. For example, the sorted version of "eat", "tea", and "ate" will all be "aet".
+Use a hash map: We can use a dictionary (hash map) where the key is the sorted version of the string, and the value is a list of strings that are anagrams of that sorted string.
+Group anagrams: For each string, we sort it and use the sorted string as the key in the hash map. Append the original string to the corresponding list of anagrams in the map.
+Return the result: The result will be the values of the hash map, which are the grouped anagrams.
+Code Implementation:
+javascript
+Copy code
+var groupAnagrams = function(strs) {
+    let map = {}; // Initialize an empty hash map
+
+    for (let str of strs) {
+        // Sort the string to get a key for anagrams
+        let sortedStr = str.split('').sort().join('');
+
+        // If the sorted string is not already in the map, create a new entry
+        if (!map[sortedStr]) {
+            map[sortedStr] = [];
+        }
+        // Push the original string into the corresponding list
+        map[sortedStr].push(str);
+    }
+
+    // Return the values of the hash map as the result
+    return Object.values(map);
+};
+Explanation:
+Sorting each string:
+
+For each string in strs, we sort it alphabetically using str.split('').sort().join(''). This sorted string will serve as a unique key for the group of anagrams.
+For example, "eat", "tea", and "ate" all become "aet" when sorted.
+Using a hash map:
+
+We use a hash map (map) where the key is the sorted string and the value is an array of the original strings that are anagrams of the sorted key.
+For instance, after processing "eat", "tea", and "ate", our map would look like:
+json
+Copy code
+{
+  "aet": ["eat", "tea", "ate"]
+}
+Return the result:
+
+We return Object.values(map), which gives us all the arrays of grouped anagrams as the final result.
+Time Complexity:
+Sorting each string takes O(k log k) where k is the length of the string.
+Since we need to sort all n strings in the array, the total time complexity is O(n * k log k), where:
+n is the number of strings in the input array.
+k is the average length of the strings.
+Space Complexity:
+We use a hash map to store the grouped anagrams. The space complexity is O(n * k) because we are storing all the input strings in the hash map.
+Example Walkthrough:
+Example 1:
+Input: ["eat","tea","tan","ate","nat","bat"]
+
+Sort each string:
+
+"eat" → "aet"
+"tea" → "aet"
+"tan" → "ant"
+"ate" → "aet"
+"nat" → "ant"
+"bat" → "abt"
+Create a hash map:
+
+json
+Copy code
+{
+  "aet": ["eat", "tea", "ate"],
+  "ant": ["tan", "nat"],
+  "abt": ["bat"]
+}
+Return the values of the hash map:
+
+[["eat","tea","ate"], ["tan","nat"], ["bat"]]
+Example 2:
+Input: [""]
+
+The sorted string is still "", so the output is [[""]].
+Example 3:
+Input: ["a"]
+
+The sorted string remains "a", so the output is [["a"]].
+This approach is efficient and works well within the given constraints of the problem.
