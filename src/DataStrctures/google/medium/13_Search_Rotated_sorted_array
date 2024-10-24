@@ -1,0 +1,140 @@
+You are given a rotated sorted array nums that has been rotated at some unknown pivot index, such that the original array was in ascending order. You need to find the index of a given target integer in this array using an algorithm with 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) runtime complexity.
+
+Approach
+The key observation is that a rotated sorted array still maintains some order properties, and we can use binary search to solve the problem efficiently.
+
+Here’s how we can break the problem down:
+
+Identify the sorted part of the array:
+
+Since the array is rotated, at least one half (either the left or right) will always be sorted.
+We can use this property to determine which half to search for the target.
+Binary Search Logic:
+
+Compare the middle element with the leftmost and rightmost elements to identify the sorted half.
+If the left half is sorted, check if the target lies within the range of the sorted part. If it does, search in this part; otherwise, search in the right part.
+Similarly, if the right half is sorted, check if the target lies within its range. If it does, search in this part; otherwise, search in the left part.
+Repeat until target is found:
+
+Keep adjusting the search range by updating the left and right pointers as you normally would in binary search.
+Algorithm
+Time Complexity: 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) — The binary search algorithm splits the search space in half each time, leading to logarithmic complexity.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1) — We only use a constant amount of extra space for the pointers and variables.
+Solution (Binary Search in Rotated Sorted Array)
+javascript
+Copy code
+function search(nums, target) {
+    let left = 0;
+    let right = nums.length - 1;
+
+    while (left <= right) {
+        let mid = Math.floor((left + right) / 2);
+
+        // Check if the target is found
+        if (nums[mid] === target) {
+            return mid;
+        }
+
+        // Check if the left half is sorted
+        if (nums[left] <= nums[mid]) {
+            // Target is in the left sorted half
+            if (target >= nums[left] && target < nums[mid]) {
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        // Else, the right half must be sorted
+        else {
+            // Target is in the right sorted half
+            if (target > nums[mid] && target <= nums[right]) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+    }
+
+    // If target is not found
+    return -1;
+}
+Explanation
+Initialize left and right pointers:
+
+Start with left = 0 and right = nums.length - 1.
+Find the middle index:
+
+Compute mid = Math.floor((left + right) / 2).
+Check if nums[mid] is the target:
+
+If nums[mid] === target, return the index mid.
+Determine the sorted half:
+
+Check if the left half (nums[left] to nums[mid]) is sorted. If so, check if the target lies within this range.
+If the target lies within this range, search in the left half (right = mid - 1). Otherwise, search in the right half (left = mid + 1).
+Else, the right half is sorted:
+
+Check if the target lies within the right half (nums[mid] to nums[right]).
+If the target lies within this range, search in the right half (left = mid + 1). Otherwise, search in the left half (right = mid - 1).
+Repeat until left > right, and if no match is found, return -1.
+
+Example Walkthrough
+Example 1:
+
+Input: nums = [4,5,6,7,0,1,2], target = 0
+Initial left = 0, right = 6, mid = 3.
+nums[mid] = 7 (left half is sorted, but target isn't in this range).
+Move to the right half: left = 4, right = 6.
+Now, mid = 5, nums[mid] = 1 (right half is sorted).
+Target 0 lies within this range, adjust to: left = 4, right = 4.
+Finally, mid = 4, nums[mid] = 0, target found at index 4.
+Example 2:
+
+Input: nums = [7, 10, 11, 2, 3, 6], target = 10
+Initial mid = 2, check the sorted halves, the left half contains the target.
+Time Complexity
+Each iteration reduces the search space by half, leading to a logarithmic time complexity of 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn), where 
+𝑛
+n is the number of elements in the array.
+Space Complexity
+The space complexity is 
+𝑂
+(
+1
+)
+O(1) since we only use a few extra variables (pointers) for the binary search process.
+Conclusion
+This is an efficient way to search for a target in a rotated sorted array, leveraging the properties of the sorted and rotated halves to achieve 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) time complexity.
