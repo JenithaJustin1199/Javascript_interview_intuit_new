@@ -1,0 +1,138 @@
+Have simple solution as well as stack solution at below
+
+The goal is to make the string balanced with the minimum number of swaps. A balanced string of brackets means that for each closing bracket ], there must be a corresponding preceding opening bracket [. You are allowed to swap any two brackets to achieve the balance.
+
+To solve the problem efficiently, we need to focus on fixing the imbalance between opening and closing brackets.
+
+Approach:
+Imbalance Tracking:
+
+The idea is to traverse the string and count the number of unbalanced closing brackets ]. If at any point there are more closing brackets than opening ones, this leads to an imbalance.
+Whenever there's an imbalance, it can only be fixed by swapping the unbalanced closing bracket ] with an opening bracket [ that occurs later in the string.
+Greedy Solution:
+
+As we process the string, we keep track of the number of unmatched closing brackets ].
+Every time the number of unmatched closing brackets exceeds the number of unmatched opening brackets [, we increment the count of swaps. This swap will pair the unmatched closing bracket with a subsequent opening bracket.
+We continue until all unmatched brackets are fixed.
+Steps:
+Traverse the string s from left to right.
+Maintain a counter unbalanced, which tracks the number of unmatched closing brackets ].
+For each bracket:
+If it's an opening bracket [, it reduces the need for a swap (i.e., balances one unmatched ]).
+If it's a closing bracket ] and no unmatched opening bracket [ is available to balance it, increase the unbalanced counter.
+Each time the unbalanced count exceeds 0, it means you have to swap to correct the imbalance.
+Optimized Solution:
+javascript
+Copy code
+var minSwaps = function(s) {
+    let unbalanced = 0;  // Tracks unmatched closing brackets
+    let swaps = 0;       // Counts the number of swaps needed
+
+    // Traverse through the string
+    for (let i = 0; i < s.length; i++) {
+        if (s[i] === '[') {
+            // An opening bracket balances one unmatched closing bracket
+            unbalanced--;
+        } else {
+            // A closing bracket adds to the imbalance
+            unbalanced++;
+        }
+
+        // Whenever the imbalance exceeds 0, we need to swap
+        if (unbalanced > 0) {
+            swaps++;
+            unbalanced -= 2;  // After the swap, two brackets are balanced
+        }
+    }
+
+    return swaps;
+};
+Explanation:
+Unbalanced Counter:
+The unbalanced counter increments each time we encounter a closing bracket ] that doesn't have an opening bracket [ to balance it. When unbalanced exceeds 0, it means we need to perform a swap to correct this imbalance.
+The swap reduces the unbalanced count by 2 because it matches an unbalanced ] with a subsequent [.
+Swap Logic:
+The minimum number of swaps is proportional to how often the unbalanced count exceeds 0. Each time this happens, a swap is required.
+Time Complexity:
+O(n): We only traverse the string once, performing constant-time operations for each character.
+Space Complexity:
+O(1): We only use a few variables (unbalanced and swaps), which do not depend on the size of the input string.
+Example Walkthrough:
+Example 1: s = "][]["
+
+Process:
+]: unbalanced = 1
+[: unbalanced = 0
+]: unbalanced = 1
+[: unbalanced = 0
+One swap is needed to balance the string, so the output is 1.
+Example 2: s = "]]][[[
+
+Process:
+]: unbalanced = 1
+]: unbalanced = 2
+]: unbalanced = 3
+[: unbalanced = 2
+[: unbalanced = 1
+[: unbalanced = 0
+Two swaps are needed to balance the string, so the output is 2.
+Example 3: s = "[]"
+
+Process:
+[: unbalanced = -1
+]: unbalanced = 0
+The string is already balanced, so no swaps are needed. The output is 0.
+This approach ensures that we compute the minimum number of swaps required efficiently.
+
+
+Stack Solution:
+Approach with Stack:
+Key Idea:
+When processing the string, we push opening brackets [ onto the stack.
+When encountering a closing bracket ], we check if there's a matching opening bracket on the stack (i.e., if the stack is non-empty). If there is, we pop it, indicating a matched pair. If not, it means we have an unmatched ], which needs to be swapped later.
+The total number of unmatched ] brackets in the end will tell us how many swaps are needed.
+Steps:
+Initialize an empty stack.
+Traverse through the string:
+If the character is an opening bracket [, push it onto the stack.
+If the character is a closing bracket ]:
+If the stack is not empty (indicating a matching opening bracket [ exists), pop the stack (to balance the pair).
+If the stack is empty (no opening bracket to match the closing one), increase the unbalanced count (since this ] is unmatched and needs to be fixed by swapping).
+The number of unmatched closing brackets ] will give us the number of swaps needed because every unmatched ] can be balanced with an unmatched [ via a swap.
+var minSwaps = function(s) {
+    let stack = [];   // To store opening brackets
+    let unbalanced = 0; // To count unmatched closing brackets
+
+    // Traverse through the string
+    for (let i = 0; i < s.length; i++) {
+        if (s[i] === '[') {
+            // Push opening brackets onto the stack
+            stack.push('[');
+        } else {
+            // If it's a closing bracket and stack is not empty (balance possible)
+            if (stack.length > 0) {
+                stack.pop(); // Match one opening bracket
+            } else {
+                // No opening bracket to match this closing bracket
+                unbalanced++; // Increment unbalanced closing bracket count
+            }
+        }
+    }
+
+    // The total number of swaps needed is half the number of unbalanced closing brackets
+    // since each swap balances one unmatched pair of ']' and '['
+    return Math.ceil(unbalanced / 2);
+};
+Explanation:
+Stack Operations:
+For each opening bracket [, we push it onto the stack.
+For each closing bracket ], we check the stack:
+If the stack has an opening bracket [, we pop it, meaning we found a balanced pair.
+If the stack is empty (no available opening bracket to balance with), we increment the unbalanced count because this closing bracket is unmatched.
+Counting Swaps:
+Each unmatched closing bracket ] must be swapped with a later unmatched opening bracket [.
+Since a swap fixes two brackets at once (one unmatched ] and one unmatched [), the minimum number of swaps is ceil(unbalanced / 2).
+Time Complexity:
+O(n): We only traverse the string once, and each operation on the stack (push/pop) takes constant time.
+Space Complexity:
+O(n): The space used by the stack depends on the number of unmatched opening brackets [.
