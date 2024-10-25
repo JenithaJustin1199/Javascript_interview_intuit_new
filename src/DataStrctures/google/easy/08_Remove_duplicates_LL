@@ -1,0 +1,32 @@
+To solve this problem, we can leverage the fact that the linked list is already sorted. This means any duplicate values will be adjacent, so we only need to traverse the list once to remove duplicates by comparing each node with the next one.
+
+Approach
+Start from the head node and iterate through the list.
+For each node, check if the next node has the same value.
+If they are the same, skip the next node by pointing the current node’s next to the next of the next node.
+If they are different, simply move to the next node.
+Continue this until the end of the list.
+Solution Code
+Here's the code implementing the above approach:
+
+javascript
+Copy code
+function deleteDuplicates(head) {
+    let current = head;
+    
+    while (current !== null && current.next !== null) {
+        if (current.val === current.next.val) {
+            // Skip the next node as it's a duplicate
+            current.next = current.next.next;
+        } else {
+            // Move to the next node if no duplicate
+            current = current.next;
+        }
+    }
+    
+    return head;
+}
+Complexity Analysis
+Time Complexity: O(n), where n is the number of nodes in the linked list. We only need to traverse the list once.
+Space Complexity: O(1), as we are modifying the list in place without using additional data structures.
+This is an efficient solution for removing duplicates from a sorted linked list.
