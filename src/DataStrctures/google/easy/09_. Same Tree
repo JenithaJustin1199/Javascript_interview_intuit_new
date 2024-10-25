@@ -1,0 +1,32 @@
+To determine if two binary trees are the same, we can use a recursive approach to check each node of both trees. The trees are considered the same if:
+
+Both nodes are null, meaning we've reached the end of both branches.
+Both nodes have the same value and their respective left and right subtrees are also the same.
+Approach
+If both nodes (p and q) are null, return true (both trees are identical up to this point).
+If only one of the nodes is null or the values of p and q are different, return false (the trees differ).
+Recursively check the left and right subtrees of p and q:
+isSameTree(p.left, q.left) checks the left subtrees.
+isSameTree(p.right, q.right) checks the right subtrees.
+If all recursive checks pass, return true.
+Solution Code
+Here's the code implementing this approach:
+
+javascript
+Copy code
+function isSameTree(p, q) {
+    // Both trees are empty
+    if (p === null && q === null) return true;
+    // One tree is empty, and the other is not
+    if (p === null || q === null) return false;
+    // Both trees are non-empty, compare the current nodes and recurse
+    return (
+        p.val === q.val &&
+        isSameTree(p.left, q.left) &&
+        isSameTree(p.right, q.right)
+    );
+}
+Complexity Analysis
+Time Complexity: O(n), where n is the number of nodes in the smaller tree (since we visit each node once).
+Space Complexity: O(h), where h is the height of the tree, due to the recursive call stack.
+This approach efficiently checks whether two binary trees are identical.
