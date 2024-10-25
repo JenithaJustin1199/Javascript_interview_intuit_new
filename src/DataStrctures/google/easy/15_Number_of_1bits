@@ -1,0 +1,52 @@
+To solve this problem, we need to count the number of 1 bits (or "set bits") in the binary representation of a given integer n. This can be done using bit manipulation.
+
+Solution Explanation
+One way to count set bits is to:
+
+Use a bitwise AND between n and 1 to check if the least significant bit (rightmost) is 1.
+Shift n one bit to the right to check the next bit in the next iteration.
+Repeat this process until n becomes 0.
+Alternatively, we can use the Brian Kernighan’s Algorithm:
+
+Subtracting 1 from n flips all bits after the rightmost set bit (including the rightmost set bit itself).
+Performing a bitwise AND between n and n - 1 drops the lowest set bit.
+Repeating this process counts the set bits in fewer steps.
+Code Implementation
+Here’s the solution using Brian Kernighan's algorithm:
+
+javascript
+Copy code
+var hammingWeight = function(n) {
+    let count = 0;
+    while (n !== 0) {
+        n = n & (n - 1); // Drop the lowest set bit
+        count++;
+    }
+    return count;
+};
+Explanation of the Code
+Initialize count to 0 to keep track of the set bits.
+Loop: While n is not 0:
+Update n with n & (n - 1), which effectively removes the lowest set bit in each iteration.
+Increment count by 1 for each removed set bit.
+Return count, which will be the total number of set bits.
+Example Walkthrough
+Example 1:
+
+n = 11 (binary 1011)
+First loop: n = 11 & 10 → n = 10 (binary 1010), count = 1
+Second loop: n = 10 & 9 → n = 8 (binary 1000), count = 2
+Third loop: n = 8 & 7 → n = 0, count = 3
+Result: count = 3
+Example 2:
+
+n = 128 (binary 10000000)
+Only one 1 bit exists, so count = 1 after one iteration.
+Example 3:
+
+n = 2147483645 (binary 1111111111111111111111111111101)
+Count of 1 bits after iterating would be 30.
+Complexity Analysis
+Time Complexity: O(k), where k is the number of set bits. This is because each iteration removes one 1 bit from n.
+Space Complexity: O(1), as we are using only a constant amount of space.
+This algorithm is efficient for counting the set bits in an integer representation.
