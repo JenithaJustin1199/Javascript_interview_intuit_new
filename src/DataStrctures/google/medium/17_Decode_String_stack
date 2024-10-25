@@ -1,0 +1,96 @@
+To solve the Decode String problem efficiently, we can utilize a stack-based approach to decode the string iteratively. The problem involves nested encoded strings in the form k[encoded_string], where k is the number of times the encoded_string should be repeated. This structure suggests that recursion or a stack is a natural fit for managing the nested nature of the problem.
+
+Approach:
+Stack for Multiplier and Encoded String:
+Use a stack to keep track of both the current decoded string and the multiplier (k) whenever we encounter a new [.
+Iterate through the String:
+If we encounter a digit (k), calculate the full number (as the multiplier might have multiple digits).
+If we encounter an opening bracket [, push the current decoded string and the multiplier onto the stack, then reset the current string and multiplier for the next encoded section.
+If we encounter a closing bracket ], pop the last decoded string and multiplier from the stack, and append the current decoded string repeated k times to the previous decoded string.
+If we encounter a letter, append it to the current decoded string.
+Solution Code:
+javascript
+Copy code
+var decodeString = function(s) {
+    let stack = [];
+    let currentString = "";
+    let currentNum = 0;
+    
+    for (let char of s) {
+        if (!isNaN(char)) {
+            // Build the number, as it can have multiple digits
+            currentNum = currentNum * 10 + Number(char);
+        } else if (char === '[') {
+            // Push the current number and string to the stack
+            stack.push([currentString, currentNum]);
+            // Reset the current string and number for the new encoded section
+            currentString = "";
+            currentNum = 0;
+        } else if (char === ']') {
+            // Pop from the stack the last string and multiplier
+            let [lastString, num] = stack.pop();
+            // Repeat the current string num times and append to last string
+            currentString = lastString + currentString.repeat(num);
+        } else {
+            // Normal characters, append to the current string
+            currentString += char;
+        }
+    }
+    
+    return currentString;
+};
+Explanation of Code:
+Initialization:
+
+stack: This stack stores pairs [previousString, multiplier]. This helps us manage nested encodings.
+currentString: Keeps track of the string being built.
+currentNum: Accumulates the multiplier when digits are encountered.
+Iterating through the String:
+
+When encountering a digit, we multiply the currentNum by 10 and add the digit (char) to handle multi-digit numbers.
+When encountering [, we push the currentString and currentNum onto the stack and reset them.
+When encountering ], we pop from the stack and repeat the currentString based on the multiplier, appending it to the previous string.
+For normal characters, we append them directly to the currentString.
+Final Output:
+
+At the end of the loop, currentString contains the fully decoded string.
+Time Complexity:
+O(n) where n is the length of the string. Each character is processed once, and operations like string appending and multiplying are performed efficiently.
+Space Complexity:
+O(n) for the stack, where n is the length of the string. In the worst case, the stack will hold half the characters due to deeply nested encodings.
+Example Walkthrough:
+Example 1:
+Input: s = "3[a]2[bc]"
+
+Read 3, then [ → Push ["", 3] onto the stack.
+Read a → Current string becomes "a".
+Read ] → Pop from stack → ["", 3]. Append "aaa" to "". Now, currentString = "aaa".
+Read 2, then [ → Push ["aaa", 2] onto the stack.
+Read b, c → Current string becomes "bc".
+Read ] → Pop from stack → ["aaa", 2]. Append "bcbc" to "aaa". Now, currentString = "aaabcbc".
+Output: "aaabcbc"
+
+Example 2:
+Input: s = "3[a2[c]]"
+
+Read 3, then [ → Push ["", 3] onto the stack.
+Read a → Current string becomes "a".
+Read 2, then [ → Push ["a", 2] onto the stack.
+Read c → Current string becomes "c".
+Read ] → Pop from stack → ["a", 2]. Append "cc" to "a". Now, currentString = "acc".
+Read ] → Pop from stack → ["", 3]. Append "accaccacc" to "". Now, currentString = "accaccacc".
+Output: "accaccacc"
+
+Example 3:
+Input: s = "2[abc]3[cd]ef"
+
+Read 2, then [ → Push ["", 2] onto the stack.
+Read abc → Current string becomes "abc".
+Read ] → Pop from stack → ["", 2]. Append "abcabc" to "". Now, currentString = "abcabc".
+Read 3, then [ → Push ["abcabc", 3] onto the stack.
+Read cd → Current string becomes "cd".
+Read ] → Pop from stack → ["abcabc", 3]. Append "cdcdcd" to "abcabc". Now, currentString = "abcabccdcdcd".
+Read ef → Current string becomes "abcabccdcdcdef".
+Output: "abcabccdcdcdef"
+
+This solution efficiently handles nested and repeated encodings, ensuring it adheres to the problem's constraints.
