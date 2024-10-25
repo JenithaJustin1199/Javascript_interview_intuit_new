@@ -1,0 +1,64 @@
+To invert a binary tree, we can swap the left and right children of each node. This can be done recursively or iteratively.
+
+Recursive Solution
+The recursive approach is straightforward: at each node, swap its left and right children, then recursively invert its left and right subtrees.
+
+javascript
+Copy code
+var invertTree = function(root) {
+    if (root === null) return null;
+
+    // Swap the left and right children
+    [root.left, root.right] = [root.right, root.left];
+
+    // Recursively invert the left and right subtrees
+    invertTree(root.left);
+    invertTree(root.right);
+
+    return root;
+};
+Iterative Solution (Using a Queue)
+An iterative solution can use a queue to perform a level-order traversal, swapping children nodes as we go.
+
+javascript
+Copy code
+var invertTree = function(root) {
+    if (root === null) return null;
+
+    const queue = [root];
+
+    while (queue.length > 0) {
+        const node = queue.shift();
+
+        // Swap the left and right children
+        [node.left, node.right] = [node.right, node.left];
+
+        // Add children to the queue to continue inverting
+        if (node.left) queue.push(node.left);
+        if (node.right) queue.push(node.right);
+    }
+
+    return root;
+};
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) where 
+𝑛
+n is the number of nodes, as we visit each node once.
+Space Complexity: 
+𝑂
+(
+ℎ
+)
+O(h) for the recursive approach (due to the call stack), where 
+ℎ
+h is the height of the tree, or 
+𝑂
+(
+𝑛
+)
+O(n) for the iterative approach (queue space for a full level).
