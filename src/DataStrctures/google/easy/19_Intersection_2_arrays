@@ -1,0 +1,39 @@
+To find the intersection of two arrays, we need to return only unique elements that appear in both arrays. We can use sets to store unique values and find their intersection efficiently.
+
+Solution
+javascript
+Copy code
+var intersection = function(nums1, nums2) {
+    // Create sets from both arrays to remove duplicates
+    const set1 = new Set(nums1);
+    const set2 = new Set(nums2);
+
+    // Find intersection by filtering elements in set1 that are also in set2
+    return [...set1].filter(num => set2.has(num));
+};
+Explanation
+We convert both arrays nums1 and nums2 to sets (set1 and set2) to remove duplicates.
+We then filter elements in set1 to keep only those present in set2.
+Finally, we return the filtered elements as an array.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
++
+𝑚
+)
+O(n+m), where 
+𝑛
+n and 
+𝑚
+m are the lengths of nums1 and nums2. Converting arrays to sets and filtering elements both have linear complexity.
+Space Complexity: 
+𝑂
+(
+𝑛
++
+𝑚
+)
+O(n+m), as we store elements of nums1 and nums2 in sets.
+This approach efficiently finds the unique intersection of two arrays.
