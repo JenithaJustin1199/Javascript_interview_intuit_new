@@ -1,0 +1,39 @@
+To solve the problem of finding the search insert position for a target value in a sorted array of distinct integers, we can implement a modified binary search algorithm. The goal is to return the index if the target is found or the index where it would be inserted in order if it's not found.
+
+Here's a modified version of your existing code that correctly implements this logic:
+
+Implementation
+javascript
+Copy code
+var searchInsert = function(nums, target) {
+    let left = 0;
+    let right = nums.length - 1;
+
+    while (left <= right) {
+        let mid = Math.floor((left + right) / 2);
+
+        if (nums[mid] === target) {
+            return mid; // Target found, return its index
+        }
+        
+        if (target < nums[mid]) {
+            right = mid - 1; // Target is in the left half
+        } else {
+            left = mid + 1; // Target is in the right half
+        }
+    }
+    
+    // At the end of the loop, left is the insert position
+    return left; 
+};
+Explanation
+Initialization: We initialize two pointers, left and right, to mark the bounds of the search space.
+Binary Search Loop: The loop continues while left is less than or equal to right:
+Calculate the middle index mid.
+If the element at mid is equal to the target, we return mid.
+If the target is less than nums[mid], we move the right pointer to mid - 1 to search the left half.
+If the target is greater than nums[mid], we move the left pointer to mid + 1 to search the right half.
+Insertion Point: If the loop ends without finding the target, left will be positioned at the index where the target should be inserted. We return left as the result.
+Complexity Analysis
+Time Complexity: The time complexity is O(log n) due to the binary search approach.
+Space Complexity: The space complexity is O(1) since we are using a constant amount of space.
