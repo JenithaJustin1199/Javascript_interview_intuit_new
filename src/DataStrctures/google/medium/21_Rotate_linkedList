@@ -1,0 +1,75 @@
+To solve this problem efficiently with minimal time and space complexity, we need to handle the rotation without creating additional linked list structures. Here’s an optimal approach:
+
+Approach
+Calculate the Length of the List:
+
+Traverse the linked list to get its length. While doing this, connect the tail node to the head, temporarily creating a circular linked list. This allows us to "rotate" by moving to the correct node directly.
+Compute the Effective Rotations:
+
+Since rotating the list by its length results in the same list, we can use k % length to find the actual number of rotations needed.
+Find the New Tail and New Head:
+
+The new tail of the rotated list will be at position length - k % length - 1 from the start, and the new head will be the node right after the new tail.
+Break the Circular Connection:
+
+Disconnect the circular connection by setting the next pointer of the new tail node to null.
+Code Implementation
+Here's the efficient solution:
+
+javascript
+Copy code
+var rotateRight = function(head, k) {
+    if (!head || k === 0) return head;
+
+    // Step 1: Find the length of the list and make it circular
+    let length = 1;
+    let tail = head;
+    while (tail.next) {
+        tail = tail.next;
+        length++;
+    }
+    // Connect tail to head to make it circular
+    tail.next = head;
+
+    // Step 2: Compute the effective rotations needed
+    k = k % length;
+    if (k === 0) {
+        tail.next = null; // Break the circle before returning
+        return head;
+    }
+
+    // Step 3: Find the new tail at (length - k - 1) and new head at (length - k)
+    let newTail = head;
+    for (let i = 0; i < length - k - 1; i++) {
+        newTail = newTail.next;
+    }
+    let newHead = newTail.next;
+
+    // Step 4: Break the circle
+    newTail.next = null;
+
+    return newHead;
+};
+Explanation of Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) where 
+𝑛
+n is the number of nodes in the list. We traverse the list once to get the length, and then we traverse a part of it again to find the new tail.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we use only a few pointers without additional data structures.
+Example Walkthrough
+For head = [1,2,3,4,5] and k = 2:
+
+Length Calculation: The list length is 5.
+Effective Rotation: k % 5 = 2, so we need 2 rotations.
+Find New Tail: The new tail is at position 5 - 2 - 1 = 2 (0-based), which is node 3.
+New Head and Break: The new head becomes 4, and we break the link at node 3.
+The resulting list is [4,5,1,2,3], as expected.
