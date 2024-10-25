@@ -1,0 +1,45 @@
+To solve the Valid Parentheses problem, we can use a stack to keep track of the open brackets, ensuring that each closing bracket correctly matches the most recent open bracket.
+
+Solution Approach
+Stack for Matching Brackets:
+
+Traverse the string character by character.
+If an open bracket ((, {, [) is encountered, push it onto the stack.
+If a close bracket (), }, ]) is encountered, check the top of the stack:
+If the stack is empty (indicating there's no corresponding open bracket), return false.
+If the top of the stack matches the open bracket for the encountered close bracket, pop the stack.
+If it doesn’t match, return false.
+Final Check:
+
+After traversing the string, if the stack is empty, return true (indicating all brackets were matched). If the stack is not empty, return false.
+var isValid = function(s) {
+    const stack = [];
+    const bracketMap = {
+        '(': ')',
+        '{': '}',
+        '[': ']'
+    };
+
+    for (let char of s) {
+        if (bracketMap[char]) {
+            // If the character is an open bracket, push its matching close bracket onto the stack
+            stack.push(bracketMap[char]);
+        } else {
+            // If it's a close bracket, check if it matches the top of the stack
+            if (stack.pop() !== char) {
+                return false;
+            }
+        }
+    }
+
+    // If the stack is empty, all brackets were matched; otherwise, return false
+    return stack.length === 0;
+};
+Complexity Analysis
+Time Complexity: O(n), where 
+𝑛
+n is the length of the string. Each character is processed once, either pushed onto or popped from the stack.
+Space Complexity: O(n), where 
+𝑛
+n is the length of the string, for the stack to store unmatched opening brackets.
+This approach efficiently checks if the parentheses are balanced and correctly matched.
