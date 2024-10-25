@@ -1,0 +1,61 @@
+To solve the Single Number problem efficiently with a linear runtime complexity and constant space, we can use bit manipulation with the XOR operation.
+
+Explanation of XOR Properties
+XOR of a number with itself is 0: 
+𝑥
+⊕
+𝑥
+=
+0
+x⊕x=0
+XOR of a number with 0 is the number itself: 
+𝑥
+⊕
+0
+=
+𝑥
+x⊕0=x
+XOR is commutative and associative, meaning the order of operations does not matter.
+Given these properties, if we XOR all numbers in the array, the numbers that appear twice will cancel each other out (since 
+𝑥
+⊕
+𝑥
+=
+0
+x⊕x=0), and we’ll be left with the number that appears only once.
+
+Solution
+Initialize a variable (e.g., result) to 0.
+XOR every element in the array with result.
+At the end, result will hold the value of the single number.
+Code
+Here's how we can implement it:
+
+javascript
+Copy code
+var singleNumber = function(nums) {
+    let result = 0;
+    
+    for (let num of nums) {
+        result ^= num;
+    }
+    
+    return result;
+};
+Example Walkthrough
+For nums = [4,1,2,1,2]:
+
+result = 0
+result ^= 4 → result = 4
+result ^= 1 → result = 5
+result ^= 2 → result = 7
+result ^= 1 → result = 6
+result ^= 2 → result = 4
+After processing all elements, result is 4, which is the single number.
+
+Complexity Analysis
+Time Complexity: O(n), where 
+𝑛
+n is the length of the array, since we process each number once.
+Space Complexity: O(1), as we use only a single variable result for our computation.
+This approach is optimal and meets the problem's constraints perfectly.
