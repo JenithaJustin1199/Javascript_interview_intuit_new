@@ -1,0 +1,51 @@
+To generate Pascal's Triangle for a given number of rows, we can observe that:
+
+Each row starts and ends with 1.
+Each element in the middle of a row is the sum of the two elements directly above it in the previous row.
+Approach
+Initialize a list triangle to store the rows.
+Start with the first row as [1].
+For each subsequent row, construct it by:
+Starting with 1.
+Filling in each middle element as the sum of the two elements directly above it from the previous row.
+Ending with 1.
+Repeat this process for numRows times.
+Solution Code
+Here’s the code to generate Pascal's Triangle:
+
+javascript
+Copy code
+var generate = function(numRows) {
+    const triangle = [];
+    
+    for (let i = 0; i < numRows; i++) {
+        const row = [1];
+        
+        for (let j = 1; j < i; j++) {
+            // Each middle element is the sum of two elements above it
+            row.push(triangle[i - 1][j - 1] + triangle[i - 1][j]);
+        }
+        
+        if (i > 0) row.push(1); // End each row with 1 (except for the first row)
+        
+        triangle.push(row);
+    }
+    
+    return triangle;
+};
+Example Walkthrough
+For numRows = 5:
+
+Row 0: [1]
+Row 1: [1, 1]
+Row 2: [1, 2, 1]
+Row 3: [1, 3, 3, 1]
+Row 4: [1, 4, 6, 4, 1]
+The output will be:
+
+javascript
+Copy code
+[[1], [1,1], [1,2,1], [1,3,3,1], [1,4,6,4,1]]
+Complexity Analysis
+Time Complexity: O(numRows^2) because each row has an increasing number of elements, up to numRows.
+Space Complexity: O(numRows^2) for storing the entire triangle.
