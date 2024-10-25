@@ -1,0 +1,84 @@
+To solve the Contiguous Array problem efficiently, we need to find the longest contiguous subarray where the number of 0s and 1s are equal. The problem can be approached by transforming it into a problem of finding subarrays with a sum of 0 using a prefix sum technique.
+
+Key Insights:
+Transform the Array:
+
+Treat 0 as -1. The problem now becomes finding the longest subarray with a sum of 0, which we can solve efficiently using a hash map.
+Prefix Sum Concept:
+
+We maintain a running sum (or prefix sum), where we add +1 for every 1 and -1 for every 0. If two prefix sums at different indices are the same, it means the subarray between these two indices has an equal number of 0s and 1s.
+Hash Map to Track Prefix Sums:
+
+Use a hash map to store the first occurrence of each prefix sum. This helps in finding the longest subarray that results in a sum of 0 (i.e., equal number of 0s and 1s).
+Efficient Approach:
+Iterate through the array while maintaining a running prefix sum.
+For each prefix sum, check if it has been seen before in the hash map:
+If it has, calculate the length of the subarray from the previous occurrence to the current index.
+If not, store the current index of this prefix sum in the hash map.
+Continue to update the maximum length of subarray with a sum of 0.
+Solution Code:
+javascript
+Copy code
+var findMaxLength = function(nums) {
+    // Map to store the first occurrence of each prefix sum
+    let map = new Map();
+    map.set(0, -1);  // Initialize with sum 0 at index -1 to handle edge case
+    
+    let maxLength = 0;
+    let prefixSum = 0;
+    
+    for (let i = 0; i < nums.length; i++) {
+        // Treat 0 as -1 for the prefix sum calculation
+        prefixSum += nums[i] === 1 ? 1 : -1;
+        
+        // If this prefix sum has been seen before
+        if (map.has(prefixSum)) {
+            // Calculate the length of the subarray
+            let previousIndex = map.get(prefixSum);
+            maxLength = Math.max(maxLength, i - previousIndex);
+        } else {
+            // Store the first occurrence of the prefix sum
+            map.set(prefixSum, i);
+        }
+    }
+    
+    return maxLength;
+};
+Explanation:
+Initialization:
+
+A hash map map is initialized to store the first occurrence of each prefixSum. We prepopulate it with 0: -1 to handle cases where the entire array up to an index has an equal number of 0s and 1s.
+maxLength keeps track of the maximum length of subarray with equal 0s and 1s.
+prefixSum is initialized to 0.
+Iteration:
+
+For each element in nums, if it is 1, add +1 to prefixSum. If it is 0, subtract -1 from prefixSum.
+Check if the current prefixSum has been seen before:
+If yes, calculate the subarray length from the previous occurrence of this sum to the current index. Update maxLength if this length is larger.
+If no, store the current index in the map for this prefixSum.
+Return:
+
+After iterating through the array, maxLength will contain the maximum length of the subarray with equal 0s and 1s.
+Time and Space Complexity:
+Time Complexity: O(n), where n is the length of the input array nums. We traverse the array once, and all operations (like looking up or inserting in the hash map) take constant time.
+Space Complexity: O(n), where n is the number of distinct prefix sums that we store in the hash map.
+Example Walkthrough:
+Example 1:
+Input: nums = [0, 1]
+
+Iteration 1: nums[0] = 0 → prefixSum = -1. Store (-1, 0) in the map.
+Iteration 2: nums[1] = 1 → prefixSum = 0. Found prefixSum = 0 in the map at index -1. The subarray [0, 1] has equal 0s and 1s. maxLength = 2.
+Output: 2
+
+Example 2:
+Input: nums = [0, 1, 0]
+
+Iteration 1: nums[0] = 0 → prefixSum = -1. Store (-1, 0) in the map.
+Iteration 2: nums[1] = 1 → prefixSum = 0. Found prefixSum = 0 in the map at index -1. Subarray [0, 1] has equal 0s and 1s. maxLength = 2.
+Iteration 3: nums[2] = 0 → prefixSum = -1. Found prefixSum = -1 in the map at index 0. No larger subarray is found.
+Output: 2
+
+Edge Cases:
+Empty Array: If nums.length = 0, return 0.
+All 0s or All 1s: If there are no 0s or 1s, no subarray will have an equal number of 0s and 1s, so return 0.
+This solution efficiently finds the longest subarray with an equal number of 0s and 1s in linear time using a hash map and prefix sums.
