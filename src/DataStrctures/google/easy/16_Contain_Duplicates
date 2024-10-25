@@ -1,0 +1,203 @@
+Contains Duplicate
+Solved
+Easy
+Topics
+Companies
+Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.
+
+ 
+
+Example 1:
+
+Input: nums = [1,2,3,1]
+
+Output: true
+
+Explanation:
+
+The element 1 occurs at the indices 0 and 3.
+
+Example 2:
+
+Input: nums = [1,2,3,4]
+
+Output: false
+
+Explanation:
+
+All elements are distinct.
+
+Example 3:
+
+Input: nums = [1,1,1,3,3,4,3,2,4,2]
+
+Output: true
+
+ 
+
+Constraints:
+
+1 <= nums.length <= 105
+-109 <= nums[i] <= 109
+To solve this problem efficiently, we can use a Set to keep track of the numbers we've seen as we iterate through the array. Sets in JavaScript only store unique values, so whenever we try to add a number that already exists in the set, we know that the array contains a duplicate.
+
+Solution Explanation
+Create an empty Set to keep track of numbers we've already encountered.
+For each number in the array:
+Check if it's already in the set.
+If it is, return true (since we've found a duplicate).
+If it's not, add it to the set.
+If we finish iterating through the array without finding any duplicates, return false.
+This approach is efficient with a time complexity of 
+𝑂
+(
+𝑛
+)
+O(n) and a space complexity of 
+𝑂
+(
+𝑛
+)
+O(n) due to the use of a set.
+
+Code Implementation
+javascript
+Copy code
+var containsDuplicate = function(nums) {
+    const seen = new Set();
+    for (let num of nums) {
+        if (seen.has(num)) {
+            return true;
+        }
+        seen.add(num);
+    }
+    return false;
+};
+Example Walkthrough
+Example 1:
+
+nums = [1,2,3,1]
+1 is not in seen, add 1 to seen.
+2 is not in seen, add 2 to seen.
+3 is not in seen, add 3 to seen.
+1 is already in seen, so we return true.
+Example 2:
+
+nums = [1,2,3,4]
+All elements are added to seen without encountering duplicates, so we return false.
+Example 3:
+
+nums = [1,1,1,3,3,4,3,2,4,2]
+1 is added, then immediately found as a duplicate, so we return true.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of nums, as we are only iterating through the array once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), since we may store up to 
+𝑛
+n elements in the Set if all elements are unique.
+This solution efficiently checks for duplicates in linear time and is optimal for the problem constraints.
+
+
+
+
+
+
+You said:
+possible with O(1)?
+ChatGPT said:
+ChatGPT
+To achieve an 
+𝑂
+(
+1
+)
+O(1) space complexity solution, we need to avoid using extra data structures like sets or hash maps. However, with this specific problem, it's generally impossible to guarantee an 
+𝑂
+(
+1
+)
+O(1) space solution with consistent performance.
+
+One alternative approach that uses 
+𝑂
+(
+1
+)
+O(1) additional space is to sort the array in place, which allows us to then check for duplicates by simply comparing adjacent elements. This approach, however, changes the original array, and the sorting itself takes 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) time.
+
+Here’s how this would work:
+
+Sort the array in 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) time.
+After sorting, iterate through the array and check if any two consecutive elements are the same.
+If you find a duplicate, return true.
+If no duplicates are found by the end of the array, return false.
+Code Implementation
+javascript
+Copy code
+var containsDuplicate = function(nums) {
+    nums.sort((a, b) => a - b); // Sorts the array in ascending order, O(n log n) time
+    for (let i = 1; i < nums.length; i++) {
+        if (nums[i] === nums[i - 1]) {
+            return true; // Found a duplicate
+        }
+    }
+    return false; // No duplicates found
+};
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn), due to the sorting step.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), since we’re only using a constant amount of extra space beyond the input array.
+Trade-offs
+Modifies the Input: This solution modifies the array in place, so if the original array order must be preserved, this method is not suitable.
+Not Truly Constant Space: Strictly speaking, sorting algorithms typically require 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) auxiliary space for recursive calls (e.g., quicksort), so this is not purely 
+𝑂
+(
+1
+)
+O(1) space.
