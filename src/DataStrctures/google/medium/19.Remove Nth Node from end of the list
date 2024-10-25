@@ -1,0 +1,100 @@
+To solve the problem of removing the N-th node from the end of a singly linked list efficiently in one pass, we can use the two-pointer technique (also called the fast and slow pointer approach). This approach ensures that we only traverse the linked list once, achieving an optimal time complexity of 
+𝑂
+(
+𝑛
+)
+O(n).
+
+Key Idea:
+We use two pointers: fast and slow.
+First, move the fast pointer n steps ahead of the slow pointer.
+Then, move both pointers one step at a time until the fast pointer reaches the end of the list. At this point, the slow pointer will be positioned right before the node that needs to be removed.
+Finally, adjust the next pointer of the slow pointer to skip over the target node.
+Steps:
+Create a dummy node: We create a dummy node that points to the head of the list. This helps handle edge cases where the node to be removed is the head.
+Initialize two pointers: Both fast and slow pointers start at the dummy node.
+Move fast pointer n steps ahead: This creates a gap of n nodes between fast and slow.
+Move both pointers: Continue moving both pointers one step at a time until fast reaches the end.
+Remove the N-th node: The slow pointer will now be just before the node to be removed. Adjust the next pointer of slow to skip the target node.
+Return the new head: Return the new head of the list (i.e., dummy.next).
+Solution Code:
+javascript
+Copy code
+function removeNthFromEnd(head, n) {
+    // Create a dummy node that points to the head of the list
+    let dummy = new ListNode(0);
+    dummy.next = head;
+
+    // Initialize two pointers starting at the dummy node
+    let fast = dummy;
+    let slow = dummy;
+
+    // Move fast pointer n steps ahead
+    for (let i = 0; i < n; i++) {
+        fast = fast.next;
+    }
+
+    // Move both fast and slow pointers until fast reaches the end
+    while (fast.next !== null) {
+        fast = fast.next;
+        slow = slow.next;
+    }
+
+    // Skip the target node
+    slow.next = slow.next.next;
+
+    // Return the head of the modified list
+    return dummy.next;
+}
+Explanation:
+Dummy Node: We create a dummy node (dummy) with value 0 that points to the head of the list. This is useful for handling edge cases like removing the head node.
+
+Two Pointers (fast and slow): Both fast and slow start at dummy. We move fast n steps ahead so that when fast reaches the end, slow will be right before the node to remove.
+
+Traversal: After the initial n steps for fast, we move both fast and slow one step at a time until fast reaches the last node. This ensures that slow is just before the node that needs to be removed.
+
+Removing the Node: We remove the target node by adjusting the next pointer of slow to skip the node to be deleted.
+
+Return: Finally, we return dummy.next, which is the new head of the modified list.
+
+Example Walkthrough:
+Example 1:
+Input: head = [1, 2, 3, 4, 5], n = 2
+
+Dummy node: dummy -> 1 -> 2 -> 3 -> 4 -> 5
+Step 1: Move fast 2 steps ahead:
+fast -> 3
+Step 2: Move both fast and slow until fast reaches the end:
+slow -> 3, fast -> 5
+Step 3: Remove the node after slow (node with value 4):
+dummy -> 1 -> 2 -> 3 -> 5
+Output: [1, 2, 3, 5]
+Example 2:
+Input: head = [1], n = 1
+
+Dummy node: dummy -> 1
+Step 1: Move fast 1 step ahead:
+fast -> 1
+Step 2: Move fast to the end (it’s already there).
+Step 3: Remove the node after slow (node with value 1):
+dummy -> null
+Output: []
+Time Complexity:
+Time complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the number of nodes in the list. We make one pass through the list to move the fast pointer n steps and another pass through the list to find and remove the target node.
+Space Complexity:
+Space complexity: 
+𝑂
+(
+1
+)
+O(1), as we are only using a few pointers and not allocating any additional data structures based on the size of the input.
+Edge Cases:
+Single-node list: If the list has only one node and n = 1, the output should be an empty list.
+Removing the head: If n equals the length of the list, the head node is removed. The dummy node helps handle this case seamlessly.
