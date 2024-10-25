@@ -1,0 +1,102 @@
+141. Linked List Cycle
+Solved
+Easy
+Topics
+Companies
+Given head, the head of a linked list, determine if the linked list has a cycle in it.
+
+There is a cycle in a linked list if there is some node in the list that can be reached again by continuously following the next pointer. Internally, pos is used to denote the index of the node that tail's next pointer is connected to. Note that pos is not passed as a parameter.
+
+Return true if there is a cycle in the linked list. Otherwise, return false.
+
+ 
+
+Example 1:
+
+
+Input: head = [3,2,0,-4], pos = 1
+Output: true
+Explanation: There is a cycle in the linked list, where the tail connects to the 1st node (0-indexed).
+Example 2:
+
+
+Input: head = [1,2], pos = 0
+Output: true
+Explanation: There is a cycle in the linked list, where the tail connects to the 0th node.
+Example 3:
+
+
+Input: head = [1], pos = -1
+Output: false
+Explanation: There is no cycle in the linked list.
+ 
+
+Constraints:
+
+The number of the nodes in the list is in the range [0, 104].
+-105 <= Node.val <= 105
+pos is -1 or a valid index in the linked-list.
+To detect if a linked list has a cycle, the most efficient solution is to use Floyd's Tortoise and Hare algorithm. This approach uses two pointers, a slow pointer (slow) that moves one step at a time, and a fast pointer (fast) that moves two steps at a time. If there is a cycle, the fast pointer will eventually meet the slow pointer; if there's no cycle, the fast pointer will reach the end of the list.
+
+Solution Using Floyd's Tortoise and Hare Algorithm
+This solution has:
+
+Time Complexity: O(n), where n is the number of nodes in the list.
+Space Complexity: O(1), as it uses only two pointers for traversal.
+Here’s how to implement it:
+
+javascript
+Copy code
+// Definition for singly-linked list node
+function ListNode(val) {
+    this.val = val;
+    this.next = null;
+}
+
+var hasCycle = function(head) {
+    if (head === null || head.next === null) {
+        return false; // If the list is empty or has only one node, no cycle is possible
+    }
+
+    let slow = head;
+    let fast = head;
+
+    while (fast !== null && fast.next !== null) {
+        slow = slow.next;       // Move slow pointer by 1 step
+        fast = fast.next.next;   // Move fast pointer by 2 steps
+
+        if (slow === fast) {     // Cycle detected if slow and fast meet
+            return true;
+        }
+    }
+
+    return false; // No cycle if fast pointer reaches the end
+};
+Explanation of the Algorithm
+Initial Check: If the linked list is empty or has only one node, return false since a cycle isn't possible.
+Two Pointers: Initialize two pointers, slow and fast, both starting at the head of the linked list.
+Traversal:
+Move the slow pointer one step at a time (slow = slow.next).
+Move the fast pointer two steps at a time (fast = fast.next.next).
+Cycle Detection:
+If there’s a cycle, eventually slow and fast will point to the same node.
+If fast reaches the end (null), there’s no cycle.
+Return Result: If slow and fast meet, return true; otherwise, return false if fast completes the list without meeting slow.
+Example Usage
+javascript
+Copy code
+// Example 1: Create a linked list with a cycle
+let head = new ListNode(3);
+head.next = new ListNode(2);
+head.next.next = new ListNode(0);
+head.next.next.next = new ListNode(-4);
+head.next.next.next.next = head.next; // Creates a cycle
+
+console.log(hasCycle(head)); // Output: true
+
+// Example 2: Create a linked list without a cycle
+let head2 = new ListNode(1);
+head2.next = new ListNode(2);
+
+console.log(hasCycle(head2)); // Output: false
+This efficient approach quickly detects a cycle with constant memory usage, making it optimal for large lists.
