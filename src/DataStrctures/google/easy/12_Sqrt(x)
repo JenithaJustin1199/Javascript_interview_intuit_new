@@ -1,0 +1,84 @@
+To calculate the square root of a non-negative integer 
+𝑥
+x without using built-in exponent functions or operators, we can employ a binary search algorithm. This method efficiently narrows down the range of possible integer square roots and returns the largest integer whose square is less than or equal to 
+𝑥
+x.
+
+Implementation
+Here’s how you can implement the solution in JavaScript:
+
+javascript
+Copy code
+var mySqrt = function(x) {
+    if (x < 2) return x; // Handle the cases for 0 and 1
+
+    let left = 2; // Start searching from 2
+    let right = Math.floor(x / 2); // Maximum possible integer square root
+
+    while (left <= right) {
+        let mid = Math.floor((left + right) / 2);
+        let midSquared = mid * mid;
+
+        if (midSquared === x) {
+            return mid; // Found exact square root
+        } else if (midSquared < x) {
+            left = mid + 1; // Search in the right half
+        } else {
+            right = mid - 1; // Search in the left half
+        }
+    }
+
+    return right; // `right` will be the floor of the square root
+};
+Explanation
+Base Cases: If 
+𝑥
+x is 0 or 1, we return 
+𝑥
+x directly since the square root of both is itself.
+Initialize Pointers: We set left to 2 and right to 
+𝑥
+/
+2
+x/2. The square root of any number greater than 1 will never be more than 
+𝑥
+/
+2
+x/2.
+Binary Search Loop:
+Calculate the middle index mid.
+Compute midSquared as 
+mid
+×
+mid
+mid×mid.
+If midSquared equals 
+𝑥
+x, we have found the square root and return mid.
+If midSquared is less than 
+𝑥
+x, it means we need to search in the right half, so we adjust left to mid + 1.
+If midSquared is greater than 
+𝑥
+x, we need to search in the left half, so we adjust right to mid - 1.
+Return Result: When the loop ends, right will point to the largest integer whose square is less than or equal to 
+𝑥
+x, effectively giving us the floored square root.
+Complexity Analysis
+Time Complexity: The time complexity is O(log x) because we are halving the search space with each iteration of the binary search.
+Space Complexity: The space complexity is O(1) since we are using a constant amount of space.
+Example Usage
+Here are some example inputs and their expected outputs:
+
+javascript
+Copy code
+console.log(mySqrt(4));  // Output: 2
+console.log(mySqrt(8));  // Output: 2
+console.log(mySqrt(0));  // Output: 0
+console.log(mySqrt(1));  // Output: 1
+console.log(mySqrt(9));  // Output: 3
+console.log(mySqrt(15)); // Output: 3
+console.log(mySqrt(16)); // Output: 4
+This implementation efficiently computes the integer square root of a non-negative integer 
+𝑥
+x using binary search.
