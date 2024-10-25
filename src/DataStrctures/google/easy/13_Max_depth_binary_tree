@@ -1,0 +1,84 @@
+To determine the maximum depth of a binary tree, you can use either a recursive approach or an iterative approach (using breadth-first search). The maximum depth is defined as the number of nodes along the longest path from the root node down to the farthest leaf node.
+
+Recursive Approach
+Here’s a straightforward recursive implementation in JavaScript:
+
+javascript
+Copy code
+// Definition for a binary tree node
+function TreeNode(val) {
+    this.val = val;
+    this.left = this.right = null;
+}
+
+var maxDepth = function(root) {
+    if (root === null) {
+        return 0; // Base case: the depth of an empty tree is 0
+    }
+    // Recursively calculate the depth of left and right subtrees
+    const leftDepth = maxDepth(root.left);
+    const rightDepth = maxDepth(root.right);
+    
+    // The maximum depth is the greater of the two subtree depths plus one for the root
+    return Math.max(leftDepth, rightDepth) + 1;
+};
+Explanation
+Base Case: If the root is null, the depth is 0, which handles the case of an empty tree.
+Recursive Calls: The function calls itself for the left and right children of the current node.
+Calculate Depth: The maximum depth is computed as the maximum of the depths of the left and right subtrees plus one (for the current node).
+Example Usage
+You can use this function with a binary tree like this:
+
+javascript
+Copy code
+// Example tree: [3,9,20,null,null,15,7]
+const root = new TreeNode(3);
+root.left = new TreeNode(9);
+root.right = new TreeNode(20);
+root.right.left = new TreeNode(15);
+root.right.right = new TreeNode(7);
+
+console.log(maxDepth(root)); // Output: 3
+Iterative Approach (Using BFS)
+Alternatively, you can find the maximum depth iteratively using a queue for breadth-first traversal:
+
+javascript
+Copy code
+var maxDepth = function(root) {
+    if (root === null) {
+        return 0; // Base case: the depth of an empty tree is 0
+    }
+
+    let queue = [root];
+    let depth = 0;
+
+    while (queue.length > 0) {
+        depth++; // Increment depth for each level
+        let levelSize = queue.length; // Number of nodes at the current level
+
+        for (let i = 0; i < levelSize; i++) {
+            let node = queue.shift(); // Remove the first node
+
+            // Add children to the queue
+            if (node.left !== null) {
+                queue.push(node.left);
+            }
+            if (node.right !== null) {
+                queue.push(node.right);
+            }
+        }
+    }
+
+    return depth; // Return the maximum depth found
+};
+Explanation of the Iterative Approach
+Queue Initialization: Start with a queue containing the root node.
+Level Order Traversal: While the queue is not empty, process each level:
+Increment the depth for each level.
+For each node in the current level, enqueue its children.
+Return Depth: Once all levels are processed, return the computed depth.
+Example Usage for Iterative Approach
+javascript
+Copy code
+console.log(maxDepth(root)); // Output: 3
+Both methods effectively calculate the maximum depth of a binary tree, and you can choose based on your preference for recursion or iteration. The time complexity for both approaches is O(n), where n is the number of nodes in the tree, as each node is visited once. The space complexity is also O(n) for the iterative approach (due to the queue) and O(h) for the recursive approach (due to the call stack), where h is the height of the tree.
