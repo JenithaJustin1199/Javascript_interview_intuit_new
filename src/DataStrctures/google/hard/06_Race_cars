@@ -1,0 +1,90 @@
+This solution for the "Race Car" problem utilizes a breadth-first search (BFS) approach to explore all possible positions and speeds the car can reach. Let's break down the solution step by step.
+
+Code Explanation
+Initialization:
+
+We start by initializing a queue with the initial state of the car:
+position: 0 (starting position),
+speed: 1 (initial speed),
+sequence: '' (an empty string to store the sequence of instructions).
+javascript
+Copy code
+let queue = [{ position: 0, speed: 1, sequence: '' }];
+BFS Loop:
+
+The loop runs until the queue is empty.
+At each iteration, we dequeue the front element, extracting the current position, speed, and sequence of instructions.
+javascript
+Copy code
+let { position, speed, sequence } = queue.shift();
+Check for Target:
+
+If the current position equals the target, we return the length of the sequence, which indicates the number of instructions taken to reach the target.
+javascript
+Copy code
+if (position === target) return sequence.length;
+Acceleration:
+
+We calculate the new position after acceleration and enqueue this state into the queue with the new position, doubled speed, and the updated sequence (adding an 'A' for accelerate).
+javascript
+Copy code
+queue.push({ position: position + speed, speed: speed * 2, sequence: sequence + 'A' });
+Reversal:
+
+If the new position exceeds the target when the speed is positive (indicating that we have overshot) or if we are moving negatively (the speed is negative), we enqueue the reversal action.
+This ensures we only reverse when it might help get closer to the target. The speed is set to -1 if the current speed is positive or to +1 if it is negative.
+javascript
+Copy code
+if ((newPosition > target && speed > 0) || (newPosition < target && speed < 0)) {
+    queue.push({ position: position, speed: speed > 0 ? -1 : 1, sequence: sequence + 'R' });
+}
+Return:
+
+If the queue is exhausted and the target position hasn’t been reached, the function returns -1, indicating that the target cannot be reached.
+Time Complexity (TC)
+BFS Exploration: The worst-case scenario involves exploring multiple states (combinations of positions and speeds) before reaching the target.
+Positions: The car can theoretically reach positions far beyond the target due to acceleration, but positions greater than 2 * target will not lead to optimal solutions since the car will overshoot significantly.
+Speed: The speed doubles each time we accelerate, and reversing changes it to a constant value. Thus, the number of unique (position, speed) states grows at a slower rate.
+Therefore, the average time complexity can be approximated as 
+𝑂
+(
+𝑁
+)
+O(N), where 
+𝑁
+N is the target position. In practice, it could be slightly higher depending on the paths explored.
+Space Complexity (SC)
+Queue Storage: The space complexity is determined by the maximum number of states stored in the queue at any given time. In the worst case, the queue could hold several (position, speed) combinations.
+Visited States: Although not explicitly tracked in this solution, the maximum unique states we might encounter is also bounded by 
+𝑂
+(
+𝑁
+)
+O(N).
+Thus, the space complexity is also approximately 
+𝑂
+(
+𝑁
+)
+O(N).
+Summary
+This BFS approach efficiently explores the state space of the car's position and speed, allowing for the discovery of the shortest sequence of instructions to reach the target. The time and space complexities are both around 
+𝑂
+(
+𝑁
+)
+O(N), which is reasonable given the problem's constraints.
+
+var racecar = function(target) {
+    let queue = [{position:0,speed:1,sequence:''}]
+    while(queue.length>0){
+        let {position, speed, sequence } = queue.shift()
+        if(position===target) return sequence.length
+        let newPosition = position+speed
+        queue.push({position:position+speed, speed: speed*2, sequence:sequence+'A'})
+        if((newPosition > target && speed >0) || (newPosition < target && speed <0)){
+           queue.push({position:position, speed: speed>0?-1:1, sequence:sequence+'R'})  
+        }
+    }
+    return -1
+};
