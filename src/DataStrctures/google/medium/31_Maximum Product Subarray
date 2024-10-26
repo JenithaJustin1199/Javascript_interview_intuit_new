@@ -1,0 +1,61 @@
+The code you've written for finding the maximum product of a subarray is almost correct, but there are a few issues that need to be addressed:
+
+Issues in the Code:
+Initialization of maxProduct and minProduct: The initialization of maxProduct and minProduct should account for negative numbers effectively. In your code, you initialize them both to nums[0], which is fine, but the logic to handle negative numbers in the for loop needs to correctly compute the maximum and minimum products.
+
+Updating maxProduct: The update for maxProduct after the swap of maxProduct and minProduct should be Math.max(nums[i], nums[i] * maxProduct) to ensure that you're considering the possibility of starting a new subarray.
+
+Order of operations: You should update maxProduct before updating minProduct, especially since you swap them when a negative number is encountered.
+
+Update of finalProduct: You should update finalProduct after both maxProduct and minProduct have been updated in each iteration to ensure it always holds the maximum product found so far.
+
+Revised Code:
+Here's the corrected version of your code:
+
+javascript
+Copy code
+var maxProduct = function(nums) {
+    let finalProduct = nums[0];
+    let maxProduct = nums[0];
+    let minProduct = nums[0];
+
+    for (let i = 1; i < nums.length; i++) {
+        if (nums[i] < 0) {
+            // Swap max and min
+            [maxProduct, minProduct] = [minProduct, maxProduct];
+        }
+
+        // Calculate the new max and min products
+        maxProduct = Math.max(nums[i], nums[i] * maxProduct);
+        minProduct = Math.min(nums[i], nums[i] * minProduct);
+
+        // Update finalProduct with the maximum found so far
+        finalProduct = Math.max(finalProduct, maxProduct);
+    }
+
+    return finalProduct;
+};
+
+// Example Usage
+console.log(maxProduct([2, 3, -2, 4])); // Output: 6
+console.log(maxProduct([-2, 0, -1]));   // Output: 0
+Explanation of Changes:
+Handling Negatives: The swap of maxProduct and minProduct occurs correctly before updating them.
+Max/Min Calculation: Each iteration recalculates maxProduct and minProduct correctly considering the current number nums[i].
+Final Product Update: finalProduct is updated to keep track of the maximum product encountered.
+Time and Space Complexity:
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the input array nums. The algorithm goes through the array only once.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1) because we're using a constant amount of extra space for the variables.
+This implementation should correctly compute the maximum product of any contiguous subarray within the input nums.
