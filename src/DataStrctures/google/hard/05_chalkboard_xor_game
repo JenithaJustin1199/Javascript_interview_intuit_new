@@ -1,0 +1,119 @@
+Chalkboard XOR Game
+Solved
+Hard
+Topics
+Companies
+You are given an array of integers nums represents the numbers written on a chalkboard.
+
+Alice and Bob take turns erasing exactly one number from the chalkboard, with Alice starting first. If erasing a number causes the bitwise XOR of all the elements of the chalkboard to become 0, then that player loses. The bitwise XOR of one element is that element itself, and the bitwise XOR of no elements is 0.
+
+Also, if any player starts their turn with the bitwise XOR of all the elements of the chalkboard equal to 0, then that player wins.
+
+Return true if and only if Alice wins the game, assuming both players play optimally.
+
+ 
+
+Example 1:
+
+Input: nums = [1,1,2]
+Output: false
+Explanation: 
+Alice has two choices: erase 1 or erase 2. 
+If she erases 1, the nums array becomes [1, 2]. The bitwise XOR of all the elements of the chalkboard is 1 XOR 2 = 3. Now Bob can remove any element he wants, because Alice will be the one to erase the last element and she will lose. 
+If Alice erases 2 first, now nums become [1, 1]. The bitwise XOR of all the elements of the chalkboard is 1 XOR 1 = 0. Alice will lose.
+Example 2:
+
+Input: nums = [0,1]
+Output: true
+Example 3:
+
+Input: nums = [1,2,3]
+Output: true
+ 
+
+Constraints:
+
+1 <= nums.length <= 1000
+0 <= nums[i] < 216
+
+In the "Chalkboard XOR Game," Alice and Bob take turns removing one number from the array nums, and the goal for each player is to avoid leaving an array whose XOR of all elements is 0. If the XOR of all elements is already 0 at any player's turn, that player wins immediately. If removing a number results in an XOR of 0, the player who removed the number loses. Alice starts the game, and we need to determine if Alice can always win, assuming both players play optimally.
+
+Explanation
+XOR Properties:
+
+XOR is associative and commutative, so the order of XOR operations doesn’t matter.
+The XOR of a number with itself is 0 (a ^ a = 0).
+XOR of 0 and any number a is a (0 ^ a = a).
+Optimal Play and Key Observations:
+
+If the XOR of the entire array nums is initially 0, Alice wins immediately on her first turn, as the starting XOR is already 0.
+If nums.length is even, Alice can guarantee a win:
+Alice can choose moves that keep the remaining list length odd for Bob. With an even length at each turn, Alice has the advantage because she has more choices and can force Bob into disadvantageous positions.
+If nums.length is odd and the initial XOR is not 0, Bob can force a win:
+Alice will have fewer options to manipulate the XOR due to the odd length of the list, which is disadvantageous in this game’s XOR setting.
+Conclusion:
+
+If the XOR of all elements in nums is initially 0, Alice wins.
+If nums.length is even, Alice wins by optimal play.
+Otherwise, Bob can force a win.
+Solution Approach
+Given the insights above, we can implement this logic efficiently:
+
+Calculate the XOR of all elements in nums.
+If the XOR is 0 or if nums.length is even, return true (Alice wins).
+Otherwise, return false (Bob wins).
+Solution Code
+Here's the implementation in JavaScript:
+
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @return {boolean}
+ */
+var xorGame = function(nums) {
+    // Calculate the XOR of all elements in nums
+    const xorAll = nums.reduce((acc, num) => acc ^ num, 0);
+    
+    // Alice wins if XOR is 0 or the length of nums is even
+    return xorAll === 0 || nums.length % 2 === 0;
+};
+Explanation of Code
+xorAll Calculation: We compute the XOR of all elements in the array.
+Return Condition:
+If xorAll is 0, Alice wins immediately.
+If nums.length is even, Alice can force a win due to the turn-based advantage with even-length arrays.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of nums. This is because we only need to iterate through nums once to compute the XOR of all elements.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we only use a constant amount of extra space to store xorAll.
+Example Walkthroughs
+Example 1:
+
+Input: nums = [1, 1, 2]
+XOR of all elements = 1 ^ 1 ^ 2 = 2 (not 0)
+nums.length is odd (3), so Alice cannot guarantee a win.
+Output: false (Bob wins)
+Example 2:
+
+Input: nums = [0, 1]
+XOR of all elements = 0 ^ 1 = 1 (not 0)
+nums.length is even (2), so Alice can guarantee a win.
+Output: true (Alice wins)
+Example 3:
+
+Input: nums = [1, 2, 3]
+XOR of all elements = 1 ^ 2 ^ 3 = 0 (is 0)
+Since XOR is 0, Alice wins immediately.
+Output: true
