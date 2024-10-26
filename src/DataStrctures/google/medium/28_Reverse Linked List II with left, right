@@ -1,0 +1,84 @@
+To solve the "Reverse Linked List II" problem efficiently, we can approach it with a single-pass algorithm and make in-place modifications to the linked list. Here’s how we can solve it in 
+𝑂
+(
+𝑛
+)
+O(n) time complexity with 
+𝑂
+(
+1
+)
+O(1) space complexity.
+
+Approach:
+Edge Cases:
+
+If head is null or if left is equal to right, there’s no need to reverse, so we can directly return the head.
+Identify the Sublist to Reverse:
+
+Traverse the list until reaching the left-1 position, which is the node just before the start of the reversal.
+Keep track of this node (prevLeft) and the left-th node (leftNode), which will eventually be the end of the reversed sublist.
+Reverse the Sublist:
+
+From the left-th to the right-th node, reverse the pointers of each node in this sublist.
+After the reversal, leftNode becomes the last node in the reversed sublist, and rightNode (initially the left-th node) becomes the first.
+Reconnect the Sublist:
+
+Connect prevLeft to rightNode.
+Connect leftNode (which is now the end of the reversed sublist) to the node after rightNode.
+Return the Updated List:
+
+If left is 1, it means the head node has changed after reversal, so return rightNode as the new head.
+Otherwise, return the original head.
+Code Implementation:
+javascript
+Copy code
+var reverseBetween = function(head, left, right) {
+    if (!head || left === right) return head;
+
+    let dummy = new ListNode(0); // Create a dummy node to simplify edge cases
+    dummy.next = head;
+    let prevLeft = dummy;
+
+    // Step 1: Move prevLeft to the node before left
+    for (let i = 1; i < left; i++) {
+        prevLeft = prevLeft.next;
+    }
+
+    // Step 2: Start the reversal from leftNode to rightNode
+    let current = prevLeft.next;
+    let prev = null;
+    for (let i = 0; i <= right - left; i++) {
+        let nextTemp = current.next;
+        current.next = prev;
+        prev = current;
+        current = nextTemp;
+    }
+
+    // Step 3: Reconnect the reversed sublist with the rest of the list
+    prevLeft.next.next = current; // Connect leftNode's next to current (node after right)
+    prevLeft.next = prev;         // Connect prevLeft to rightNode (new head of reversed sublist)
+
+    return dummy.next;
+};
+Explanation of the Code:
+Dummy Node: We add a dummy node before head to handle edge cases where left is 1 (reversing from the head).
+Traverse to prevLeft: Move prevLeft to just before the left-th node.
+Reverse the Sublist: Reverse the pointers between nodes from left to right.
+Reconnect: Connect the nodes correctly after reversing.
+Complexity Analysis:
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the number of nodes, as we only traverse the list once.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we’re only using a few pointers without any additional data structures.
+This solution is optimal as it performs the reversal in-place with minimal auxiliary space.
