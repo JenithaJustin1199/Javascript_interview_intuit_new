@@ -1,0 +1,116 @@
+Given an integer array nums, return true if you can partition the array into two subsets such that the sum of the elements in both subsets is equal or false otherwise.
+
+ 
+
+Example 1:
+
+Input: nums = [1,5,11,5]
+Output: true
+Explanation: The array can be partitioned as [1, 5, 5] and [11].
+Example 2:
+
+Input: nums = [1,2,3,5]
+Output: false
+Explanation: The array cannot be partitioned into equal sum subsets.
+ 
+
+Constraints:
+
+1 <= nums.length <= 200
+1 <= nums[i] <= 100
+
+The Partition Equal Subset Sum problem can indeed be treated as a 0/1 Knapsack problem because it shares a similar structure with the knapsack formulation. Here’s how we can interpret this problem in the context of the 0/1 Knapsack:
+
+Problem Breakdown
+Goal: Partition the array into two subsets such that their sums are equal. If the total sum of the array is S, then each subset must sum to S/2.
+
+Weight and Value:
+
+In this context, each element in the array can be seen as both the weight and the value because we want to pick items (elements of the array) that sum up to a specific capacity (S/2).
+Capacity: The capacity in this case is S/2.
+
+Steps to Solve
+Calculate the Total Sum:
+
+Compute the total sum of the array (S). If S is odd, return false immediately, since it's impossible to partition an odd sum into two equal subsets.
+Dynamic Programming Table:
+
+Create a boolean DP array dp of size target + 1, where target is S/2. Initialize dp[0] = true (we can always achieve a sum of 0).
+Fill the DP Table:
+
+Iterate through each number in the input array.
+For each number, update the DP array from back to front. This ensures that each number is only considered once (i.e., the 0/1 condition).
+Return the Result:
+
+The final result will be found in dp[target]. If it is true, it means we can partition the array into two subsets with equal sum.
+Dynamic Programming Formula
+The state transition can be expressed as:
+
+If we include the current number num[i], then we can achieve the sum j if we can achieve the sum j - num[i]:
+
+𝑑
+𝑝
+[
+𝑗
+]
+=
+𝑑
+𝑝
+[
+𝑗
+]
+ OR 
+𝑑
+𝑝
+[
+𝑗
+−
+𝑛
+𝑢
+𝑚
+[
+𝑖
+]
+]
+dp[j]=dp[j] OR dp[j−num[i]]
+Implementation
+Here is how the solution looks in JavaScript:
+
+javascript
+Copy code
+var canPartition = function(nums) {
+    const totalSum = nums.reduce((acc, num) => acc + num, 0);
+    
+    // If the total sum is odd, we cannot split it into two equal subsets
+    if (totalSum % 2 !== 0) {
+        return false;
+    }
+    
+    const target = totalSum / 2;
+    const n = nums.length;
+    const dp = Array(target + 1).fill(false);
+    dp[0] = true; // A sum of 0 can always be achieved
+
+    for (let i = 0; i < n; i++) {
+        for (let j = target; j >= nums[i]; j--) {
+            dp[j] = dp[j] || dp[j - nums[i]];
+        }
+    }
+
+    return dp[target];
+};
+
+// Example usage:
+console.log(canPartition([1, 5, 11, 5])); // Output: true
+console.log(canPartition([1, 2, 3, 5]));  // Output: false
+Explanation of the Code:
+Total Sum Calculation: Calculate the total sum of the array and check if it's even.
+DP Array Initialization: Create a boolean array dp to keep track of achievable sums.
+Nested Loop:
+Outer loop iterates through each element of the input array.
+Inner loop updates the dp array from target down to nums[i], ensuring that each number is only considered once.
+Final Check: After processing all numbers, check if dp[target] is true, which indicates that a subset with sum target can be formed.
+Complexity Analysis
+Time Complexity: O(n * target), where n is the number of elements in the input array and target is the sum we want to achieve (S/2).
+Space Complexity: O(target) for the DP array.
+This approach efficiently solves the problem using a dynamic programming strategy that mimics the 0/1 Knapsack problem, where you are trying to maximize the value (in this case, achieving the target sum).
