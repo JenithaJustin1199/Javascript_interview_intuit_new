@@ -1,0 +1,71 @@
+The Last Stone Weight problem involves repeatedly smashing the two heaviest stones together in a list of stone weights until there’s either one stone left or no stones at all. Each "smash" follows these rules:
+
+Pick the two heaviest stones, say x and y where x <= y.
+If x == y, both stones are destroyed, so neither remains.
+If x != y, then the stone with weight x is destroyed, and the stone with weight y takes on a new weight of y - x.
+After repeating this process, if there is only one stone left, its weight is returned; otherwise, if all stones are destroyed, the result is 0.
+
+Solution Explanation
+We can use a Max-Heap (Priority Queue) approach for this problem. A max-heap lets us efficiently retrieve and remove the two heaviest stones. JavaScript does not have a built-in heap, so we’ll simulate it using an array and sort it after each modification.
+
+Steps
+Convert the array to a max-heap (using sorting).
+Loop until there’s 1 or 0 stones left:
+Extract the two heaviest stones.
+If they are the same, they both get destroyed.
+If they differ, push the difference back into the heap.
+Return the weight of the last remaining stone, or 0 if no stones remain.
+JavaScript Code
+javascript
+Copy code
+function lastStoneWeight(stones) {
+    while (stones.length > 1) {
+        stones.sort((a, b) => b - a); // Sort stones in descending order
+        let first = stones.shift();    // Remove the heaviest stone
+        let second = stones.shift();   // Remove the second heaviest stone
+
+        if (first !== second) {
+            stones.push(first - second); // Add the difference back to stones
+        }
+    }
+    
+    return stones.length === 1 ? stones[0] : 0;
+}
+
+// Example usage:
+console.log(lastStoneWeight([2, 7, 4, 1, 8, 1])); // Output: 1
+console.log(lastStoneWeight([1]));               // Output: 1
+Explanation with Example
+For stones = [2, 7, 4, 1, 8, 1]:
+
+Sort: [8, 7, 4, 2, 1, 1]
+Smash 8 and 7 → Result: 1
+Array after push: [4, 2, 1, 1, 1]
+Sort: [4, 2, 1, 1, 1]
+Smash 4 and 2 → Result: 2
+Array after push: [2, 1, 1, 1]
+Sort: [2, 1, 1, 1]
+Smash 2 and 1 → Result: 1
+Array after push: [1, 1, 1]
+Sort: [1, 1, 1]
+Smash 1 and 1 → Result: 0
+Array after push: [1]
+Only one stone is left with weight 1, so we return 1.
+
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn), since we sort the array in each iteration.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), excluding the input array.
+This solution is efficient given the constraints (max array length of 30).
