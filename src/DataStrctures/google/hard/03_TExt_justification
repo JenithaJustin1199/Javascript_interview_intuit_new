@@ -1,0 +1,79 @@
+To solve the Text Justification problem, we need to break down the text into lines of exactly maxWidth characters, fully justifying the text by adding spaces between words as specified.
+
+Approach:
+Grouping Words for Each Line:
+
+We will pack as many words as possible into each line until adding another word would exceed maxWidth.
+For each line, we track the total length of the words (excluding spaces) and ensure we only add more words as long as the line can fit within the limit.
+Distributing Spaces:
+
+If it's the last line or the line only contains one word, left-justify the line (add spaces only at the end).
+For other lines, distribute spaces evenly between words. If spaces can't be evenly divided, put the extra spaces on the leftmost slots.
+Implementation Steps:
+
+Loop through the words list and group words into lines.
+For each line, calculate the total space required, distribute spaces, and construct the line.
+Add the last line left-justified.
+Edge Cases:
+A single word that is shorter than maxWidth.
+The last line, which should be left-justified regardless of space distribution.
+A line that has only one word, requiring padding on the right.
+words containing very short or long words relative to maxWidth.
+Explanation of Key Sections:
+Adding Spaces Between Words:
+
+spacesToAdd is the number of spaces needed to fill the current line to maxWidth.
+We loop through spacesToAdd and distribute them one by one into the words' gaps (currentLine[i % (currentLine.length - 1 || 1)] += ' '). This creates an even distribution of spaces.
+For currentLine.length === 1, we use || 1 to ensure there is no modulo operation error.
+Handling the Last Line:
+
+For the last line, we join words with a single space and pad with remaining spaces to reach maxWidth length, creating a left-justified line.
+Time Complexity:
+O(n) where n is the total number of words. We loop through each word once to place it into lines, and line formation with space distribution is O(maxWidth), so the approach is efficient.
+Space Complexity:
+O(n), storing the final result list of lines and current line configurations.
+Example Walkthrough:
+For words = ["This", "is", "an", "example", "of", "text", "justification."] and maxWidth = 16:
+
+Grouping words line by line gives:
+Line 1: ["This", "is", "an"] -> "This is an"
+Line 2: ["example", "of", "text"] -> "example of text"
+Line 3: ["justification."] -> "justification. "
+
+
+var fullJustify = function(words, maxWidth) {
+    let result = [];
+    let currentLine = [];
+    let currentLineLength = 0;
+
+    for (let word of words) {
+        // Check if adding this word would exceed maxWidth
+        if (currentLineLength + currentLine.length + word.length > maxWidth) {
+            let spacesRequired = maxWidth - currentLineLength;
+            let spaceSlots = currentLine.length - 1;
+
+            // Distribute spaces as evenly as possible
+            if (spaceSlots > 0) {
+                for (let i = 0; i < spacesRequired; i++) {
+                    currentLine[i % spaceSlots] += " ";
+                }
+            } else {
+                // If only one word, left-justify it
+                currentLine[0] += " ".repeat(spacesRequired);
+            }
+
+            result.push(currentLine.join(""));
+            currentLine = [];
+            currentLineLength = 0;
+        }
+
+        // Add word to current line
+        currentLine.push(word);
+        currentLineLength += word.length;
+    }
+
+    // Handle the last line: left-justified with trailing spaces
+    result.push(currentLine.join(" ") + " ".repeat(maxWidth - currentLineLength - (currentLine.length - 1)));
+    
+    return result;
+};
