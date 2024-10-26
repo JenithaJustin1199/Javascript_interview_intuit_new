@@ -1,0 +1,66 @@
+To solve this problem in 
+𝑂
+(
+𝑛
+)
+O(n) time, we can avoid directly squaring and then sorting the array. Instead, we take advantage of the fact that the input array is sorted in non-decreasing order. Since squaring each element makes all numbers non-negative, the largest squared value will be found at either end of the array (either the largest positive number or the smallest negative number).
+
+Approach: Two-Pointer Technique
+Initialize two pointers:
+Set one pointer at the start (left) of the array and the other pointer at the end (right).
+Compare squared values:
+Square the values at both pointers.
+Place the larger squared value at the end of the result array (starting from the end and moving backward).
+Move pointers:
+If the left squared value is larger, move the left pointer one step right.
+Otherwise, move the right pointer one step left.
+Repeat until the pointers cross each other.
+JavaScript Solution
+Here’s the implementation:
+
+javascript
+Copy code
+function sortedSquares(nums) {
+    let n = nums.length;
+    let result = new Array(n);
+    let left = 0;
+    let right = n - 1;
+    let index = n - 1;
+
+    while (left <= right) {
+        let leftSquare = nums[left] * nums[left];
+        let rightSquare = nums[right] * nums[right];
+
+        if (leftSquare > rightSquare) {
+            result[index] = leftSquare;
+            left++;
+        } else {
+            result[index] = rightSquare;
+            right--;
+        }
+        index--;
+    }
+
+    return result;
+}
+
+// Example usage:
+console.log(sortedSquares([-4, -1, 0, 3, 10])); // Output: [0, 1, 9, 16, 100]
+console.log(sortedSquares([-7, -3, 2, 3, 11])); // Output: [4, 9, 9, 49, 121]
+Explanation
+Initialization: We initialize left at the beginning and right at the end of nums, with index pointing to the last position in the result array.
+Comparison and Placement: At each step, compare the squared values at left and right. Place the larger square at result[index], and then update either left or right and decrement index.
+Continue until left > right: This ensures all elements are processed and the result array is filled in non-decreasing order.
+Time and Space Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), as we only pass through the array once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) for the result array
