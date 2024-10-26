@@ -1,0 +1,98 @@
+To solve the "Sliding Window Maximum" problem efficiently, we can use a deque (double-ended queue), which allows us to keep track of maximum values in each window in 
+𝑂
+(
+𝑛
+)
+O(n) time. Here’s the approach, why it works, and its time complexity:
+
+Approach
+Initialize a Deque: Use the deque to store indices of elements in nums. The deque will hold indices in decreasing order of values, ensuring that the first element in the deque is always the maximum of the current window.
+
+Process Each Element in nums:
+
+For each element nums[i], remove indices from the deque if:
+They are out of the bounds of the current window (i.e., they are older than i - k + 1).
+The values of elements at those indices are smaller than nums[i] (since they cannot be the maximum if there is a larger element within the window).
+Add the current index i to the deque.
+If we have processed at least k elements, add the maximum of the current window (which is the element at the index in the front of the deque) to the results list.
+Result Array: The result array will contain the maximum for each window as we slide from left to right.
+
+Code Implementation
+javascript
+Copy code
+var maxSlidingWindow = function(nums, k) {
+    let deque = []; // Stores indices of elements in 'nums'
+    let result = [];
+
+    for (let i = 0; i < nums.length; i++) {
+        // Remove elements that are out of the current window
+        if (deque.length && deque[0] < i - k + 1) {
+            deque.shift();
+        }
+        
+        // Remove elements that are smaller than the current element
+        while (deque.length && nums[deque[deque.length - 1]] < nums[i]) {
+            deque.pop();
+        }
+        
+        // Add current index to the deque
+        deque.push(i);
+
+        // Append to result once we have processed at least `k` elements
+        if (i >= k - 1) {
+            result.push(nums[deque[0]]); // Front of deque is the max in current window
+        }
+    }
+    
+    return result;
+};
+Explanation of the Code
+Deque Operations:
+Removing Out-of-Bounds Elements: We remove indices from the front if they fall outside the current window.
+Maintaining Order in Deque: Before inserting a new index, we remove all indices at the back that have values less than the current value. This ensures that the deque remains in decreasing order of values.
+Adding Maximum to Results:
+Once we have processed at least k elements, we start adding the maximum value of each window (which is at nums[deque[0]]) to the result array.
+Why This Approach?
+The deque provides a way to store indices of elements in a way that the maximum of each window can be accessed in 
+𝑂
+(
+1
+)
+O(1) time. By removing smaller elements from the back and out-of-bound indices from the front, we ensure that the front of the deque always holds the index of the maximum element of the current window.
+
+Time Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n)
+Each index is added and removed from the deque at most once, giving 
+𝑂
+(
+𝑛
+)
+O(n) for processing all elements.
+Space Complexity: 
+𝑂
+(
+𝑘
+)
+O(k)
+The deque holds at most 
+𝑘
+k elements at any time, where 
+𝑘
+k is the window size.
+Example Walkthrough
+For nums = [1,3,-1,-3,5,3,6,7] and k = 3:
+
+Window [1, 3, -1]: Max is 3.
+Window [3, -1, -3]: Max is 3.
+Window [-1, -3, 5]: Max is 5.
+Window [-3, 5, 3]: Max is 5.
+Window [5, 3, 6]: Max is 6.
+Window [3, 6, 7]: Max is 7.
+Result: [3, 3, 5, 5, 6, 7].
+
+This approach is efficient and leverages the deque to avoid redundant computations, making it optimal for this problem.
