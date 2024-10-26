@@ -1,0 +1,104 @@
+To solve the "Search a 2D Matrix" problem efficiently in 
+𝑂
+(
+log
+⁡
+(
+𝑚
+×
+𝑛
+)
+)
+O(log(m×n)) time complexity, we can treat the matrix as if it were a flattened sorted 1D array.
+
+Key Observations:
+Matrix Properties:
+
+Each row is sorted in non-decreasing order.
+The first element of each row is greater than the last element of the previous row, which makes the entire matrix act like a sorted 1D list if "flattened."
+Binary Search:
+
+By treating the 2D matrix as a sorted 1D array, we can use binary search on the entire matrix to achieve 
+𝑂
+(
+log
+⁡
+(
+𝑚
+×
+𝑛
+)
+)
+O(log(m×n)) time complexity.
+Calculate the 1D "index" of an element at position 
+(
+𝑖
+,
+𝑗
+)
+(i,j) in the matrix as index = i * n + j (where n is the number of columns).
+Conversely, for any 1D index in the flattened array, you can find the 2D coordinates in the matrix:
+Row: row = index // n
+Column: col = index % n
+Approach:
+Set two pointers, left to 0 and right to 
+𝑚
+×
+𝑛
+−
+1
+m×n−1.
+Use binary search to locate the target in the "flattened" matrix:
+Calculate the middle index: mid = (left + right) // 2.
+Map this mid index back to the matrix coordinates: row = mid // n and col = mid % n.
+Check if the value at matrix[row][col] matches the target:
+If it matches, return true.
+If it’s less than the target, move the left pointer to mid + 1.
+If it’s greater than the target, move the right pointer to mid - 1.
+If the binary search completes without finding the target, return false.
+Code Implementation:
+javascript
+Copy code
+var searchMatrix = function(matrix, target) {
+    let m = matrix.length;
+    let n = matrix[0].length;
+    let left = 0;
+    let right = m * n - 1;
+
+    while (left <= right) {
+        let mid = Math.floor((left + right) / 2);
+        let row = Math.floor(mid / n);
+        let col = mid % n;
+        let midValue = matrix[row][col];
+
+        if (midValue === target) {
+            return true;
+        } else if (midValue < target) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    return false;
+};
+Complexity Analysis:
+Time Complexity: 
+𝑂
+(
+log
+⁡
+(
+𝑚
+×
+𝑛
+)
+)
+O(log(m×n)) because binary search halves the search space in each step.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we only use a few extra variables for indexing and do not require additional storage.
+This approach is optimal and meets the required time complexity by leveraging the properties of both binary search and the sorted matrix structure.
