@@ -1,0 +1,63 @@
+To find the middle node of a singly linked list efficiently, we can use the two-pointer technique. We'll use two pointers: one (slow) that moves one step at a time and another (fast) that moves two steps at a time. By the time the fast pointer reaches the end of the list, the slow pointer will be at the middle.
+
+Here’s how we can implement this in JavaScript:
+
+JavaScript Solution
+javascript
+Copy code
+class ListNode {
+    constructor(val = 0, next = null) {
+        this.val = val;
+        this.next = next;
+    }
+}
+
+function middleNode(head) {
+    let slow = head; // Pointer that moves one step
+    let fast = head; // Pointer that moves two steps
+
+    // Move fast pointer two steps and slow pointer one step until fast reaches the end
+    while (fast && fast.next) {
+        slow = slow.next; // Move slow pointer one step
+        fast = fast.next.next; // Move fast pointer two steps
+    }
+
+    // When fast pointer reaches the end, slow pointer is at the middle
+    return slow;
+}
+
+// Example usage:
+
+// Creating a linked list: 1 -> 2 -> 3 -> 4 -> 5
+let head1 = new ListNode(1);
+head1.next = new ListNode(2);
+head1.next.next = new ListNode(3);
+head1.next.next.next = new ListNode(4);
+head1.next.next.next.next = new ListNode(5);
+
+let result1 = middleNode(head1);
+console.log(result1.val); // Output: 3
+
+// Creating a linked list: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+let head2 = new ListNode(1);
+head2.next = new ListNode(2);
+head2.next.next = new ListNode(3);
+head2.next.next.next = new ListNode(4);
+head2.next.next.next.next = new ListNode(5);
+head2.next.next.next.next.next = new ListNode(6);
+
+let result2 = middleNode(head2);
+console.log(result2.val); // Output: 4
+Explanation
+ListNode Class: This defines a node in the linked list with a value and a reference to the next node.
+Middle Node Function:
+We initialize two pointers, slow and fast, both starting at the head of the list.
+We use a while loop to advance fast by two nodes and slow by one node until fast reaches the end of the list. The condition fast && fast.next ensures that fast does not go beyond the last node.
+When fast reaches the end, slow will be at the middle node. We return slow.
+Example Usage: The provided examples create linked lists and test the middleNode function.
+Time Complexity
+O(n): We traverse the list once, where 
+𝑛
+n is the number of nodes in the list.
+Space Complexity
+O(1): We are using a constant amount of space, regardless of the size of the input list.
