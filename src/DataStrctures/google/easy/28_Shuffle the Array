@@ -1,0 +1,47 @@
+To solve the Shuffle the Array problem optimally, we need to rearrange the elements of the nums array such that the elements in the form [x1, x2, ..., xn, y1, y2, ..., yn] become [x1, y1, x2, y2, ..., xn, yn].
+
+Solution Approach
+Initialize a Result Array: Create an empty result array to store the shuffled values.
+Interleave Elements: Use a loop to interleave the elements from the two halves:
+For each i from 0 to n-1, push nums[i] (from the first half) and nums[i + n] (from the second half) into the result array.
+Return the Result: After the loop, the result array will have the desired format.
+Code
+Here's the JavaScript implementation of the optimized solution:
+
+javascript
+Copy code
+function shuffle(nums, n) {
+    const result = [];
+    for (let i = 0; i < n; i++) {
+        result.push(nums[i], nums[i + n]);
+    }
+    return result;
+}
+
+// Example usage:
+console.log(shuffle([2,5,1,3,4,7], 3)); // Output: [2,3,5,4,1,7]
+console.log(shuffle([1,2,3,4,4,3,2,1], 4)); // Output: [1,4,2,3,3,2,4,1]
+console.log(shuffle([1,1,2,2], 2)); // Output: [1,2,1,2]
+Explanation with Example
+For nums = [2,5,1,3,4,7] and n = 3:
+
+Initialize an empty result array.
+For each i from 0 to 2:
+Add nums[i] and nums[i + 3] to result.
+Result becomes [2,3,5,4,1,7].
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the input n value, because we loop through half of the nums array.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), for storing the result array.
+This approach is efficient and straightforward, meeting the problem’s constraints.
