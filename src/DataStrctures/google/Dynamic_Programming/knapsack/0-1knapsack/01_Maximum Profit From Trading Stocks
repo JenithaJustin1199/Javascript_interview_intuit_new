@@ -1,0 +1,75 @@
+You are given two 0-indexed integer arrays of the same length present and future where present[i] is the current price of the ith stock and future[i] is the price of the ith stock a year in the future. You may buy each stock at most once. You are also given an integer budget representing the amount of money you currently have.
+
+Return the maximum amount of profit you can make.
+
+ 
+
+Example 1:
+
+Input: present = [5,4,6,2,3], future = [8,5,4,3,5], budget = 10
+Output: 6
+Explanation: One possible way to maximize your profit is to:
+Buy the 0th, 3rd, and 4th stocks for a total of 5 + 2 + 3 = 10.
+Next year, sell all three stocks for a total of 8 + 3 + 5 = 16.
+The profit you made is 16 - 10 = 6.
+It can be shown that the maximum profit you can make is 6.
+
+We can optimize this solution using a 1D array instead of a 2D DP array. The key idea is that each stock's decision (to buy or skip) only depends on the results of the previous stock decisions up to the given budget. This allows us to reduce space complexity.
+
+Approach
+Initialization: Use a 1D DP array where dp[j] represents the maximum profit obtainable with a budget j.
+
+Backward Traversal: When updating the DP array, traverse from the maximum budget down to 0 to avoid overwriting results that are still needed for other computations in the same iteration.
+
+Transition:
+
+If we have enough budget (j >= present[i]), we consider either:
+Not buying the stock, in which case dp[j] remains the same.
+Buying the stock and adding the profit, updating dp[j] to be dp[j - present[i]] + profit where profit = future[i] - present[i].
+Result: dp[budget] will store the maximum profit we can achieve with the full budget.
+
+Code Implementation
+Here’s how the code would look in JavaScript with a 1D DP array:
+
+javascript
+Copy code
+var maximumProfit = function(present, future, budget) {
+    const n = present.length;
+    const dp = Array(budget + 1).fill(0);
+
+    for (let i = 0; i < n; i++) {
+        const cost = present[i];
+        const profit = future[i] - present[i];
+
+        if (profit > 0) { // Only consider stocks that yield a profit
+            for (let j = budget; j >= cost; j--) {
+                dp[j] = Math.max(dp[j], dp[j - cost] + profit);
+            }
+        }
+    }
+
+    return dp[budget];
+};
+Explanation of Key Parts
+if (profit > 0): We skip stocks where the future price is less than or equal to the present price because buying these stocks would yield no profit or even a loss.
+for (let j = budget; j >= cost; j--): The backward traversal ensures that each stock’s decision does not interfere with the unprocessed budget values in the same iteration.
+Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+×
+budget
+)
+O(n×budget), where 
+𝑛
+n is the number of stocks.
+Space Complexity: 
+𝑂
+(
+budget
+)
+O(budget) due to the 1D dp array.
+Example Walkthrough
+For present = [5,4,6,2,3], future = [8,5,4,3,5], and budget = 10, the solution will efficiently compute the maximum profit by updating the dp array with each stock’s profit potential.
+
