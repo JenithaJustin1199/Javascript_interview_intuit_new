@@ -1,0 +1,50 @@
+To solve the Binary Tree Level Order Traversal efficiently, we can use a Breadth-First Search (BFS) approach, utilizing a queue data structure. This approach allows us to traverse each level of the tree and collect node values level-by-level.
+
+Here's a step-by-step solution with an optimal approach:
+
+Approach
+Use a Queue: Initialize a queue with the root node. The queue will help us process each level of the tree one by one.
+Process Each Level Separately: For each level, we:
+Record the number of nodes at that level (i.e., the current queue size).
+Use a loop to dequeue nodes at that level and add their values to a temporary list.
+Enqueue the left and right children of each node (if they exist).
+Add Each Level's Nodes to the Result: Once all nodes at a level are processed, add the temporary list for that level to the final result list.
+Return the Result: After processing all levels, return the result list.
+Time Complexity
+O(N): Each node is processed once.
+Space Complexity
+O(N): The queue may store all nodes at the largest level of the tree (worst case).
+Solution Code
+javascript
+Copy code
+var levelOrder = function(root) {
+    if (!root) return [];
+    
+    let result = [];
+    let queue = [root];
+    
+    while (queue.length > 0) {
+        let levelSize = queue.length;
+        let levelNodes = [];
+        
+        for (let i = 0; i < levelSize; i++) {
+            let node = queue.shift();
+            levelNodes.push(node.val);
+            
+            if (node.left) queue.push(node.left);
+            if (node.right) queue.push(node.right);
+        }
+        
+        result.push(levelNodes);
+    }
+    
+    return result;
+};
+Explanation
+Edge Case Check: If the root is null, we return an empty list as there are no levels to traverse.
+Loop Through Each Level:
+For each level, we:
+Record the number of nodes in the queue (the current level size).
+For each node at this level, dequeue it, add its value to the levelNodes list, and enqueue its children.
+After processing all nodes at a level, we add levelNodes to the result.
+This BFS approach ensures that nodes are processed level-by-level, and the solution is both time- and space-efficient.
