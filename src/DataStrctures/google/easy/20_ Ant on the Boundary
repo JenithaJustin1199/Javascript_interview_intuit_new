@@ -1,0 +1,57 @@
+To solve the "Ant on the Boundary" problem, we need to simulate the movement of the ant based on the instructions provided in the nums array. The ant moves left or right depending on the value of the current element, and we need to count how many times it returns to the boundary (position 0).
+
+Problem Breakdown
+Movement:
+
+If the current number in the array (nums[i]) is positive, the ant moves to the right by that amount.
+If it is negative, the ant moves to the left by the absolute value of that number.
+Boundary Check:
+
+We only check if the ant is back at the boundary (position 0) after it has completed the movement for the current element.
+If the ant crosses the boundary during the movement, we do not count that as a return.
+Counting Returns:
+
+Keep a counter to track how many times the ant reaches the boundary.
+Steps to Solve
+Initialize the ant's position at 0 (the boundary).
+Loop through each element in nums:
+Move the ant based on the current element's value.
+After moving, check if the ant's position is now at the boundary (0):
+If it is, increment the counter.
+Return the counter at the end.
+function countReturnsToBoundary(nums) {
+    let position = 0;  // Start at the boundary
+    let returns = 0;    // Counter for returns to the boundary
+
+    for (let move of nums) {
+        // Move the ant
+        position += move;
+
+        // Check if the ant has returned to the boundary
+        if (position === 0) {
+            returns += 1;
+        }
+    }
+
+    return returns;
+}
+
+// Example usage:
+console.log(countReturnsToBoundary([2, 3, -5]));  // Output: 1
+console.log(countReturnsToBoundary([3, 2, -3, -4]));  // Output: 0
+Explanation of the Code
+Initialization:
+
+position is set to 0 to represent the starting point (the boundary).
+returns is initialized to 0 to count the number of times the ant returns to the boundary.
+Loop through nums:
+
+For each movement instruction in nums, we update the position.
+After moving, we check if position is 0. If it is, we increment returns.
+Return the Result:
+
+Finally, we return the value of returns.
+Complexity Analysis
+Time Complexity: O(n), where n is the length of the nums array. We are iterating through the array once.
+Space Complexity: O(1), as we are using a constant amount of space to keep track of the position and returns count.
+This approach effectively simulates the ant's movement and accurately counts the number of returns to the boundary according to the problem's requirements.
