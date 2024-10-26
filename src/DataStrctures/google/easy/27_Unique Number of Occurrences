@@ -1,0 +1,61 @@
+To solve the Unique Number of Occurrences problem, we need to determine if each number in the input array arr has a unique frequency of occurrence.
+
+Solution Approach
+Count Occurrences: Use a hash map to count how many times each number appears in arr.
+Check Uniqueness of Counts: Use a set to track if each frequency is unique:
+For each frequency in the hash map, check if it already exists in the set.
+If it does, return false immediately since it indicates a repeated frequency.
+Otherwise, add it to the set.
+If we iterate through all frequencies without finding duplicates, return true.
+Code
+javascript
+Copy code
+function uniqueOccurrences(arr) {
+    const frequencyMap = new Map();
+    
+    // Step 1: Count occurrences of each number
+    for (let num of arr) {
+        frequencyMap.set(num, (frequencyMap.get(num) || 0) + 1);
+    }
+    
+    // Step 2: Check if all frequencies are unique
+    const seenFrequencies = new Set();
+    for (let count of frequencyMap.values()) {
+        if (seenFrequencies.has(count)) {
+            return false; // Duplicate frequency found
+        }
+        seenFrequencies.add(count);
+    }
+    
+    return true; // All frequencies are unique
+}
+
+// Example usage:
+console.log(uniqueOccurrences([1, 2, 2, 1, 1, 3])); // Output: true
+console.log(uniqueOccurrences([1, 2]));             // Output: false
+console.log(uniqueOccurrences([-3, 0, 1, -3, 1, 1, 1, -3, 10, 0])); // Output: true
+Explanation with Example
+For arr = [1, 2, 2, 1, 1, 3]:
+
+Count occurrences:
+1 appears 3 times, 2 appears 2 times, and 3 appears 1 time.
+Check uniqueness:
+Frequencies are [3, 2, 1], all unique.
+Thus, the function returns true.
+
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of arr, as we loop through it once to count occurrences and then loop through frequencies.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), for storing the frequencies and tracking seen frequencies.
+This approach is efficient and meets the problem's constraints.
