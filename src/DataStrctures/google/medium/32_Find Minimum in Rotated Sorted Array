@@ -1,0 +1,53 @@
+To find the minimum element in a rotated sorted array in O(log n) time, you can use a modified binary search approach. The idea is to leverage the properties of the rotated array to decide which half of the array to search in.
+
+Approach:
+Initialization: Start with two pointers, left and right, which point to the start and end of the array, respectively.
+Binary Search:
+Calculate the midpoint, mid.
+Compare the middle element with the element at the right pointer.
+If mid is greater than right, it means the minimum element must be in the right half of the array (because the left half is sorted and can't contain the minimum).
+If mid is less than or equal to right, it means the minimum is in the left half or could be the mid element itself.
+Adjust the Pointers: Based on the comparisons, adjust the left and right pointers until they converge.
+Implementation:
+Here’s how you can implement this logic in JavaScript:
+
+javascript
+Copy code
+var findMin = function(nums) {
+    let left = 0;
+    let right = nums.length - 1;
+
+    while (left < right) {
+        const mid = Math.floor((left + right) / 2);
+        
+        // Compare mid element with the rightmost element
+        if (nums[mid] > nums[right]) {
+            // The minimum value is in the right part
+            left = mid + 1;
+        } else {
+            // The minimum value is in the left part (including mid)
+            right = mid;
+        }
+    }
+    
+    // When left == right, we've found the minimum
+    return nums[left];
+};
+
+// Example Usage
+console.log(findMin([3, 4, 5, 1, 2])); // Output: 1
+console.log(findMin([4, 5, 6, 7, 0, 1, 2])); // Output: 0
+console.log(findMin([11, 13, 15, 17])); // Output: 11
+Explanation of the Code:
+Initialization: left is set to the start of the array, and right is set to the end.
+While Loop: The loop continues until left is less than right.
+Mid Calculation: The midpoint mid is calculated.
+Comparison:
+If the value at mid is greater than the value at right, the minimum must be to the right of mid (so we move left to mid + 1).
+Otherwise, the minimum is at mid or to the left (so we move right to mid).
+Result: Once the loop exits, left will point to the minimum value.
+Time Complexity:
+O(log n): Because we are halving the search space with each iteration of the loop.
+Space Complexity:
+O(1): The space used is constant, as we only use a few pointers.
+This solution efficiently finds the minimum element in a rotated sorted array with unique elements, as required.
