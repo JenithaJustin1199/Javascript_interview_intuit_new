@@ -1,0 +1,36 @@
+Here's a JavaScript implementation to determine the type of triangle based on the provided side lengths:
+
+javascript
+Copy code
+function classifyTriangle(nums) {
+    const [a, b, c] = nums;
+
+    // Check if it can form a triangle using the triangle inequality theorem
+    if (a + b > c && a + c > b && b + c > a) {
+        // Classify the triangle
+        if (a === b && b === c) {
+            return "equilateral";
+        } else if (a === b || b === c || a === c) {
+            return "isosceles";
+        } else {
+            return "scalene";
+        }
+    }
+
+    // If it cannot form a triangle
+    return "none";
+}
+
+// Example usage:
+console.log(classifyTriangle([3, 3, 3])); // Output: "equilateral"
+console.log(classifyTriangle([3, 4, 5])); // Output: "scalene"
+console.log(classifyTriangle([3, 3, 2])); // Output: "isosceles"
+console.log(classifyTriangle([1, 2, 3])); // Output: "none"
+Explanation
+Input Destructuring: We destructure the nums array to get the side lengths a, b, and c.
+Triangle Inequality Check: We check if the sum of the lengths of any two sides is greater than the length of the third side to ensure a valid triangle can be formed.
+Classification:
+Equilateral: All sides are equal.
+Isosceles: Exactly two sides are equal.
+Scalene: All sides are different.
+Return "none": If the sides do not satisfy the triangle inequality, return "none".
