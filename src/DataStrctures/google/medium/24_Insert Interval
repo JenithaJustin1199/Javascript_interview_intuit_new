@@ -1,0 +1,129 @@
+Insert Interval
+Solved
+Medium
+Topics
+Companies
+Hint
+You are given an array of non-overlapping intervals intervals where intervals[i] = [starti, endi] represent the start and the end of the ith interval and intervals is sorted in ascending order by starti. You are also given an interval newInterval = [start, end] that represents the start and end of another interval.
+
+Insert newInterval into intervals such that intervals is still sorted in ascending order by starti and intervals still does not have any overlapping intervals (merge overlapping intervals if necessary).
+
+Return intervals after the insertion.
+
+Note that you don't need to modify intervals in-place. You can make a new array and return it.
+
+ 
+
+Example 1:
+
+Input: intervals = [[1,3],[6,9]], newInterval = [2,5]
+Output: [[1,5],[6,9]]
+Example 2:
+
+Input: intervals = [[1,2],[3,5],[6,7],[8,10],[12,16]], newInterval = [4,8]
+Output: [[1,2],[3,10],[12,16]]
+Explanation: Because the new interval [4,8] overlaps with [3,5],[6,7],[8,10].
+ 
+
+Constraints:
+
+0 <= intervals.length <= 104
+intervals[i].length == 2
+0 <= starti <= endi <= 105
+intervals is sorted by starti in ascending order.
+newInterval.length == 2
+0 <= start <= end <= 105
+
+
+To solve this problem efficiently, we can iterate through the given intervals in a single pass and follow a step-by-step merging approach with the new interval. This ensures that we maintain the order of intervals and handle overlaps as they arise.
+
+Approach
+Initialize Variables:
+
+Create a result array to store the final merged intervals.
+Let i = 0 to iterate through the intervals.
+Add Non-Overlapping Intervals Before New Interval:
+
+Append all intervals that end before the newInterval starts to result. These intervals are guaranteed not to overlap with newInterval.
+Merge Overlapping Intervals with New Interval:
+
+For any interval that overlaps with newInterval, merge them by:
+Setting newInterval[0] to the minimum start of the overlapping intervals.
+Setting newInterval[1] to the maximum end of the overlapping intervals.
+This gives the merged interval covering the full range of overlaps.
+Add Non-Overlapping Intervals After New Interval:
+
+Once all overlaps are processed, add newInterval to result as it now represents the fully merged interval.
+Append the remaining intervals from intervals that start after newInterval ends.
+Return Result:
+
+The result array now contains all intervals in sorted, merged form.
+Code
+Here's the code implementing this approach:
+
+javascript
+Copy code
+var insert = function(intervals, newInterval) {
+    const result = [];
+    let i = 0;
+    const n = intervals.length;
+
+    // Step 1: Add all intervals before newInterval
+    while (i < n && intervals[i][1] < newInterval[0]) {
+        result.push(intervals[i]);
+        i++;
+    }
+
+    // Step 2: Merge overlapping intervals with newInterval
+    while (i < n && intervals[i][0] <= newInterval[1]) {
+        newInterval[0] = Math.min(newInterval[0], intervals[i][0]);
+        newInterval[1] = Math.max(newInterval[1], intervals[i][1]);
+        i++;
+    }
+    // Add the merged interval
+    result.push(newInterval);
+
+    // Step 3: Add remaining intervals after newInterval
+    while (i < n) {
+        result.push(intervals[i]);
+        i++;
+    }
+
+    return result;
+};
+Example Walkthrough
+Consider the example:
+
+plaintext
+Copy code
+intervals = [[1,2],[3,5],[6,7],[8,10],[12,16]]
+newInterval = [4,8]
+Step 1: Add intervals before [4,8]:
+[1,2] ends before 4, so add it to result:
+result = [[1,2]]
+Step 2: Merge overlapping intervals:
+[3,5] overlaps with [4,8]. Merge to get [3,8].
+[6,7] overlaps with [3,8]. Merge to get [3,8].
+[8,10] overlaps with [3,8]. Merge to get [3,10].
+Add the merged interval [3,10] to result:
+result = [[1,2], [3,10]]
+Step 3: Add intervals after [4,8]:
+Add [12,16] to result:
+result = [[1,2], [3,10], [12,16]]
+The output is [[1,2], [3,10], [12,16]].
+
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the number of intervals. We process each interval once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), for storing the merged intervals in the result array.
