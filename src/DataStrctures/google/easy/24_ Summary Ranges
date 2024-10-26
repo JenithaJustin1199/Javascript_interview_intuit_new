@@ -1,0 +1,55 @@
+To solve the "Summary Ranges" problem, we need to group consecutive numbers in the given sorted array into ranges and return these ranges in the specified format.
+
+Approach
+Iterate through the array: We can iterate through the array while keeping track of the start of each range.
+Check for consecutive numbers: For each number, we check if it is consecutive to the previous number. If it is, we continue; if not, we record the range.
+Construct the range: If the start and end of the range are the same, we add the number itself. If they are different, we format it as "start->end".
+Handle the last range: After the loop, we need to ensure that the last range is also added to the result.
+JavaScript Solution
+Here's a JavaScript implementation of this approach:
+
+javascript
+Copy code
+function summaryRanges(nums) {
+    const ranges = [];
+    if (nums.length === 0) return ranges;
+
+    let start = nums[0]; // Start of the range
+
+    for (let i = 1; i <= nums.length; i++) {
+        // Check if we are at the end of the array or the current number is not consecutive
+        if (i === nums.length || nums[i] !== nums[i - 1] + 1) {
+            // If we reached the end of a range
+            if (start === nums[i - 1]) {
+                ranges.push(`${start}`); // Only one number in the range
+            } else {
+                ranges.push(`${start}->${nums[i - 1]}`); // Range with more than one number
+            }
+            start = nums[i]; // Update the start for the new range
+        }
+    }
+
+    return ranges;
+}
+
+// Example usage:
+console.log(summaryRanges([0, 1, 2, 4, 5, 7])); // Output: ["0->2","4->5","7"]
+console.log(summaryRanges([0, 2, 3, 4, 6, 8, 9])); // Output: ["0","2->4","6","8->9"]
+Explanation
+Initialization: We initialize an empty array ranges to hold the result and set start to the first element of nums.
+Looping through nums: We loop from the second element to the end of the array (inclusive).
+Inside the loop, we check if the current number is not consecutive to the previous one or if we are at the end of the array.
+If so, we check if the start and the last number in the current range are the same (single number) or different (range).
+We then push the appropriate format into the ranges array.
+Updating the start: After handling the range, we update start to the current number.
+Returning the result: Finally, we return the ranges array.
+Time Complexity
+O(n): We traverse the array once, where 
+𝑛
+n is the number of elements in nums.
+Space Complexity
+O(m): In the worst case, if all numbers are unique and not consecutive, where 
+𝑚
+m is the number of ranges formed. This will be less than or equal to 
+𝑛
+n.
