@@ -1,0 +1,97 @@
+A boolean expression is an expression that evaluates to either true or false. It can be in one of the following shapes:
+
+'t' that evaluates to true.
+'f' that evaluates to false.
+'!(subExpr)' that evaluates to the logical NOT of the inner expression subExpr.
+'&(subExpr1, subExpr2, ..., subExprn)' that evaluates to the logical AND of the inner expressions subExpr1, subExpr2, ..., subExprn where n >= 1.
+'|(subExpr1, subExpr2, ..., subExprn)' that evaluates to the logical OR of the inner expressions subExpr1, subExpr2, ..., subExprn where n >= 1.
+Given a string expression that represents a boolean expression, return the evaluation of that expression.
+
+It is guaranteed that the given expression is valid and follows the given rules.
+
+ 
+
+Example 1:
+
+Input: expression = "&(|(f))"
+Output: false
+Explanation: 
+First, evaluate |(f) --> f. The expression is now "&(f)".
+Then, evaluate &(f) --> f. The expression is now "f".
+Finally, return false.
+Example 2:
+
+Input: expression = "|(f,f,f,t)"
+Output: true
+Explanation: The evaluation of (false OR false OR false OR true) is true.
+
+var parseBoolExpr = function(expression) {
+    let stack = [];
+    
+    for (let char of expression) {
+        if (char === 't') {
+            stack.push(true);
+        } else if (char === 'f') {
+            stack.push(false);
+        } else if (char === ')') {
+            let subExp = [];
+            while (stack.length && stack[stack.length - 1] !== '(') {
+                subExp.push(stack.pop());
+            }
+            stack.pop(); // remove '('
+            let operator = stack.pop(); // get the operator before '('
+            
+            let result;
+            if (operator === '!') {
+                result = !subExp[0];
+            } else if (operator === '&') {
+                result = subExp.every(x => x === true); // all must be true
+            } else if (operator === '|') {
+                result = subExp.some(x => x === true); // at least one true
+            }
+            stack.push(result);
+        } else if (char !== ',') {
+            // Push operators and '(' onto the stack
+            stack.push(char);
+        }
+    }
+    
+    return stack[0];
+};
+To solve the problem of evaluating a boolean expression in the described formats, we can use a stack-based approach. The stack will help us handle the nested structures of the boolean expressions, such as !(...), &(...), and |(...).
+
+Steps to Evaluate the Boolean Expression
+Use a Stack: We can traverse the expression character by character and use a stack to manage the nested expressions.
+Parse Characters:
+If we encounter t or f, we push their boolean equivalents (true or false) onto the stack.
+If we encounter an operator like !, &, or |, we note it down and push it onto the stack.
+When we encounter a closing parenthesis ), we pop elements from the stack until we find the corresponding opening parenthesis (.
+Evaluate: Once we have all the inner expressions, we can evaluate them based on the operator:
+For !, we negate the boolean value.
+For &, we perform a logical AND operation on the popped values.
+For |, we perform a logical OR operation on the popped values.
+Return the Result: After processing the entire expression, the final result will be on top of the stack.
+
+Explanation of the Implementation
+Traversal: We loop through each character in the input expression.
+Character Handling:
+For t and f, we push their boolean values onto the stack.
+When we encounter ), we start popping from the stack until we reach the corresponding (, collecting the values for evaluation.
+We then pop the operator and perform the respective logical operation based on whether it is !, &, or |.
+Final Result: After processing all characters, the stack will contain the final evaluated boolean value.
+Time Complexity
+The time complexity is 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the expression. Each character is processed once.
+Space Complexity
+The space complexity is 
+𝑂
+(
+𝑛
+)
+O(n) in the worst case due to the stack used for holding characters and boolean values.
