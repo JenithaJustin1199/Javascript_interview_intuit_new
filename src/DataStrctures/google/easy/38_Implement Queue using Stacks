@@ -1,0 +1,83 @@
+To implement a queue using two stacks, we can use one stack (inStack) for enqueue operations (pushing elements to the queue), and another stack (outStack) for dequeue operations (removing elements from the queue).
+
+Approach
+Push Operation: We push all elements onto the inStack.
+Pop Operation:
+If outStack is empty, transfer all elements from inStack to outStack. This reverses the order and allows us to pop elements from outStack in FIFO order.
+Pop the top element from outStack.
+Peek Operation: If outStack is empty, transfer elements from inStack to outStack and return the top element of outStack (this is the front of the queue). If outStack is not empty, simply return its top element.
+Empty Operation: Check if both inStack and outStack are empty.
+Time Complexity
+Amortized O(1) for each operation: Each element is moved between the stacks at most once.
+Implementation
+Here's the JavaScript code for MyQueue:
+
+javascript
+Copy code
+var MyQueue = function() {
+    this.inStack = [];
+    this.outStack = [];
+};
+
+/** 
+ * @param {number} x
+ * @return {void}
+ */
+MyQueue.prototype.push = function(x) {
+    this.inStack.push(x);
+};
+
+/**
+ * @return {number}
+ */
+MyQueue.prototype.pop = function() {
+    if (this.outStack.length === 0) {
+        while (this.inStack.length > 0) {
+            this.outStack.push(this.inStack.pop());
+        }
+    }
+    return this.outStack.pop();
+};
+
+/**
+ * @return {number}
+ */
+MyQueue.prototype.peek = function() {
+    if (this.outStack.length === 0) {
+        while (this.inStack.length > 0) {
+            this.outStack.push(this.inStack.pop());
+        }
+    }
+    return this.outStack[this.outStack.length - 1];
+};
+
+/**
+ * @return {boolean}
+ */
+MyQueue.prototype.empty = function() {
+    return this.inStack.length === 0 && this.outStack.length === 0;
+};
+
+/** 
+ * Your MyQueue object will be instantiated and called as such:
+ * var obj = new MyQueue()
+ * obj.push(x)
+ * var param_2 = obj.pop()
+ * var param_3 = obj.peek()
+ * var param_4 = obj.empty()
+ */
+Explanation of Each Operation
+push(x): O(1) - Add x to inStack.
+pop(): Amortized O(1) - If outStack is empty, transfer all elements from inStack to outStack (which is an O(n) operation, but only happens when outStack is empty). Pop the top of outStack.
+peek(): Amortized O(1) - If outStack is empty, transfer all elements from inStack to outStack and then return the top element of outStack.
+empty(): O(1) - Check if both inStack and outStack are empty.
+Example Usage
+javascript
+Copy code
+let myQueue = new MyQueue();
+myQueue.push(1);     // Queue: [1]
+myQueue.push(2);     // Queue: [1, 2]
+console.log(myQueue.peek()); // Output: 1
+console.log(myQueue.pop());  // Output: 1, Queue becomes: [2]
+console.log(myQueue.empty()); // Output: false
+This approach provides an efficient way to implement a queue using stacks, with amortized constant time for each operation.
