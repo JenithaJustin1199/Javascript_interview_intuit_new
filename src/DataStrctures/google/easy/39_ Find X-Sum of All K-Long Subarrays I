@@ -1,0 +1,89 @@
+To solve this problem, we need to calculate the "x-sum" for each k-length subarray of nums. The x-sum is obtained by counting the occurrences of each element in the subarray and summing the most frequent x elements. Here’s a more efficient approach to accomplish this in JavaScript.
+
+Optimized Approach
+Sliding Window:
+
+Use a sliding window of size k to iterate over each subarray of nums.
+As the window moves forward, add the new element and remove the oldest element.
+Element Count Management:
+
+Maintain a frequency map to count occurrences of each element in the current window.
+As elements are added and removed from the window, update this frequency map.
+Priority Sorting:
+
+For each window, calculate the x-sum by sorting the elements in the frequency map by frequency (and by value if the frequency is the same) to get the x most frequent elements.
+Edge Cases:
+
+If there are fewer than x distinct elements in the window, sum all distinct elements.
+Time Complexity
+Sorting each subarray’s elements by frequency and value results in O(k log k) per window. This approach should be efficient given the constraints 
+𝑛
+≤
+50
+n≤50.
+
+Implementation
+Here’s the JavaScript code for the optimized solution:
+
+javascript
+Copy code
+function getXSum(nums, k, x) {
+    let n = nums.length;
+    let answer = [];
+
+    // Helper function to calculate the x-sum of the current frequency map
+    function calculateXSum(freqMap) {
+        // Sort elements by frequency and value (descending)
+        let sorted = Array.from(freqMap.entries())
+            .sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+        
+        let sum = 0;
+        let count = 0;
+
+        // Sum the top `x` most frequent elements
+        for (let [num, freq] of sorted) {
+            if (count >= x) break;
+            sum += num * freq;
+            count += 1;
+        }
+
+        return sum;
+    }
+
+    // Initialize frequency map for the first window
+    let freqMap = new Map();
+    for (let i = 0; i < k; i++) {
+        freqMap.set(nums[i], (freqMap.get(nums[i]) || 0) + 1);
+    }
+    answer.push(calculateXSum(freqMap));
+
+    // Slide the window across `nums`
+    for (let i = k; i < n; i++) {
+        // Add the new element
+        freqMap.set(nums[i], (freqMap.get(nums[i]) || 0) + 1);
+
+        // Remove the old element
+        let oldElement = nums[i - k];
+        if (freqMap.get(oldElement) === 1) {
+            freqMap.delete(oldElement);
+        } else {
+            freqMap.set(oldElement, freqMap.get(oldElement) - 1);
+        }
+
+        // Calculate x-sum for the current window and add to the answer
+        answer.push(calculateXSum(freqMap));
+    }
+
+    return answer;
+}
+
+// Example Usage
+console.log(getXSum([1,1,2,2,3,4,2,3], 6, 2)); // Output: [6, 10, 12]
+console.log(getXSum([3,8,7,8,7,5], 2, 2));     // Output: [11, 15, 15, 15, 12]
+Explanation of Code
+calculateXSum function:
+This function takes a frequency map as input, sorts it based on frequency and value, and sums the top x most frequent elements.
+Main Loop:
+Initialize the frequency map for the first k elements and calculate the x-sum.
+For each subsequent window, update the frequency map by adding the new element and removing the old one, then compute the x-sum.
+This approach ensures that we achieve the optimized solution using efficient counting and sorting for each window.
