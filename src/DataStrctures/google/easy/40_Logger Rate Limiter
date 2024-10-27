@@ -1,0 +1,55 @@
+The Logger Rate Limiter is a simple system to manage how frequently a given message is allowed to be printed. Here’s a breakdown of the requirements and approach for implementing it:
+
+Requirements:
+Each message can only be printed once every 10 seconds.
+Messages arrive in chronological order, so timestamps will be non-decreasing.
+For each message and timestamp:
+If the message has not been printed in the last 10 seconds, print it and return true.
+Otherwise, do not print it and return false.
+Approach:
+Use a hash map (messageTimestamps) where the key is the message and the value is the last timestamp the message was printed.
+When a message arrives:
+Check if the message exists in the map.
+If it does:
+Compare the current timestamp with the last timestamp stored for the message.
+If the difference is 10 seconds or more, update the timestamp for the message in the map and return true.
+Otherwise, return false.
+If it does not exist, add the message with the current timestamp and return true.
+Code Implementation in JavaScript:
+javascript
+Copy code
+var Logger = function() {
+    this.messageTimestamps = new Map();
+};
+
+Logger.prototype.shouldPrintMessage = function(timestamp, message) {
+    // Check if the message has been seen before
+    if (this.messageTimestamps.has(message)) {
+        const lastTimestamp = this.messageTimestamps.get(message);
+        
+        // Check if the message was printed more than 10 seconds ago
+        if (timestamp - lastTimestamp < 10) {
+            return false; // Not enough time has passed, don't print
+        }
+    }
+
+    // Update the timestamp for the message and print it
+    this.messageTimestamps.set(message, timestamp);
+    return true; // Print the message
+};
+
+// Example usage:
+const logger = new Logger();
+console.log(logger.shouldPrintMessage(1, "foo"));  // true
+console.log(logger.shouldPrintMessage(2, "bar"));  // true
+console.log(logger.shouldPrintMessage(3, "foo"));  // false
+console.log(logger.shouldPrintMessage(8, "bar"));  // false
+console.log(logger.shouldPrintMessage(10, "foo")); // false
+console.log(logger.shouldPrintMessage(11, "foo")); // true
+Explanation of shouldPrintMessage:
+Check for Existence: If messageTimestamps has the message, retrieve its last timestamp.
+Time Check:
+If the difference between the current timestamp and the lastTimestamp is less than 10 seconds, return false.
+Update and Print:
+If more than 10 seconds have passed, update messageTimestamps with the new timestamp for the message and return true.
+This method provides an efficient solution with O(1) average time complexity for each shouldPrintMessage call due to direct access and updates in the hash map. This approach is optimal for handling up to the maximum constraint of 10^4 calls.
