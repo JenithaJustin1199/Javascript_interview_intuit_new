@@ -1,0 +1,60 @@
+To solve this problem efficiently, we can use a stack-based approach. As we iterate over the string, we’ll push characters to the stack unless we encounter "AB" or "CD", in which case we remove the last character from the stack to simulate removing the entire substring.
+
+Explanation and Approach
+Use a Stack:
+
+Traverse the string one character at a time.
+For each character:
+If it forms an "AB" with the previous character in the stack, or a "CD" with the previous character, remove the last character from the stack (simulate removal of "AB" or "CD").
+Otherwise, push the character onto the stack.
+Final Result:
+
+After iterating through the entire string, the stack will contain the remaining characters that cannot form "AB" or "CD" pairs.
+The length of the stack is the minimum possible length of the string.
+Complexity:
+
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the string s, because we only traverse it once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), for storing characters in the stack.
+Solution Code
+Here's the JavaScript code for the approach:
+
+javascript
+Copy code
+function minLengthAfterRemoving(s) {
+    const stack = [];
+    for (let char of s) {
+        if (stack.length > 0) {
+            const top = stack[stack.length - 1];
+            if ((top === 'A' && char === 'B') || (top === 'C' && char === 'D')) {
+                stack.pop();
+                continue;
+            }
+        }
+        stack.push(char);
+    }
+    return stack.length;
+}
+
+// Example usage
+console.log(minLengthAfterRemoving("ABFCACDB")); // Output: 2
+console.log(minLengthAfterRemoving("ACBBD"));    // Output: 5
+Explanation of the Code
+For Each Character:
+Check if the top of the stack (last character added) forms a "AB" or "CD" with the current character.
+If so, remove the top element from the stack.
+If not, add the current character to the stack.
+Return the Stack Length:
+After processing, the stack will contain characters that could not form any removable substring. The length of this stack is the result.
+This solution is efficient and minimizes the number of operations by handling only necessary substrings.
