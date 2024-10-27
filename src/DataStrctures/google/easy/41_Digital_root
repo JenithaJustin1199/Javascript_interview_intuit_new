@@ -1,0 +1,76 @@
+To solve the "Add Digits" problem in an optimized way, we can use a mathematical approach that avoids loops or recursion, achieving an 
+𝑂
+(
+1
+)
+O(1) runtime.
+
+Explanation:
+This problem is related to digital root in mathematics. The digital root of a number can be found using a formula based on modulus operations.
+
+Key Insight:
+The digital root of a number can be calculated as follows:
+
+If the number is 0, the digital root is 0.
+For any other number, the digital root can be calculated as:
+digital root
+=
+1
++
+(
+𝑛
+𝑢
+𝑚
+−
+1
+)
+%
+9
+digital root=1+(num−1)%9
+This formula works because numbers in base 10 repeat in cycles of 9 for their digital roots.
+
+Why It Works:
+For any number, repeatedly adding its digits until one digit remains is equivalent to computing:
+
+𝑛
+𝑢
+𝑚
+m
+o
+d
+ 
+ 
+9
+nummod9
+However, because num % 9 can give 0 for numbers like 9, 18, 27, etc., we adjust it to return 9 instead of 0 when num is a multiple of 9.
+
+Optimized Solution:
+Here's the solution based on the formula above:
+
+javascript
+Copy code
+var addDigits = function(num) {
+    if (num === 0) return 0;
+    return 1 + (num - 1) % 9;
+};
+
+// Example usage:
+console.log(addDigits(38)); // Output: 2
+console.log(addDigits(0));  // Output: 0
+Explanation of the Code:
+If num is 0, return 0 immediately.
+Otherwise, use the formula 1 + (num - 1) % 9 to compute the digital root in 
+𝑂
+(
+1
+)
+O(1) time.
+This method is highly efficient and avoids iterative or recursive methods, directly giving the result.
+
+
+if(num==0)
+    return 0;
+if(num%9==0)
+    return 9;
+else
+    return (num%9);
