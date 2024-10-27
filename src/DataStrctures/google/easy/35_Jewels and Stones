@@ -1,0 +1,65 @@
+To solve this problem efficiently, we can take advantage of a Set data structure for quick lookups. Here’s the approach:
+
+Convert jewels to a Set:
+
+Since all characters in jewels are unique, we can convert them into a Set. This allows us to check if a stone is a jewel in constant time, 
+𝑂
+(
+1
+)
+O(1).
+Count the Jewels in stones:
+
+Iterate over each character in stones, and for each character, check if it exists in the jewels set.
+If it does, increment the count.
+Complexity:
+
+Time Complexity: 
+𝑂
+(
+𝑚
++
+𝑛
+)
+O(m+n), where 
+𝑚
+m is the length of jewels and 
+𝑛
+n is the length of stones.
+Space Complexity: 
+𝑂
+(
+𝑚
+)
+O(m), where 
+𝑚
+m is the number of unique jewels stored in the Set.
+Here’s the JavaScript code implementing this approach:
+
+javascript
+Copy code
+function numJewelsInStones(jewels, stones) {
+    const jewelSet = new Set(jewels);
+    let count = 0;
+
+    for (let stone of stones) {
+        if (jewelSet.has(stone)) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+// Example usage
+console.log(numJewelsInStones("aA", "aAAbbbb")); // Output: 3
+console.log(numJewelsInStones("z", "ZZ"));       // Output: 0
+Explanation of the Code
+Create a Set from jewels:
+
+jewelSet contains all unique jewels, allowing constant-time membership checks.
+Count Matching Stones:
+
+For each stone, check if it's in jewelSet.
+If true, increment count.
+This solution is both efficient and straightforward, achieving optimal time complexity for the problem constraints.
