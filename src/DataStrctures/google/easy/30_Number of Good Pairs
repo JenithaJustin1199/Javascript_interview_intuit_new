@@ -1,0 +1,141 @@
+
+To solve the Number of Good Pairs problem efficiently, we need to count pairs of indices 
+(
+𝑖
+,
+𝑗
+)
+(i,j) where nums[i] == nums[j] and 
+𝑖
+<
+𝑗
+i<j.
+
+Optimized Approach
+Use a Frequency Map: Instead of comparing each pair (which would have a time complexity of 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ )), we can use a hash map to store the frequency of each number as we iterate through nums.
+Count Good Pairs with Combinatorics:
+For each occurrence count 
+𝑓
+f of a number, we can form 
+𝑓
+×
+(
+𝑓
+−
+1
+)
+2
+2
+f×(f−1)
+​
+  good pairs (this is derived from the combination formula 
+𝐶
+(
+𝑓
+,
+2
+)
+=
+𝑓
+!
+2
+!
+×
+(
+𝑓
+−
+2
+)
+!
+C(f,2)= 
+2!×(f−2)!
+f!
+​
+ ).
+Sum the Counts: Sum up the good pairs formed for each unique number.
+Code
+Here's the JavaScript code implementing this approach:
+
+javascript
+Copy code
+function numIdenticalPairs(nums) {
+    const freqMap = {};
+    let count = 0;
+    
+    for (const num of nums) {
+        if (freqMap[num]) {
+            count += freqMap[num];
+            freqMap[num]++;
+        } else {
+            freqMap[num] = 1;
+        }
+    }
+    
+    return count;
+}
+
+// Example usage:
+console.log(numIdenticalPairs([1, 2, 3, 1, 1, 3])); // Output: 4
+console.log(numIdenticalPairs([1, 1, 1, 1])); // Output: 6
+console.log(numIdenticalPairs([1, 2, 3])); // Output: 0
+Explanation with Example
+For nums = [1,2,3,1,1,3]:
+
+As we iterate, we build up freqMap as follows:
+1 is seen 3 times, contributing 
+3
+×
+(
+3
+−
+1
+)
+/
+2
+=
+3
+3×(3−1)/2=3 pairs.
+3 is seen 2 times, contributing 
+2
+×
+(
+2
+−
+1
+)
+/
+2
+=
+1
+2×(2−1)/2=1 pair.
+Total count = 
+3
++
+1
+=
+4
+3+1=4.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of nums, because we go through the list once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), for storing the frequency map.
+This approach is efficient and takes advantage of counting frequencies to avoid redundant comparisons.
