@@ -1,0 +1,95 @@
+var MyStack = function() {
+    this.queue = [];
+};
+
+/** 
+ * @param {number} x
+ * @return {void}
+ */
+MyStack.prototype.push = function(x) {
+    this.queue.push(x);  // Step 1: Push new element to the back
+    let size = this.queue.length;
+    while (size > 1) {
+        this.queue.push(this.queue.shift());  // Step 2: Rotate all previous elements to the back
+        size--;
+    }
+};
+
+/**
+ * @return {number}
+ */
+MyStack.prototype.pop = function() {
+    return this.queue.shift();  // Remove and return the front element
+};
+
+/**
+ * @return {number}
+ */
+MyStack.prototype.top = function() {
+    return this.queue[0];  // Peek at the front element
+};
+
+/**
+ * @return {boolean}
+ */
+MyStack.prototype.empty = function() {
+    return this.queue.length === 0;  // Check if the queue is empty
+};
+
+/** 
+ * Your MyStack object will be instantiated and called as such:
+ * var obj = new MyStack()
+ * obj.push(x)
+ * var param_2 = obj.pop()
+ * var param_3 = obj.top()
+ * var param_4 = obj.empty()
+ */
+using class
+class MyStack {
+    constructor() {
+        this.queue = [];
+    }
+
+    /** 
+     * @param {number} x
+     * @return {void}
+     */
+    push(x) {
+        this.queue.push(x);  // Step 1: Push new element to the back
+        let size = this.queue.length;
+        while (size > 1) {
+            this.queue.push(this.queue.shift());  // Step 2: Rotate all previous elements
+            size--;
+        }
+    }
+
+    /**
+     * @return {number}
+     */
+    pop() {
+        return this.queue.shift();  // Remove and return the front element
+    }
+
+    /**
+     * @return {number}
+     */
+    top() {
+        return this.queue[0];  // Peek at the front element
+    }
+
+    /**
+     * @return {boolean}
+     */
+    empty() {
+        return this.queue.length === 0;  // Check if the queue is empty
+    }
+}
+
+/** 
+ * Your MyStack object will be instantiated and called as such:
+ * let obj = new MyStack();
+ * obj.push(x);
+ * let param_2 = obj.pop();
+ * let param_3 = obj.top();
+ * let param_4 = obj.empty();
+ */
