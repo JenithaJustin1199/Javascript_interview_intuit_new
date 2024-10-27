@@ -1,0 +1,78 @@
+To solve the "Excel Sheet Column Title" problem, we need to convert a given integer into a string that follows the naming conventions of Excel columns, where:
+
+Columns follow a base-26 system (similar to how we count in base-10 but with letters instead of numbers).
+A corresponds to 1, B to 2, ..., Z to 26, then AA for 27, and so on.
+Approach
+Understand the Base-26 System:
+
+In a base-26 system for Excel columns, each letter from A to Z represents values 1 to 26.
+When we move beyond Z, we reset to AA, much like how 10 follows 9 in base-10.
+Reverse Mapping:
+
+In a 1-indexed base-26 system, subtracting 1 from columnNumber aligns the calculation with 0-based indexing, allowing us to use modulo and division effectively.
+Algorithm Steps:
+
+While columnNumber is greater than 0:
+Subtract 1 from columnNumber (to handle the 1-indexing).
+Calculate the remainder when columnNumber is divided by 26. This remainder tells us the current "letter" to add to our result.
+Convert the remainder to a character (chr(65 + remainder)), since 65 corresponds to A in ASCII.
+Append this character to the beginning of the result string (since we’re building the title from least to most significant position).
+Update columnNumber by dividing it by 26 to move to the next "digit."
+Complexity
+Time Complexity: 
+𝑂
+(
+log
+⁡
+26
+(
+𝑛
+)
+)
+O(log 
+26
+​
+ (n)) because we divide columnNumber by 26 each iteration.
+Space Complexity: 
+𝑂
+(
+log
+⁡
+26
+(
+𝑛
+)
+)
+O(log 
+26
+​
+ (n)) for the resulting string.
+Code Implementation
+Here’s the JavaScript code following this approach:
+
+javascript
+Copy code
+function convertToTitle(columnNumber) {
+    let result = '';
+
+    while (columnNumber > 0) {
+        columnNumber--;  // Adjust for 1-based indexing
+        let remainder = columnNumber % 26;
+        result = String.fromCharCode(65 + remainder) + result;
+        columnNumber = Math.floor(columnNumber / 26);
+    }
+
+    return result;
+}
+
+// Example usage
+console.log(convertToTitle(1));   // Output: "A"
+console.log(convertToTitle(28));  // Output: "AB"
+console.log(convertToTitle(701)); // Output: "ZY"
+Explanation of Code
+Adjust for Indexing: columnNumber-- changes the number to 0-indexed.
+Calculate Letter:
+String.fromCharCode(65 + remainder) converts the remainder to its corresponding letter.
+Update columnNumber:
+Dividing columnNumber by 26 moves us to the next "position" (like moving from tens to hundreds in base-10).
+This solution efficiently calculates the column title by reducing the number on each step, giving us the correct Excel title for any valid columnNumber.
