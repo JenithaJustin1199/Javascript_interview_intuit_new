@@ -1,0 +1,112 @@
+Let's go over Depth-First Search (DFS) in JavaScript. DFS is used to explore a graph starting from a source node, marking nodes as visited, and following each path as deep as possible before backtracking. We’ll implement DFS on both adjacency list and adjacency matrix representations of a graph.
+
+1. DFS Using Adjacency List
+Code Implementation
+javascript
+Copy code
+function dfsAdjList(graph, start) {
+    const visited = new Array(graph.length).fill(false); // To keep track of visited nodes
+    const stack = []; // Stack to help in DFS traversal order
+
+    function dfs(node) {
+        // Mark node as visited and push to stack
+        visited[node] = true;
+        stack.push(node);
+        
+        // Traverse adjacent nodes
+        for (let neighbor of graph[node]) {
+            if (!visited[neighbor]) {
+                dfs(neighbor); // Recursive DFS call
+            }
+        }
+    }
+    
+    dfs(start); // Start DFS from the starting node
+    return stack; // Stack represents the order in which nodes were visited
+}
+
+// Example Usage
+// Graph represented as an adjacency list
+const graphAdjList = [
+    [1, 2],      // Node 0 is connected to Nodes 1 and 2
+    [0, 3, 4],   // Node 1 is connected to Nodes 0, 3, and 4
+    [0],         // Node 2 is connected to Node 0
+    [1],         // Node 3 is connected to Node 1
+    [1]          // Node 4 is connected to Node 1
+];
+console.log(dfsAdjList(graphAdjList, 0)); // Output traversal order starting from Node 0
+Steps Explanation
+Initialize:
+
+visited array to keep track of visited nodes (initially all set to false).
+stack to store the order of visited nodes.
+DFS Function:
+
+Mark the node as visited and push it to stack.
+For each neighbor of the node, if it hasn’t been visited, recursively call dfs.
+Execution:
+
+Begin DFS traversal from the start node and explore as deep as possible in each branch.
+Time Complexity
+O(V + E), where 
+𝑉
+V is the number of vertices and 
+𝐸
+E is the number of edges. This is because each node and edge is visited only once in DFS.
+Space Complexity
+O(V) for the visited array and O(V) for the recursion stack in the worst case, resulting in an overall space complexity of O(V).
+2. DFS Using Adjacency Matrix
+Code Implementation
+javascript
+Copy code
+function dfsAdjMatrix(graph, start) {
+    const visited = new Array(graph.length).fill(false); // To keep track of visited nodes
+    const stack = []; // Stack to store the order of visited nodes
+
+    function dfs(node) {
+        visited[node] = true;
+        stack.push(node);
+
+        // Check each possible node
+        for (let neighbor = 0; neighbor < graph.length; neighbor++) {
+            if (graph[node][neighbor] === 1 && !visited[neighbor]) {
+                dfs(neighbor); // Recursive DFS call
+            }
+        }
+    }
+
+    dfs(start);
+    return stack;
+}
+
+// Example Usage
+// Graph represented as an adjacency matrix
+const graphAdjMatrix = [
+    [0, 1, 1, 0, 0],  // Node 0 is connected to Nodes 1 and 2
+    [1, 0, 0, 1, 1],  // Node 1 is connected to Nodes 0, 3, and 4
+    [1, 0, 0, 0, 0],  // Node 2 is connected to Node 0
+    [0, 1, 0, 0, 0],  // Node 3 is connected to Node 1
+    [0, 1, 0, 0, 0]   // Node 4 is connected to Node 1
+];
+console.log(dfsAdjMatrix(graphAdjMatrix, 0)); // Output traversal order starting from Node 0
+Steps Explanation
+Initialize:
+
+visited array to keep track of visited nodes (all false initially).
+stack to store nodes in the order they are visited.
+DFS Function:
+
+Mark the current node as visited and add it to stack.
+For each possible neighbor node, check if there is a connection (1 in the matrix) and if it hasn’t been visited, recursively call dfs.
+Execution:
+
+Start DFS from the start node, and explore each connected path until all nodes are visited.
+Time Complexity
+O(V^2), where 
+𝑉
+V is the number of vertices. Each cell in the matrix is checked once, making this approach less efficient for sparse graphs.
+Space Complexity
+O(V) for visited array and O(V) for the recursion stack, resulting in an overall space complexity of O(V).
+Summary
+Adjacency List is more space- and time-efficient for sparse graphs (fewer edges).
+Adjacency Matrix is less efficient in terms of time complexity for sparse graphs but can be beneficial if the graph is dense or if checking edge existence quickly is crucial.
