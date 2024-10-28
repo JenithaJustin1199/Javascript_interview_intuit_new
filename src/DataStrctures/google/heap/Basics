@@ -1,0 +1,183 @@
+Here are JavaScript implementations and explanations for MinHeap and MaxHeap classes, including the relevant operations with time and space complexity details.
+
+Heap Basics
+Heap is a special tree-based data structure that satisfies the heap property:
+Max-Heap: The parent node is always greater than or equal to its child nodes.
+Min-Heap: The parent node is always less than or equal to its child nodes.
+A Binary Heap is typically represented as an array. For a node at index i:
+Left child is at index 2 * i + 1.
+Right child is at index 2 * i + 2.
+Parent is at index Math.floor((i - 1) / 2).
+MinHeap and MaxHeap Class Implementation
+Here's the JavaScript code implementing both MinHeap and MaxHeap classes with their methods:
+
+javascript
+Copy code
+class MinHeap {
+    constructor() {
+        this.heap = [];
+    }
+
+    // Helper functions for indices
+    getParentIndex(i) { return Math.floor((i - 1) / 2); }
+    getLeftChildIndex(i) { return 2 * i + 1; }
+    getRightChildIndex(i) { return 2 * i + 2; }
+
+    // Swap function to maintain heap order
+    swap(i, j) {
+        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    }
+
+    // Insert an element into the heap
+    insert(element) {
+        this.heap.push(element);
+        this.heapifyUp(this.heap.length - 1); // Restore heap property upwards
+    }
+
+    // Heapify upwards for insertion
+    heapifyUp(index) {
+        let parentIndex = this.getParentIndex(index);
+        while (index > 0 && this.heap[index] < this.heap[parentIndex]) {
+            this.swap(index, parentIndex);
+            index = parentIndex;
+            parentIndex = this.getParentIndex(index);
+        }
+    }
+
+    // Extract the minimum element (root) in a Min-Heap
+    extractMin() {
+        if (this.heap.length === 0) return null;
+        const min = this.heap[0];
+        this.heap[0] = this.heap.pop();
+        this.heapifyDown(0); // Restore heap property downwards
+        return min;
+    }
+
+    // Heapify downwards for extraction
+    heapifyDown(index) {
+        let smallest = index;
+        const leftIndex = this.getLeftChildIndex(index);
+        const rightIndex = this.getRightChildIndex(index);
+
+        if (leftIndex < this.heap.length && this.heap[leftIndex] < this.heap[smallest]) {
+            smallest = leftIndex;
+        }
+        if (rightIndex < this.heap.length && this.heap[rightIndex] < this.heap[smallest]) {
+            smallest = rightIndex;
+        }
+        if (smallest !== index) {
+            this.swap(index, smallest);
+            this.heapifyDown(smallest);
+        }
+    }
+
+    // Decrease key for an element at index (useful for priority queues)
+    decreaseKey(index, newValue) {
+        this.heap[index] = newValue;
+        this.heapifyUp(index);
+    }
+
+    // Build heap from an arbitrary array (optimal construction)
+    buildHeap(arr) {
+        this.heap = arr;
+        for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
+            this.heapifyDown(i);
+        }
+    }
+}
+
+class MaxHeap {
+    constructor() {
+        this.heap = [];
+    }
+
+    // Helper functions for indices
+    getParentIndex(i) { return Math.floor((i - 1) / 2); }
+    getLeftChildIndex(i) { return 2 * i + 1; }
+    getRightChildIndex(i) { return 2 * i + 2; }
+
+    // Swap function to maintain heap order
+    swap(i, j) {
+        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    }
+
+    // Insert an element into the heap
+    insert(element) {
+        this.heap.push(element);
+        this.heapifyUp(this.heap.length - 1); // Restore heap property upwards
+    }
+
+    // Heapify upwards for insertion
+    heapifyUp(index) {
+        let parentIndex = this.getParentIndex(index);
+        while (index > 0 && this.heap[index] > this.heap[parentIndex]) {
+            this.swap(index, parentIndex);
+            index = parentIndex;
+            parentIndex = this.getParentIndex(index);
+        }
+    }
+
+    // Extract the maximum element (root) in a Max-Heap
+    extractMax() {
+        if (this.heap.length === 0) return null;
+        const max = this.heap[0];
+        this.heap[0] = this.heap.pop();
+        this.heapifyDown(0); // Restore heap property downwards
+        return max;
+    }
+
+    // Heapify downwards for extraction
+    heapifyDown(index) {
+        let largest = index;
+        const leftIndex = this.getLeftChildIndex(index);
+        const rightIndex = this.getRightChildIndex(index);
+
+        if (leftIndex < this.heap.length && this.heap[leftIndex] > this.heap[largest]) {
+            largest = leftIndex;
+        }
+        if (rightIndex < this.heap.length && this.heap[rightIndex] > this.heap[largest]) {
+            largest = rightIndex;
+        }
+        if (largest !== index) {
+            this.swap(index, largest);
+            this.heapifyDown(largest);
+        }
+    }
+
+    // Increase key for an element at index (useful for priority queues)
+    increaseKey(index, newValue) {
+        this.heap[index] = newValue;
+        this.heapifyUp(index);
+    }
+
+    // Build heap from an arbitrary array (optimal construction)
+    buildHeap(arr) {
+        this.heap = arr;
+        for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
+            this.heapifyDown(i);
+        }
+    }
+}
+Time and Space Complexity Justifications
+Insert (O(log n)):
+
+Inserting a new element involves placing it at the end of the array and then moving it up the tree (heapify-up) until the heap property is restored.
+Since the height of the heap is log n, the time complexity is O(log n).
+Extract Min/Max (O(log n)):
+
+Removing the root (either min or max) involves placing the last element at the root and then moving it down the tree (heapify-down) until the heap property is restored.
+This operation involves at most log n swaps, so the time complexity is O(log n).
+Increase Key/Decrease Key (O(log n)):
+
+Changing a key may break the heap property, requiring the element to move up or down the tree to restore the heap property.
+The heapify-up or heapify-down operation takes O(log n), making this operation O(log n).
+Build Heap (O(n)):
+
+Justification: When building a heap, we start heapifying from the last non-leaf node up to the root. Each level requires fewer operations than the previous, making the sum of work done across all nodes proportional to O(n).
+More formally, while each call to heapifyDown can take up to O(log n), the amortized work across all nodes amounts to O(n) because:
+Leaf nodes don’t need heapifying.
+Lower levels of the tree have a large number of nodes but require fewer swaps.
+The analysis of the summation of swaps at each level gives an aggregate time complexity of O(n).
+Space Complexity (O(n)):
+
+Both classes store their elements in an array, so the space complexity is O(n) where n is the number of elements in the heap.
