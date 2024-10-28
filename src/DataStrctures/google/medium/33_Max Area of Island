@@ -1,0 +1,92 @@
+To solve the Max Area of Island problem in JavaScript, we can use Depth-First Search (DFS). We’ll traverse each cell in the grid, and when we encounter a 1, we initiate a DFS to calculate the area of the island it belongs to. Each visited cell will be marked to avoid counting it more than once.
+
+Solution
+Traverse Each Cell: Iterate over each cell in the grid. If the cell contains a 1, this is the start of a new island.
+
+DFS for Area Calculation: Use DFS to explore all adjacent 1s in four directions (up, down, left, right) from the current cell. For each cell we visit in DFS, increase the area count.
+
+Edge Cases:
+
+If the grid is entirely 0s, the answer should be 0.
+Handle out-of-bounds checks to ensure DFS doesn’t access cells outside the grid.
+Code Implementation
+javascript
+Copy code
+function maxAreaOfIsland(grid) {
+    if (!grid || grid.length === 0) return 0;
+
+    const rows = grid.length;
+    const cols = grid[0].length;
+    let maxArea = 0;
+
+    // Function to perform DFS
+    function dfs(r, c) {
+        // Check if out of bounds or cell is water or already visited
+        if (r < 0 || r >= rows || c < 0 || c >= cols || grid[r][c] === 0) {
+            return 0;
+        }
+
+        // Mark the cell as visited by setting it to 0
+        grid[r][c] = 0;
+
+        // Initialize area for the current cell
+        let area = 1;
+
+        // Explore all four directions
+        area += dfs(r + 1, c); // Down
+        area += dfs(r - 1, c); // Up
+        area += dfs(r, c + 1); // Right
+        area += dfs(r, c - 1); // Left
+
+        return area;
+    }
+
+    // Traverse each cell in the grid
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            // If the cell is land (1), calculate the area of this island
+            if (grid[r][c] === 1) {
+                const area = dfs(r, c);
+                maxArea = Math.max(maxArea, area);
+            }
+        }
+    }
+
+    return maxArea;
+}
+
+// Example Usage
+const grid1 = [
+    [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+    [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0],
+    [0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
+];
+console.log(maxAreaOfIsland(grid1)); // Output: 6
+
+const grid2 = [
+    [0, 0, 0, 0, 0, 0, 0, 0]
+];
+console.log(maxAreaOfIsland(grid2)); // Output: 0
+Explanation of the Code
+Initialize Variables: rows and cols hold the grid dimensions. maxArea keeps track of the largest island area found.
+
+DFS Function:
+
+For each cell that contains 1, mark it as visited by setting it to 0.
+Recursively call DFS in all four directions, incrementing the area count as we visit connected land cells.
+Main Loop:
+
+For each cell in the grid, if it’s a 1, invoke DFS to calculate the area of that island and update maxArea if this island’s area is greater than the current maximum.
+Complexity Analysis
+Time Complexity: O(m * n), where 
+𝑚
+m is the number of rows and 
+𝑛
+n is the number of columns. Each cell is visited once, either as part of DFS or checked during iteration.
+
+Space Complexity: O(m * n) in the worst case due to the recursive call stack in DFS. In an unbalanced case (like all 1s connected), the recursion depth could reach the total number of cells.
