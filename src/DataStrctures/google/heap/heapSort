@@ -1,0 +1,156 @@
+Heap Sort is a comparison-based sorting algorithm that uses a binary heap data structure to sort elements in O(n log n) time. By building a heap and repeatedly extracting the maximum (for Max-Heap) or minimum (for Min-Heap), Heap Sort arranges elements in ascending or descending order.
+
+Steps for Heap Sort
+Build Heap: Convert the array into a Max-Heap or Min-Heap.
+Heapify: Ensure the heap property (Max-Heap or Min-Heap) is maintained. Heapify is called recursively to restore the heap property after each extraction.
+Extract Max/Min: Remove the root element (either max or min) and place it at the end of the array, shrinking the heap size by one. Repeat until the entire array is sorted.
+Time Complexity Analysis
+Building the Heap: Takes O(n) time due to the efficient buildHeap function.
+Extracting Max/Min: Each extraction takes O(log n) (height of the heap), and we perform this operation n times. So, n * O(log n) = O(n log n) for the extraction phase.
+Thus, the total time complexity for Heap Sort is O(n log n).
+
+MaxHeap and MinHeap Classes with Heap Sort
+Here’s how you can implement Heap Sort using both Max-Heap (for descending order) and Min-Heap (for ascending order):
+
+javascript
+Copy code
+class MaxHeap {
+    constructor(arr = []) {
+        this.heap = arr;
+        this.buildHeap();
+    }
+
+    getLeftChildIndex(i) { return 2 * i + 1; }
+    getRightChildIndex(i) { return 2 * i + 2; }
+    getParentIndex(i) { return Math.floor((i - 1) / 2); }
+
+    swap(i, j) {
+        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    }
+
+    // Build max heap from an array
+    buildHeap() {
+        for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
+            this.heapifyDown(i);
+        }
+    }
+
+    // Heapify down to maintain max heap property
+    heapifyDown(index) {
+        let largest = index;
+        const left = this.getLeftChildIndex(index);
+        const right = this.getRightChildIndex(index);
+
+        if (left < this.heap.length && this.heap[left] > this.heap[largest]) {
+            largest = left;
+        }
+        if (right < this.heap.length && this.heap[right] > this.heap[largest]) {
+            largest = right;
+        }
+        if (largest !== index) {
+            this.swap(index, largest);
+            this.heapifyDown(largest);
+        }
+    }
+
+    // Extract the maximum element
+    extractMax() {
+        if (this.heap.length === 0) return null;
+        const max = this.heap[0];
+        this.heap[0] = this.heap.pop();
+        this.heapifyDown(0);
+        return max;
+    }
+
+    // Heap sort in descending order
+    heapSort() {
+        const sorted = [];
+        const originalSize = this.heap.length;
+        for (let i = 0; i < originalSize; i++) {
+            sorted.push(this.extractMax());
+        }
+        return sorted;
+    }
+}
+
+class MinHeap {
+    constructor(arr = []) {
+        this.heap = arr;
+        this.buildHeap();
+    }
+
+    getLeftChildIndex(i) { return 2 * i + 1; }
+    getRightChildIndex(i) { return 2 * i + 2; }
+    getParentIndex(i) { return Math.floor((i - 1) / 2); }
+
+    swap(i, j) {
+        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    }
+
+    // Build min heap from an array
+    buildHeap() {
+        for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
+            this.heapifyDown(i);
+        }
+    }
+
+    // Heapify down to maintain min heap property
+    heapifyDown(index) {
+        let smallest = index;
+        const left = this.getLeftChildIndex(index);
+        const right = this.getRightChildIndex(index);
+
+        if (left < this.heap.length && this.heap[left] < this.heap[smallest]) {
+            smallest = left;
+        }
+        if (right < this.heap.length && this.heap[right] < this.heap[smallest]) {
+            smallest = right;
+        }
+        if (smallest !== index) {
+            this.swap(index, smallest);
+            this.heapifyDown(smallest);
+        }
+    }
+
+    // Extract the minimum element
+    extractMin() {
+        if (this.heap.length === 0) return null;
+        const min = this.heap[0];
+        this.heap[0] = this.heap.pop();
+        this.heapifyDown(0);
+        return min;
+    }
+
+    // Heap sort in ascending order
+    heapSort() {
+        const sorted = [];
+        const originalSize = this.heap.length;
+        for (let i = 0; i < originalSize; i++) {
+            sorted.push(this.extractMin());
+        }
+        return sorted;
+    }
+}
+
+// Example usage for sorting in ascending and descending order
+const arr = [5, 3, 8, 4, 1, 2];
+const maxHeap = new MaxHeap([...arr]);
+console.log("Heap Sort Descending:", maxHeap.heapSort());
+
+const minHeap = new MinHeap([...arr]);
+console.log("Heap Sort Ascending:", minHeap.heapSort());
+Explanation of Time Complexities
+Build Heap (O(n)):
+
+Starting from the last non-leaf node and moving upwards to the root, we call heapifyDown.
+While each call to heapifyDown on a node can take up to O(log n), the aggregate complexity is O(n) due to the summing effect across levels: nodes lower in the tree need fewer heapify operations.
+Extract Max/Min (O(log n) per extraction):
+
+Each time we remove the root element, we swap it with the last element and then heapify down to maintain the heap property.
+The height of the heap is log n, so each extraction operation takes O(log n) time.
+Heap Sort Overall (O(n log n)):
+
+The build phase (O(n)) is followed by n extractions, each costing O(log n), resulting in O(n log n) for the entire sort process.
+Space Complexity
+Space Complexity (O(n)):
+The array storing the heap requires O(n) space. The additional space overhead in each function is constant (O(1)), so the overall space complexity remains O(n).
