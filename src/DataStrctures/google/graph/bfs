@@ -1,0 +1,110 @@
+Let's go through Breadth-First Search (BFS) implementation in JavaScript for both adjacency list and adjacency matrix representations of a graph. BFS explores each level of a graph before moving deeper, using a queue to keep track of nodes to visit next.
+
+1. BFS Using Adjacency List
+Code Implementation
+javascript
+Copy code
+function bfsAdjList(graph, start) {
+    const visited = new Array(graph.length).fill(false); // To keep track of visited nodes
+    const queue = [start]; // Queue to manage BFS traversal order
+    const result = []; // To store the order of nodes visited
+
+    visited[start] = true; // Mark the starting node as visited
+
+    while (queue.length > 0) {
+        const node = queue.shift(); // Get the next node in the queue
+        result.push(node);
+
+        // Visit each adjacent node
+        for (let neighbor of graph[node]) {
+            if (!visited[neighbor]) {
+                visited[neighbor] = true; // Mark neighbor as visited
+                queue.push(neighbor); // Add neighbor to the queue
+            }
+        }
+    }
+
+    return result; // Return the order in which nodes were visited
+}
+
+// Example Usage
+// Graph represented as an adjacency list
+const graphAdjList = [
+    [1, 2],      // Node 0 is connected to Nodes 1 and 2
+    [0, 3, 4],   // Node 1 is connected to Nodes 0, 3, and 4
+    [0],         // Node 2 is connected to Node 0
+    [1],         // Node 3 is connected to Node 1
+    [1]          // Node 4 is connected to Node 1
+];
+console.log(bfsAdjList(graphAdjList, 0)); // Output traversal order starting from Node 0
+Explanation of Steps
+Initialize:
+
+visited array to track visited nodes, all initially false.
+queue initialized with the start node, managing the nodes for BFS traversal.
+result to store the order of nodes visited.
+BFS Loop:
+
+Pop the front node from queue, mark it as visited, and add it to result.
+For each neighbor of this node, if it’s not visited, mark it as visited and add it to queue.
+Time Complexity
+O(V + E), where 
+𝑉
+V is the number of vertices and 
+𝐸
+E is the number of edges. Each vertex and edge is visited once.
+Space Complexity
+O(V) for the visited array and O(V) for the queue, making the overall space complexity O(V).
+2. BFS Using Adjacency Matrix
+Code Implementation
+javascript
+Copy code
+function bfsAdjMatrix(graph, start) {
+    const visited = new Array(graph.length).fill(false); // To keep track of visited nodes
+    const queue = [start]; // Queue to manage BFS traversal order
+    const result = []; // To store the order of nodes visited
+
+    visited[start] = true; // Mark the starting node as visited
+
+    while (queue.length > 0) {
+        const node = queue.shift(); // Get the next node in the queue
+        result.push(node);
+
+        // Visit each possible neighbor
+        for (let neighbor = 0; neighbor < graph.length; neighbor++) {
+            if (graph[node][neighbor] === 1 && !visited[neighbor]) {
+                visited[neighbor] = true; // Mark neighbor as visited
+                queue.push(neighbor); // Add neighbor to the queue
+            }
+        }
+    }
+
+    return result;
+}
+
+// Example Usage
+// Graph represented as an adjacency matrix
+const graphAdjMatrix = [
+    [0, 1, 1, 0, 0],  // Node 0 is connected to Nodes 1 and 2
+    [1, 0, 0, 1, 1],  // Node 1 is connected to Nodes 0, 3, and 4
+    [1, 0, 0, 0, 0],  // Node 2 is connected to Node 0
+    [0, 1, 0, 0, 0],  // Node 3 is connected to Node 1
+    [0, 1, 0, 0, 0]   // Node 4 is connected to Node 1
+];
+console.log(bfsAdjMatrix(graphAdjMatrix, 0)); // Output traversal order starting from Node 0
+Explanation of Steps
+Initialize:
+
+visited array to mark visited nodes.
+queue with the start node, to handle BFS order.
+result to store the visit order.
+BFS Loop:
+
+Dequeue a node, mark it as visited, and add it to result.
+For each possible neighbor (0 through graph.length), check if there is an edge (graph[node][neighbor] === 1) and if it hasn’t been visited. If both conditions are met, mark it as visited and enqueue it.
+Time Complexity
+O(V^2) for adjacency matrix representation, where 
+𝑉
+V is the number of vertices, as each row is fully checked for each node.
+Space Complexity
+O(V) for visited array and O(V) for the queue, making it O(V) overall.
