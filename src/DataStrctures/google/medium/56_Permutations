@@ -1,0 +1,110 @@
+To solve the "Permutations" problem, we can use a backtracking approach. Here’s a step-by-step breakdown of the approach:
+
+Approach
+Backtracking:
+
+We will build each permutation by choosing one element at a time, removing it from the available pool, and then recursively calling the function to build the rest of the permutation.
+After we complete a permutation, we’ll backtrack by restoring the element we removed so that we can explore other possibilities.
+Base Case:
+
+When the current permutation being built reaches the length of the nums array, we add it to our list of results.
+Recursive Function:
+
+For each number in nums, if it has not been used in the current permutation path, we add it to the path and call the function recursively to continue building the permutation.
+After each recursive call, we backtrack by removing the last added element, allowing us to use it in different orders.
+Termination:
+
+This will generate all unique permutations since we only consider unused elements each time.
+Implementation in JavaScript
+Here’s how to implement this in JavaScript:
+
+javascript
+Copy code
+function permute(nums) {
+    const result = [];
+    
+    function backtrack(path, used) {
+        // Base case: if the path length equals nums length, add to result
+        if (path.length === nums.length) {
+            result.push([...path]);
+            return;
+        }
+        
+        // Try each number in nums
+        for (let i = 0; i < nums.length; i++) {
+            if (used[i]) continue; // Skip if already used
+            
+            // Add nums[i] to the path
+            path.push(nums[i]);
+            used[i] = true; // Mark as used
+            
+            // Recurse to build the rest of the permutation
+            backtrack(path, used);
+            
+            // Backtrack: remove the last element and mark as unused
+            path.pop();
+            used[i] = false;
+        }
+    }
+    
+    backtrack([], Array(nums.length).fill(false)); // Start with an empty path and unused nums
+    return result;
+}
+
+// Example usage
+console.log(permute([1,2,3])); // Output: [[1,2,3], [1,3,2], [2,1,3], [2,3,1], [3,1,2], [3,2,1]]
+console.log(permute([0,1]));   // Output: [[0,1], [1,0]]
+console.log(permute([1]));     // Output: [[1]]
+Explanation of the Code
+Result Array: result holds all the permutations.
+Backtracking Function:
+backtrack(path, used) is a recursive helper that builds each permutation.
+path stores the current sequence being constructed.
+used is a boolean array that marks which elements in nums are already in path.
+Building Permutations:
+We iterate over each number in nums. If it’s not used in the current path, we:
+Add it to the path.
+Mark it as used.
+Recur to build the next part of the permutation.
+After recursion, we backtrack by removing the last element and unmarking it, allowing other sequences.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+×
+𝑛
+!
+)
+O(n×n!)
+There are 
+𝑛
+!
+n! permutations for 
+𝑛
+n distinct numbers.
+Each recursive call involves copying the path array, which takes 
+𝑂
+(
+𝑛
+)
+O(n) time.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n)
+used array and path array each take 
+𝑂
+(
+𝑛
+)
+O(n) space.
+The recursion stack also uses 
+𝑂
+(
+𝑛
+)
+O(n) space.
+This solution is efficient for the given constraints (1 ≤ nums.length ≤ 6).
