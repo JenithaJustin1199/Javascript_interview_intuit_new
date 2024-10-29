@@ -1,0 +1,32 @@
+/**
+ * @param {string} s
+ * @param {string[]} words
+ * @return {number[]}
+ */
+var findSubstring = function(s, words) {
+    let oneWordLength = words[0].length
+    let wordsLength = words.length
+    let windowLength = words.length * words[0].length
+    let wordMap = {}
+    let indexArray = []
+    for (let word of words) {
+        wordMap[word] = (wordMap[word] || 0) + 1;
+    }
+    function isValidSubString (string, wordMap){
+        let seenMap = {}
+        for (let i=0; i<string.length; i+=oneWordLength ){
+            let expectedMatch = string.slice(i, i+oneWordLength)
+            if (!wordMap[expectedMatch]) return false
+            seenMap[expectedMatch] = (seenMap[expectedMatch] || 0) +1
+            if (seenMap[expectedMatch] > wordMap[expectedMatch]) return false
+        }
+        return true
+    }
+  for (let i=0 ; i<= s.length - windowLength ;i++){
+    let checkerString = s.slice(i, i+windowLength)
+    if(isValidSubString(checkerString, wordMap))
+        indexArray.push(i)
+  }
+
+  return indexArray
+};
