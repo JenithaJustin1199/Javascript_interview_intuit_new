@@ -1,0 +1,28 @@
+var subarraySum = function(arr, targetSum) {
+   
+  let left = 0;
+  let right = 0;
+  let sum = arr[left];
+  const result = [];
+
+  while (left <= right && right < arr.length) {
+    if (sum === targetSum) {
+      result.push(arr.slice(left, right + 1));
+      right++;
+      sum += arr[right];
+    } else if (sum < targetSum) {
+      right++;
+      sum += arr[right];
+      console.log("1st",result);
+    } else {
+      sum -= arr[left];
+      left++;
+      console.log("2nd",result);
+    }
+  }
+  console.log(result)
+
+  return result.length;
+
+
+};
