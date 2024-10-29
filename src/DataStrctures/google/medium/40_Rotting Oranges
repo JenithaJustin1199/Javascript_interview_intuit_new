@@ -1,0 +1,106 @@
+Your code has a couple of small mistakes that prevent it from working as expected:
+
+Incorrect Condition in the if Statement within the Inner Loop:
+
+javascript
+Copy code
+if(nr<0 || nc<0 || nr<row || nr<col || grid[nr][nc] == 1)
+This condition is supposed to check if (nr, nc) is within the grid bounds and if grid[nr][nc] is 1. However, you need to use && for the bounds check, not ||.
+The correct check should be:
+javascript
+Copy code
+if (nr >= 0 && nc >= 0 && nr < row && nc < col && grid[nr][nc] === 1)
+Edge Case for No Fresh Oranges:
+
+You should return 0 if there are no fresh oranges from the beginning because there's nothing to rot.
+Add this check:
+javascript
+Copy code
+if (freshCount === 0) return 0;
+Variable Name Typo:
+
+minustes should be minutes. Due to this typo, it will not update the variable correctly.
+Here is the corrected code:
+
+javascript
+Copy code
+/**
+ * @param {number[][]} grid
+ * @return {number}
+ */
+var orangesRotting = function(grid) {
+   let rottenQueue = [];
+   let freshCount = 0;
+   let minutes = 0; // Fixed typo here
+   let row = grid.length;
+   let col = grid[0].length;
+   let directions = [[0,1],[1,0],[-1,0],[0,-1]];
+
+   // Initialize queue with all rotten oranges and count fresh oranges
+   for (let r = 0; r < row; r++) {
+      for (let c = 0; c < col; c++) {
+         if (grid[r][c] === 2) {
+            rottenQueue.push([r, c]);
+         } else if (grid[r][c] === 1) {
+            freshCount++;
+         }
+      }
+   }
+
+   // Edge case: If there are no fresh oranges, return 0
+   if (freshCount === 0) return 0;
+
+   // Perform BFS
+   while (rottenQueue.length > 0) {
+      let newQueue = [];
+      for (let [r, c] of rottenQueue) {
+         for (let [dr, dc] of directions) {
+            let nr = r + dr;
+            let nc = c + dc;
+
+            // Check bounds and if there's a fresh orange to rot
+            if (nr >= 0 && nc >= 0 && nr < row && nc < col && grid[nr][nc] === 1) {
+               grid[nr][nc] = 2; // Rot the fresh orange
+               freshCount--; // Decrease fresh count
+               newQueue.push([nr, nc]); // Add newly rotten orange to queue
+            }
+         }
+      }
+
+      // Move to the next minute only if new oranges were rotted
+      if (newQueue.length > 0) {
+         minutes++;
+         rottenQueue = newQueue;
+      } else {
+         break;
+      }
+   }
+
+   // If there are still fresh oranges left, return -1
+   return freshCount === 0 ? minutes : -1;
+};
+Explanation of Fixes
+Bounds Check Fix: We used && to ensure all conditions for (nr, nc) are valid before marking an orange as rotten.
+Return 0 if No Fresh Oranges: This handles the case where there are no fresh oranges from the start.
+Typo Fix: Changing minustes to minutes ensures the counter works correctly.
+Complexity
+Time Complexity: 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n), where 
+𝑚
+m is the number of rows and 
+𝑛
+n is the number of columns, as we process each cell once.
+Space Complexity: 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n), for the queue that could contain all cells in the worst case.
