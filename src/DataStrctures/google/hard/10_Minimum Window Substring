@@ -1,0 +1,37 @@
+Minimum Window Substringa/**
+ * @param {string} s
+ * @param {string} t
+ * @return {string}
+ */
+var minWindow = function(s, t) {
+    if(s.length<t.length) return ""
+    let left = 0
+    let tFreq = {}
+    let seenMap = {}
+    let minLength = Infinity;
+    let startIndex
+    for(let i=0; i<t.length; i++){
+        tFreq[t[i]] = (tFreq[t[i]]||0) +1 
+    }
+    let required = Object.keys(tFreq).length;
+    let formed = 0
+    for(let right=0; right<s.length; right++ ){
+        seenMap[s[right]] = (seenMap[s[right]]||0) + 1
+        if(tFreq[s[right]] && tFreq[s[right]] === seenMap[s[right]]){
+            formed++
+        }
+        while(left<=right && required===formed){
+            if(right-left+1 < minLength){
+                minLength = right-left+1
+                startIndex = left
+            }
+           seenMap[s[left]]--
+           if(tFreq[s[left]] &&tFreq[s[left]] > seenMap[s[left]]) {
+            formed--
+           }
+        left++
+        }
+
+    }
+ return startIndex===-1?"":s.slice(startIndex, minLength+startIndex)
+};
