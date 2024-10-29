@@ -1,0 +1,88 @@
+The "Keys and Rooms" problem is a classic graph traversal challenge where we have to determine if we can visit all rooms in a given structure. Here’s a breakdown of the problem and how to solve it.
+
+Problem Explanation
+Rooms and Keys: You have n rooms, each identified by a number from 0 to n-1. All rooms are locked except for room 0, which you can access immediately.
+Keys: Each room contains a list of keys that can unlock other rooms. For instance, if you visit room i, you might find keys for rooms j, k, etc.
+Goal: The goal is to determine if you can visit all rooms starting from room 0 using the keys you collect.
+Key Insights
+Graph Representation: The rooms and keys can be visualized as a directed graph where:
+
+Each room is a node.
+An edge from room i to room j exists if room i contains a key for room j.
+Traversal Strategy: To determine if all rooms can be visited, we can use a graph traversal algorithm such as Depth-First Search (DFS) or Breadth-First Search (BFS).
+
+Visited Tracking: We need to keep track of which rooms we have already visited to avoid cycles and ensure we don’t visit the same room multiple times.
+
+Solution Using Depth-First Search (DFS)
+Here’s a solution using DFS to traverse the rooms:
+
+javascript
+Copy code
+/**
+ * @param {number[][]} rooms
+ * @return {boolean}
+ */
+var canVisitAllRooms = function(rooms) {
+    const visited = new Array(rooms.length).fill(false); // Track visited rooms
+    const stack = [0]; // Start DFS from room 0
+    visited[0] = true; // Mark room 0 as visited
+
+    // Step 1: Perform DFS
+    while (stack.length > 0) {
+        const room = stack.pop(); // Get the current room
+        for (const key of rooms[room]) { // Iterate through keys found in this room
+            if (!visited[key]) { // If we haven't visited this room
+                visited[key] = true; // Mark it as visited
+                stack.push(key); // Add it to the stack to explore later
+            }
+        }
+    }
+
+    // Step 2: Check if all rooms have been visited
+    for (let i = 0; i < rooms.length; i++) {
+        if (!visited[i]) {
+            return false; // If any room is not visited, return false
+        }
+    }
+    return true; // All rooms visited
+};
+
+// Example usage
+console.log(canVisitAllRooms([[1],[2],[3],[]])); // Output: true
+console.log(canVisitAllRooms([[1,3],[3,0,1],[2],[0]])); // Output: false
+Explanation of the Code
+Initialization:
+
+A visited array is created to track which rooms have been visited.
+A stack is initialized with room 0, which is the starting point.
+DFS Loop:
+
+The loop continues until there are no more rooms to visit (i.e., the stack is empty).
+For the current room popped from the stack, we iterate through the keys (the rooms it unlocks).
+If a room can be accessed (not yet visited), we mark it as visited and add it to the stack.
+Final Check:
+
+After the DFS completes, we check if all rooms have been visited by iterating through the visited array.
+If any room remains unvisited, we return false. Otherwise, we return true.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑉
++
+𝐸
+)
+O(V+E), where 
+𝑉
+V is the number of rooms (nodes), and 
+𝐸
+E is the total number of keys (edges). Since each room and key is processed at most once, the traversal is efficient.
+
+Space Complexity: 
+𝑂
+(
+𝑉
+)
+O(V) due to the visited array and the stack used for the DFS traversal.
+
+This approach ensures that you can efficiently determine if all rooms can be accessed given the keys found within them!
