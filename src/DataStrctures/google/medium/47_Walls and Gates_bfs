@@ -1,0 +1,67 @@
+To solve the "Walls and Gates" problem, we can use a breadth-first search (BFS) approach, which is efficient for this problem because we need to propagate distances from multiple gates (cells with a value of 0) to their nearest empty rooms (cells with the value INF). This method is similar to the "Number of Islands" problem but uses BFS rather than DFS.
+
+Approach
+Initialization:
+
+Identify the positions of all the gates (cells with value 0) in the grid. These will serve as our starting points for the BFS.
+BFS for Distance Propagation:
+
+Use a queue to perform a BFS. Start from each gate and explore its neighboring cells. If a neighboring cell is an empty room (with a value of INF), update its distance to be one more than the distance of the gate and add it to the queue for further exploration.
+Direction Vectors:
+
+Define the possible movements (up, down, left, right) to explore neighboring cells.
+Continue Until All Cells are Processed:
+
+The BFS will continue until all reachable empty rooms have been updated with their distance to the nearest gate.
+Implementation
+Here's how you can implement this in JavaScript:
+/**
+ * @param {number[][]} rooms
+ * @return {void} Do not return anything, modify rooms in-place instead.
+ */
+var wallsAndGates = function(rooms) {
+    if (rooms.length === 0 || !rooms) return;
+
+    let rows = rooms.length;
+    let cols = rooms[0].length;
+    let gateQueue = [];
+    let directions = [[0,1], [1,0], [0,-1], [-1,0]];
+
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+            if (rooms[i][j] === 0) {
+                gateQueue.push([i, j]);
+            }
+        }
+    }
+
+    while (gateQueue.length > 0) {
+        let [x, y] = gateQueue.shift();
+        for (let [dx, dy] of directions) {
+            let nx = x + dx;
+            let ny = y + dy;
+
+            if (nx >= 0 && ny >= 0 && nx < rows && ny < cols && rooms[nx][ny] === 2147483647) {
+                rooms[nx][ny] = rooms[x][y] + 1;
+                gateQueue.push([nx, ny]);
+            }
+        }
+    }
+};
+Explanation of the Code
+Initialization:
+
+We check if the rooms grid is empty. If not, we define the grid dimensions and set up a queue.
+Enqueue Gates:
+
+We iterate through the grid and enqueue the positions of all gates.
+BFS Loop:
+
+The BFS continues until there are no more elements in the queue. For each gate, we check all four possible directions.
+If an adjacent cell is an empty room (value INF), we update its value to be one more than the current gate's distance and enqueue it for further processing.
+Complexity Analysis
+Time Complexity: O(m * n), where m is the number of rows and n is the number of columns. Each cell is processed at most once.
+
+Space Complexity: O(m * n) in the worst case for the queue that could store all empty rooms if they were all adjacent to gates.
+
+This BFS approach efficiently fills each empty room with the distance to its nearest gate.
