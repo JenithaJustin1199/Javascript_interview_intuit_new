@@ -1,0 +1,58 @@
+To solve the "Gas Station" problem efficiently, we can use a greedy approach. The key idea is to keep track of the net gas at each station and determine if it's possible to complete the circuit starting from a specific station.
+
+Approach
+Check the Total Feasibility: If the total gas available across all stations is less than the total cost to travel between them, it's impossible to complete the circuit, so we return -1 immediately.
+Greedy Walkthrough:
+Start with an initial index and attempt to complete the circuit.
+Track two variables: totalTank and currTank.
+totalTank accumulates the total balance of gas minus cost for all stations, helping us determine if a solution is possible.
+currTank keeps track of the current balance of gas while trying to make the journey from a specific starting station.
+Whenever currTank becomes negative, it means we can’t complete the circuit from the current starting station up to this point. So, set the next station as the new starting point, reset currTank, and continue.
+Determine the Result:
+If totalTank is negative, return -1 (since completing the circuit is impossible).
+If totalTank is non-negative, return the starting index found through this greedy process, as it's guaranteed to be unique when a solution exists.
+Code Implementation in JavaScript
+Here’s how the approach translates into JavaScript:
+
+javascript
+Copy code
+function canCompleteCircuit(gas, cost) {
+    let totalTank = 0;
+    let currTank = 0;
+    let startingStation = 0;
+
+    for (let i = 0; i < gas.length; i++) {
+        totalTank += gas[i] - cost[i];
+        currTank += gas[i] - cost[i];
+        
+        // If currTank is negative, we cannot start from `startingStation`
+        if (currTank < 0) {
+            startingStation = i + 1;
+            currTank = 0; // reset current tank as we switch starting point
+        }
+    }
+    
+    return totalTank >= 0 ? startingStation : -1;
+}
+Explanation of Key Steps
+Loop through each station:
+Calculate totalTank and currTank using gas[i] - cost[i].
+If currTank becomes negative, move the starting station to the next station (i + 1) and reset currTank to 0.
+Final Decision:
+After completing the loop, if totalTank is non-negative, it means the circuit can be completed starting from startingStation. Otherwise, return -1.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n)
+We loop through the array only once, performing constant-time operations at each station.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1)
+Only a few extra variables are used, and we don’t require additional data structures.
+This approach ensures an optimal solution, as it makes only a single pass over the data and uses constant space.
