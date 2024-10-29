@@ -1,0 +1,57 @@
+/**
+ * @param {string} s
+ * @param {string} p
+ * @return {number[]}
+ */
+var findAnagrams = function(s, p) {
+    const result = [];
+    if (p.length > s.length) return result;
+
+    const countsP = Array(26).fill(0); // Frequency array for `p`
+    const countsS = Array(26).fill(0); // Sliding window frequency array for `s`
+
+    // Initialize frequency counts for the pattern `p` and first window in `s`
+    for (let i = 0; i < p.length; i++) {
+        countsP[p.charCodeAt(i) - "a".charCodeAt(0)]++;
+        countsS[s.charCodeAt(i) - "a".charCodeAt(0)]++;
+    }
+
+    // Helper function to check if the two frequency arrays match
+    function isAnagram(counts1, counts2) {
+        for (let i = 0; i < 26; i++) {
+            if (counts1[i] !== counts2[i]) return false;
+        }
+        return true;
+    }
+
+    // Check the first window
+    if (isAnagram(countsP, countsS)) result.push(0);
+
+    // Slide the window over `s` starting from index `p.length`
+    for (let i = p.length; i < s.length; i++) {
+        // Include the next character in the window
+        countsS[s.charCodeAt(i) - "a".charCodeAt(0)]++;
+        // Remove the leftmost character from the window
+        countsS[s.charCodeAt(i - p.length) - "a".charCodeAt(0)]--;
+
+        // Check if the current window is an anagram of `p`
+        if (isAnagram(countsP, countsS)) {
+            result.push(i - p.length + 1);
+        }
+    }
+
+    return result;
+};
+Explanation
+Initialize Counts: countsP tracks the frequency of characters in p, and countsS tracks the frequency of characters in the current window of s.
+First Window Check: Count characters in the first window of s (of length p) and check if it matches countsP.
+Sliding the Window: For each new character added to the window, increase its count, and remove the count of the character that is shifted out of the window.
+Check for Match: If countsS matches countsP, it means the current window is an anagram of p, so we add the start index of the window to the result.
+This approach has a time complexity of 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of s, as each operation within the loop is constant.
