@@ -1,0 +1,169 @@
+To solve the problem of finding the number of connected components in an undirected graph efficiently, we can use either Depth-First Search (DFS) or Union-Find (Disjoint Set Union, DSU) algorithms. Below, I’ll provide a solution using both approaches.
+
+Approach 1: Depth-First Search (DFS)
+Graph Representation: We can represent the graph using an adjacency list.
+Visited Array: We will keep track of visited nodes to ensure we do not count them multiple times.
+DFS Function: For each unvisited node, we will perform a DFS to mark all reachable nodes from it, thereby counting one connected component.
+Here is the JavaScript implementation using DFS:
+
+javascript
+Copy code
+/**
+ * @param {number} n - number of nodes
+ * @param {number[][]} edges - array of edges
+ * @return {number} - number of connected components
+ */
+var countComponents = function(n, edges) {
+    // Step 1: Create an adjacency list
+    const graph = Array.from({ length: n }, () => []);
+    
+    // Step 2: Build the graph from the edges
+    for (const [a, b] of edges) {
+        graph[a].push(b);
+        graph[b].push(a);
+    }
+
+    const visited = Array(n).fill(false); // Track visited nodes
+    let componentCount = 0; // Count of connected components
+
+    // Step 3: DFS function
+    function dfs(node) {
+        visited[node] = true;
+        for (const neighbor of graph[node]) {
+            if (!visited[neighbor]) {
+                dfs(neighbor); // Recursively visit neighbors
+            }
+        }
+    }
+
+    // Step 4: Count components
+    for (let i = 0; i < n; i++) {
+        if (!visited[i]) { // If the node is not visited
+            dfs(i); // Start DFS
+            componentCount++; // Increment count for each component found
+        }
+    }
+
+    return componentCount; // Return the number of connected components
+};
+
+// Example usage
+const n1 = 5;
+const edges1 = [[0, 1], [1, 2], [3, 4]];
+console.log(countComponents(n1, edges1)); // Output: 2
+
+const n2 = 5;
+const edges2 = [[0, 1], [1, 2], [2, 3], [3, 4]];
+console.log(countComponents(n2, edges2)); // Output: 1
+Approach 2: Union-Find (Disjoint Set Union, DSU)
+Union-Find Structure: We will maintain a parent array to track the root of each component and a rank array for optimizing unions.
+Union and Find Operations: For each edge, we will perform union operations to merge components.
+Count Unique Parents: After processing all edges, we will count the number of unique roots, which corresponds to the number of connected components.
+Here’s the JavaScript implementation using Union-Find:
+
+javascript
+Copy code
+/**
+ * @param {number} n - number of nodes
+ * @param {number[][]} edges - array of edges
+ * @return {number} - number of connected components
+ */
+var countComponents = function(n, edges) {
+    const parent = Array.from({ length: n }, (_, i) => i);
+    const rank = Array(n).fill(1);
+
+    function find(x) {
+        if (parent[x] !== x) {
+            parent[x] = find(parent[x]); // Path compression
+        }
+        return parent[x];
+    }
+
+    function union(x, y) {
+        const rootX = find(x);
+        const rootY = find(y);
+        if (rootX !== rootY) {
+            // Union by rank
+            if (rank[rootX] > rank[rootY]) {
+                parent[rootY] = rootX;
+            } else if (rank[rootX] < rank[rootY]) {
+                parent[rootX] = rootY;
+            } else {
+                parent[rootY] = rootX;
+                rank[rootX]++;
+            }
+        }
+    }
+
+    // Step 2: Process each edge
+    for (const [a, b] of edges) {
+        union(a, b);
+    }
+
+    // Step 3: Count unique roots (connected components)
+    const components = new Set();
+    for (let i = 0; i < n; i++) {
+        components.add(find(i)); // Add root of each node to the set
+    }
+
+    return components.size; // Size of the set is the number of connected components
+};
+
+// Example usage
+const n1 = 5;
+const edges1 = [[0, 1], [1, 2], [3, 4]];
+console.log(countComponents(n1, edges1)); // Output: 2
+
+const n2 = 5;
+const edges2 = [[0, 1], [1, 2], [2, 3], [3, 4]];
+console.log(countComponents(n2, edges2)); // Output: 1
+Explanation of the Code
+DFS Approach:
+
+The graph is built using an adjacency list.
+A DFS is performed starting from each unvisited node, marking all reachable nodes and incrementing the connected component count.
+Union-Find Approach:
+
+The parent array tracks the root of each node, while the rank array optimizes unions.
+For each edge, we perform union operations to merge components. Finally, we count the unique roots to determine the number of connected components.
+Complexity Analysis
+Time Complexity:
+DFS: 
+𝑂
+(
+𝑉
++
+𝐸
+)
+O(V+E), where 
+𝑉
+V is the number of vertices and 
+𝐸
+E is the number of edges.
+Union-Find: 
+𝑂
+(
+𝐸
+⋅
+𝛼
+(
+𝑉
+)
+)
+O(E⋅α(V)), where 
+𝛼
+α is the inverse Ackermann function (very slow-growing).
+Space Complexity:
+DFS: 
+𝑂
+(
+𝑉
+)
+O(V) for the adjacency list and the visited array.
+Union-Find: 
+𝑂
+(
+𝑉
+)
+O(V) for the parent and rank arrays.
+Both methods effectively solve the problem of counting connected components in an undirected graph. You can choose the one that fits your understanding and requirements!
