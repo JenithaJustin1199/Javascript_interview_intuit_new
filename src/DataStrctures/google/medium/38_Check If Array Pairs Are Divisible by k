@@ -1,0 +1,107 @@
+To solve this problem efficiently, we can utilize modulo arithmetic and frequency counting to determine if it’s possible to pair elements such that the sum of each pair is divisible by 
+𝑘
+k.
+
+Approach
+Compute Remainders: For each element in the array, compute its remainder when divided by 
+𝑘
+k (i.e., arr[i] % k). This gives us the "modulo class" each number belongs to.
+
+Frequency Count of Remainders: Use a frequency counter (like a dictionary or array) to count how often each remainder appears.
+
+Check Pairing Conditions:
+
+For a number with remainder 
+𝑟
+r, we need a number with remainder 
+𝑘
+−
+𝑟
+k−r to form a pair that sums to a multiple of 
+𝑘
+k.
+Special cases:
+If the remainder is 
+0
+0, then we need an even count of these elements (as they can only pair with each other to form a sum divisible by 
+𝑘
+k).
+If 
+𝑟
+r is equal to 
+𝑘
+/
+2
+k/2 (only relevant when 
+𝑘
+k is even), we also need an even count of such elements.
+Iterate and Check Pairing Feasibility:
+
+For each remainder 
+𝑟
+r, check if it has a matching remainder 
+𝑘
+−
+𝑟
+k−r with the same frequency count. If it does not, return false.
+If all conditions are met, return true.
+Code Implementation
+Here’s how we can implement this approach in JavaScript:
+
+javascript
+Copy code
+function canArrange(arr, k) {
+    const remainderCount = new Array(k).fill(0);
+    
+    // Count remainders
+    for (let num of arr) {
+        const remainder = ((num % k) + k) % k;
+        remainderCount[remainder]++;
+    }
+    
+    // Check pairing conditions
+    for (let r = 0; r <= k / 2; r++) {
+        if (r === 0) {
+            // If remainder is 0, it should have an even count
+            if (remainderCount[r] % 2 !== 0) return false;
+        } else if (r === k - r) {
+            // If remainder is k/2 (when k is even), it should also have an even count
+            if (remainderCount[r] % 2 !== 0) return false;
+        } else {
+            // For other remainders, count of remainder r should match count of remainder k - r
+            if (remainderCount[r] !== remainderCount[k - r]) return false;
+        }
+    }
+    
+    return true;
+}
+Explanation of Key Steps
+Modulo Operation Handling: ((num % k) + k) % k ensures that we get a non-negative remainder, even if the number is negative.
+Pairing Verification:
+Remainder 
+0
+0 and 
+𝑘
+/
+2
+k/2 (for even 
+𝑘
+k) are handled separately since they need an even count to pair within themselves.
+Other remainders must have matching counts with their complementary remainders.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) where 
+𝑛
+n is the length of arr since we make a single pass to calculate remainders and another pass to verify the conditions.
+Space Complexity: 
+𝑂
+(
+𝑘
+)
+O(k), where 
+𝑘
+k is the divisor, for the remainder frequency array.
