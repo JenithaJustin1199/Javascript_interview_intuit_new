@@ -1,0 +1,92 @@
+To solve the problem of finding the product of an array except for the element at each index without using division, we can take advantage of the concept of prefix and suffix products. The solution should run in O(n) time complexity and use O(1) extra space (not counting the output array).
+
+Approach
+Create two arrays:
+
+prefix to hold the cumulative product of elements from the start of the array up to (but not including) the current index.
+suffix to hold the cumulative product of elements from the end of the array to the current index.
+Calculate Prefix Products:
+
+Iterate through the nums array from left to right, and for each index i, set prefix[i] to be the product of all the elements before i.
+Calculate Suffix Products:
+
+Iterate through the nums array from right to left, and for each index i, set suffix[i] to be the product of all the elements after i.
+Construct the Result:
+
+For each index i, the result at answer[i] will be the product of prefix[i] and suffix[i].
+Implementation
+Here’s how you can implement this logic in JavaScript:
+
+javascript
+Copy code
+var productExceptSelf = function(nums) {
+    const n = nums.length;
+    const answer = new Array(n);
+    const prefix = new Array(n);
+    const suffix = new Array(n);
+
+    // Calculate prefix products
+    prefix[0] = 1; // No elements before the first element
+    for (let i = 1; i < n; i++) {
+        prefix[i] = prefix[i - 1] * nums[i - 1];
+    }
+
+    // Calculate suffix products
+    suffix[n - 1] = 1; // No elements after the last element
+    for (let i = n - 2; i >= 0; i--) {
+        suffix[i] = suffix[i + 1] * nums[i + 1];
+    }
+
+    // Construct the answer
+    for (let i = 0; i < n; i++) {
+        answer[i] = prefix[i] * suffix[i];
+    }
+
+    return answer;
+};
+
+// Example usage
+console.log(productExceptSelf([1, 2, 3, 4])); // Output: [24, 12, 8, 6]
+console.log(productExceptSelf([-1, 1, 0, -3, 3])); // Output: [0, 0, 9, 0, 0]
+Space Optimization
+To meet the O(1) space complexity requirement, we can actually compute the result without needing the prefix and suffix arrays by using the output array itself:
+
+Use the Output Array for Prefix Products:
+
+Initially populate the output array with the prefix products.
+Calculate Suffix Products on the Fly:
+
+Maintain a variable to store the suffix product while iterating backward through the nums array and multiply it directly into the output array.
+Here’s how you can implement this optimized approach:
+
+javascript
+Copy code
+var productExceptSelf = function(nums) {
+    const n = nums.length;
+    const answer = new Array(n);
+    
+    // Calculate prefix products
+    answer[0] = 1; // No elements before the first element
+    for (let i = 1; i < n; i++) {
+        answer[i] = answer[i - 1] * nums[i - 1];
+    }
+
+    // Calculate suffix products and multiply with prefix products
+    let suffix = 1; // No elements after the last element
+    for (let i = n - 1; i >= 0; i--) {
+        answer[i] *= suffix; // Multiply the suffix product with the current prefix product
+        suffix *= nums[i]; // Update the suffix product for the next iteration
+    }
+
+    return answer;
+};
+
+// Example usage
+console.log(productExceptSelf([1, 2, 3, 4])); // Output: [24, 12, 8, 6]
+console.log(productExceptSelf([-1, 1, 0, -3, 3])); // Output: [0, 0, 9, 0, 0]
+Explanation of the Optimized Code
+Prefix Calculation: We first fill the answer array with prefix products.
+Suffix Calculation: We maintain a suffix variable that starts at 1 and keeps multiplying by the current element as we iterate backward. For each index i, we update answer[i] by multiplying it with the current suffix.
+Complexity
+Time Complexity: O(n), since we are only making two passes through the array.
+Space Complexity: O(1) for auxiliary space, since we only use a fixed amount of space for variables and the output array is not counted.
