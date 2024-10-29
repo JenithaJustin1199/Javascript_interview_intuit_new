@@ -1,0 +1,54 @@
+function lengthOfLongestSubstringKDistinct(s, k) {
+    if (k === 0) return 0;
+
+    const charCount = new Map();
+    let left = 0;
+    let maxLength = 0;
+
+    for (let right = 0; right < s.length; right++) {
+        const char = s[right];
+        charCount.set(char, (charCount.get(char) || 0) + 1);
+
+        // Shrink the window until we have at most k distinct characters
+        while (charCount.size > k) {
+            const leftChar = s[left];
+            charCount.set(leftChar, charCount.get(leftChar) - 1);
+            if (charCount.get(leftChar) === 0) {
+                charCount.delete(leftChar);
+            }
+            left++;
+        }
+
+        // Update max length of the substring
+        maxLength = Math.max(maxLength, right - left + 1);
+    }
+
+    return maxLength;
+}
+To solve this problem efficiently using a sliding window (two-pointer) approach, we can use the following plan:
+
+Approach
+Sliding Window with Two Pointers:
+
+Use two pointers, left and right, to define the boundaries of a sliding window in the string.
+right pointer expands the window by moving right, and left pointer shrinks the window from the left whenever there are more than two distinct characters in the current substring.
+HashMap/Dictionary to Track Character Counts:
+
+Use a dictionary to keep track of the count of each character in the current window. This allows us to know when we have more than two distinct characters.
+If the window contains more than two distinct characters, increment the left pointer to shrink the window until there are only two distinct characters again.
+Max Length Update:
+
+As we expand the right pointer, if the window contains at most two distinct characters, calculate the current window length (right - left + 1) and update the maximum length.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) since each character in the string is processed at most twice (once when expanding right and once when moving left).
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), since we only need to store up to three characters in the hashmap at any time.
