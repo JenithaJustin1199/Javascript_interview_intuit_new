@@ -1,0 +1,104 @@
+To solve the "Surrounded Regions" problem, we can use a depth-first search (DFS) approach similar to the "Number of Islands" problem. The main idea is to identify 'O's that are connected to the edges of the board and mark them as safe, meaning they cannot be surrounded by 'X's. After marking these 'O's, we can then convert the remaining 'O's (which are surrounded) to 'X's.
+
+Approach
+DFS to Mark Safe Regions:
+
+Traverse the board to find 'O's on the edges. For each 'O' found, perform a DFS to mark all connected 'O's as safe (change them to a different character, e.g., 'S').
+Convert Surrounded Regions:
+
+After marking all safe 'O's, traverse the board again. Convert all remaining 'O's to 'X's, and convert the 'S' back to 'O's to restore the safe regions.
+Edge Cases:
+
+Handle boards that are completely filled with 'X's or a single 'O'.
+Implementation
+Here’s how you can implement this in JavaScript:
+
+javascript
+Copy code
+function solve(board) {
+    if (!board || board.length === 0) return;
+
+    const m = board.length;
+    const n = board[0].length;
+
+    // Directions for moving up, down, left, right
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+    // DFS function to mark safe regions
+    function dfs(x, y) {
+        // Mark the current cell as safe
+        board[x][y] = 'S';
+
+        // Explore all four directions
+        for (const [dx, dy] of directions) {
+            const newX = x + dx;
+            const newY = y + dy;
+
+            // Check bounds and if the cell is 'O'
+            if (newX >= 0 && newX < m && newY >= 0 && newY < n && board[newX][newY] === 'O') {
+                dfs(newX, newY);
+            }
+        }
+    }
+
+    // Step 1: Mark all 'O's connected to the borders
+    for (let i = 0; i < m; i++) {
+        // Left border
+        if (board[i][0] === 'O') dfs(i, 0);
+        // Right border
+        if (board[i][n - 1] === 'O') dfs(i, n - 1);
+    }
+    
+    for (let j = 0; j < n; j++) {
+        // Top border
+        if (board[0][j] === 'O') dfs(0, j);
+        // Bottom border
+        if (board[m - 1][j] === 'O') dfs(m - 1, j);
+    }
+
+    // Step 2: Convert 'O's to 'X's and 'S's back to 'O's
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            if (board[i][j] === 'O') {
+                board[i][j] = 'X'; // Convert surrounded 'O' to 'X'
+            } else if (board[i][j] === 'S') {
+                board[i][j] = 'O'; // Convert safe 'O' back to 'O'
+            }
+        }
+    }
+}
+
+// Example usage
+const board1 = [
+    ["X", "X", "X", "X"],
+    ["X", "O", "O", "X"],
+    ["X", "X", "O", "X"],
+    ["X", "O", "X", "X"]
+];
+
+const board2 = [["X"]];
+
+solve(board1);
+console.log(board1); // Output: [["X","X","X","X"],["X","X","X","X"],["X","X","X","X"],["X","O","X","X"]]
+
+solve(board2);
+console.log(board2); // Output: [["X"]]
+Explanation of the Code
+Base Cases:
+
+We first check if the board is null or empty, in which case we return immediately.
+DFS Function:
+
+The dfs function marks an 'O' as safe ('S') and recursively visits all adjacent 'O's to mark them as well.
+Marking Safe Regions:
+
+We iterate through the borders of the board and invoke the dfs function on any 'O's found.
+Convert Regions:
+
+Finally, we iterate through the board again, converting 'O's to 'X's (surrounded) and changing 'S' back to 'O' (safe).
+Complexity Analysis
+Time Complexity: O(m * n), where m is the number of rows and n is the number of columns in the board. Each cell is processed once.
+
+Space Complexity: O(m * n) in the worst case for the recursion stack, especially if the board is filled with 'O's. However, if we are not counting the input space, it can be considered O(1) since we are modifying the board in place.
+
+This approach efficiently captures the surrounded regions in the board.
