@@ -1,0 +1,66 @@
+
+To solve this problem efficiently in one pass, we can use the Dutch National Flag algorithm by Edsger Dijkstra. This algorithm works by keeping three pointers to partition the array into sections for 0s (red), 1s (white), and 2s (blue). We’ll sort the array in a single traversal, using constant extra space.
+
+Approach
+Three Pointers:
+
+low: Tracks the position where the next 0 should go.
+mid: Current element under consideration.
+high: Tracks the position where the next 2 should go.
+Steps:
+
+Traverse the array with mid pointer.
+If nums[mid] is 0, swap nums[low] with nums[mid], increment both low and mid.
+If nums[mid] is 1, simply move mid to the next element.
+If nums[mid] is 2, swap nums[mid] with nums[high] and decrement high. Do not increment mid in this case since we need to check the new element at mid after the swap.
+This method ensures we process each element only once, making it a single-pass solution.
+
+Code
+Here’s the JavaScript code for this approach:
+
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @return {void} Do not return anything, modify nums in-place instead.
+ */
+var sortColors = function(nums) {
+    let low = 0, mid = 0, high = nums.length - 1;
+
+    while (mid <= high) {
+        if (nums[mid] === 0) {
+            // Swap nums[low] and nums[mid]
+            [nums[low], nums[mid]] = [nums[mid], nums[low]];
+            low++;
+            mid++;
+        } else if (nums[mid] === 1) {
+            mid++;
+        } else {
+            // nums[mid] === 2
+            // Swap nums[mid] and nums[high]
+            [nums[mid], nums[high]] = [nums[high], nums[mid]];
+            high--;
+        }
+    }
+};
+Explanation of Code
+Swap Operations: Swaps are used to place elements in their correct sections. By the end, all 0s will be in the range [0, low - 1], all 1s in [low, mid - 1], and all 2s in [high + 1, n - 1].
+Increment and Decrement Pointers:
+mid is incremented when we know the value at mid is in the correct place.
+low and high help in managing the boundaries for 0s and 2s.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the array, since we traverse the array only once.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we are using only a few extra variables for tracking indices and doing in-place swaps.
+This solution is both efficient and meets the problem’s requirements for constant space and single-pass traversal.
