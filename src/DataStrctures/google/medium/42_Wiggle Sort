@@ -1,0 +1,63 @@
+To solve the Wiggle Sort problem in 
+𝑂
+(
+𝑛
+)
+O(n) time complexity, we can leverage an efficient approach by modifying the array in-place to ensure that every element at an even index is less than or equal to the next element, and every element at an odd index is greater than or equal to the next element. This approach will achieve the desired pattern of nums[0] <= nums[1] >= nums[2] <= nums[3]... efficiently without additional sorting or multiple passes.
+
+Approach
+Single Pass Condition Check:
+Traverse the array with a single loop.
+For each index 
+𝑖
+i:
+If 
+𝑖
+i is even (i % 2 === 0) and nums[i] > nums[i + 1], swap nums[i] and nums[i + 1].
+If 
+𝑖
+i is odd (i % 2 === 1) and nums[i] < nums[i + 1], swap nums[i] and nums[i + 1].
+These conditions ensure that the wiggle pattern is maintained throughout the array.
+Code
+Here’s the JavaScript code for this approach:
+
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @return {void} Do not return anything, modify nums in-place instead.
+ */
+var wiggleSort = function(nums) {
+    for (let i = 0; i < nums.length - 1; i++) {
+        if ((i % 2 === 0 && nums[i] > nums[i + 1]) || 
+            (i % 2 === 1 && nums[i] < nums[i + 1])) {
+            // Swap nums[i] and nums[i + 1]
+            [nums[i], nums[i + 1]] = [nums[i + 1], nums[i]];
+        }
+    }
+};
+Explanation of Code
+Even Index Check: For every even index 
+𝑖
+i, if nums[i] > nums[i + 1], we swap them to ensure nums[i] <= nums[i + 1].
+Odd Index Check: For every odd index 
+𝑖
+i, if nums[i] < nums[i + 1], we swap them to ensure nums[i] >= nums[i + 1].
+This pattern enforces the wiggle sort requirement as it progresses through the array.
+
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of nums, because we only need a single pass to modify the array.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), since we are swapping elements in-place without any extra space.
+This approach is optimal for achieving wiggle sort in a single pass, ensuring efficient performance.
