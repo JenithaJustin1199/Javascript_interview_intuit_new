@@ -1,0 +1,69 @@
+To solve the problem of collecting the leaves of a binary tree level by level until the tree is empty, we can use a depth-first search (DFS) approach. The idea is to traverse the tree and collect the leaves at each level, removing them from the tree as we go. We'll store the collected leaves in a list of lists, where each sublist corresponds to the leaves collected at one level.
+
+Approach
+Recursive Depth-First Search:
+
+Perform a DFS on the tree.
+At each node, check if it is a leaf (both left and right children are null).
+If it is a leaf, add it to the current level's leaves.
+If it has children, continue the DFS on both left and right children.
+Using a Helper Function:
+
+We'll use a helper function that returns the level of the current node (which helps us know where to add the leaves in our result list).
+Building the Result:
+
+Each time we collect leaves, we'll append them to the result list based on their level.
+Implementation
+Here’s how you can implement this logic in JavaScript:
+
+javascript
+Copy code
+function findLeaves(root) {
+    const result = [];
+
+    function collectLeaves(node) {
+        if (!node) return -1; // Base case: if node is null, return -1
+
+        // Get the level of the current node
+        const leftLevel = collectLeaves(node.left);
+        const rightLevel = collectLeaves(node.right);
+        const currentLevel = Math.max(leftLevel, rightLevel) + 1; // Current node's level
+
+        // If we haven't recorded this level yet, add a new list for it
+        if (currentLevel === result.length) {
+            result.push([]);
+        }
+
+        // Add the current node's value to its corresponding level
+        result[currentLevel].push(node.val);
+        
+        return currentLevel; // Return the level of the current node
+    }
+
+    collectLeaves(root); // Start the DFS from the root
+    return result; // Return the collected leaves
+}
+
+// Example usage
+const root = {
+    val: 1,
+    left: { val: 2, left: { val: 4 }, right: { val: 5 } },
+    right: { val: 3 },
+};
+
+console.log(findLeaves(root)); // Output: [[4, 5, 3], [2], [1]]
+Explanation of the Code
+Base Case: If the current node is null, we return -1 to signify that it does not contribute to any level.
+
+Recursion: The function collectLeaves recursively calculates the levels of the left and right children.
+
+Current Level Calculation: We compute the current node's level by taking the maximum of the left and right levels and adding 1.
+
+Result Array: If the current level is not already present in the result array, we create a new sub-array. Then, we add the current node’s value to the appropriate level.
+
+Return: Finally, the result array, which now contains the leaves collected in the required order, is returned.
+
+Complexity Analysis
+Time Complexity: O(n), where n is the number of nodes in the tree, since we visit each node exactly once.
+Space Complexity: O(h) for the recursion stack, where h is the height of the tree. In the worst case (skewed tree), this could be O(n), but on average for balanced trees, it would be O(log n). The result list itself will also take O(n) space.
+This approach efficiently collects the leaves of a binary tree while maintaining the correct order of levels as required.
