@@ -55,3 +55,37 @@ This approach has a time complexity of
 O(n), where 
 𝑛
 n is the length of s, as each operation within the loop is constant.
+
+The space complexity of the above solution is 
+𝑂
+(
+1
+)
+O(1) because:
+
+The countsP and countsS arrays each have a fixed size of 26, representing the 26 lowercase English letters. Since these arrays do not grow with the input size and remain constant, they occupy 
+𝑂
+(
+1
+)
+O(1) space.
+
+The result array stores the starting indices of anagrams found in s, and in the worst case, it could store up to 
+𝑂
+(
+𝑛
+)
+O(n) indices if every substring of length p in s is an anagram of p.
+
+Thus, the total space complexity is:
+
+𝑂
+(
+1
+)
+O(1) for countsP and countsS (constant space),
+𝑂
+(
+𝑛
+)
+O(n) for the result array in the worst case.
