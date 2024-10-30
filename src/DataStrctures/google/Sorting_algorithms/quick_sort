@@ -1,0 +1,153 @@
+Quick Sort Explained
+Quick Sort is an efficient, divide-and-conquer sorting algorithm. It works by selecting a "pivot" element and partitioning the array around this pivot, such that elements less than the pivot come before it, and elements greater than the pivot come after it. This partitioning continues recursively for the subarrays until the entire array is sorted.
+
+Quick Sort Approach
+Choose a Pivot: Select a pivot element from the array. Common choices include picking the first, last, or middle element or a random element.
+Partitioning: Reorder the array so that all elements less than the pivot are on the left and all elements greater than the pivot are on the right.
+Recursive Sorting: Apply the same process recursively to the left and right subarrays.
+Combine: No need to combine in this method because the sorting happens in place during partitioning.
+Example of Quick Sort
+For an array [10, 7, 8, 9, 1, 5]:
+
+Choose 5 as the pivot (if choosing the last element).
+Partition around 5: [1, 5, 10, 7, 8, 9].
+Recursively apply the same steps to the left [1] and right [10, 7, 8, 9] subarrays.
+This continues until all elements are sorted, resulting in [1, 5, 7, 8, 9, 10].
+Time Complexity (TC) and Space Complexity (SC)
+Time Complexity:
+
+Best and Average Case: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) - occurs when the pivot divides the array roughly into two halves.
+Worst Case: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) - occurs when the smallest or largest element is repeatedly chosen as the pivot, resulting in highly unbalanced partitions (e.g., already sorted arrays without a random pivot choice).
+Space Complexity: 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) for recursive stack space due to recursive function calls. In the worst case, space complexity can be 
+𝑂
+(
+𝑛
+)
+O(n) if partitioning is highly unbalanced.
+
+When to Use Quick Sort
+Large Datasets in Memory: Quick Sort is efficient for large in-memory datasets, particularly with randomized pivot selection, making it faster than Merge Sort in practice for average cases.
+Performance-Critical Applications: It’s generally faster than other 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) sorting algorithms (e.g., Merge Sort), given its lower overhead and efficient in-place sorting.
+Situations Tolerant to Instability: Quick Sort is not a stable sort (it doesn’t preserve the order of equal elements), so it’s ideal where stability is not a strict requirement.
+Advantages of Quick Sort
+In-Place Sorting: Requires only 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) space due to recursion, making it memory-efficient.
+Faster in Practice: With an average time complexity of 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) and low constants, it often outperforms other sorting algorithms like Merge Sort in practice.
+Disadvantages of Quick Sort
+Unstable: Equal elements may not retain their original order.
+Worst-Case Performance: Without a good pivot selection strategy, it can degrade to 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) time complexity, especially for already sorted or nearly sorted arrays.
+Quick Sort in JavaScript
+Here’s an implementation of Quick Sort in JavaScript with a randomized pivot selection for better performance on average:
+
+javascript
+Copy code
+function quickSort(arr) {
+    // Base case: arrays with 1 or 0 elements are already sorted
+    if (arr.length <= 1) return arr;
+
+    // Choose a random pivot to help avoid worst-case performance
+    const pivotIndex = Math.floor(Math.random() * arr.length);
+    const pivot = arr[pivotIndex];
+
+    // Partitioning
+    const left = [];
+    const right = [];
+    const equal = [];  // To handle multiple occurrences of the pivot
+
+    for (let num of arr) {
+        if (num < pivot) {
+            left.push(num);
+        } else if (num > pivot) {
+            right.push(num);
+        } else {
+            equal.push(num);
+        }
+    }
+
+    // Recursively sort left and right partitions and concatenate the results
+    return [...quickSort(left), ...equal, ...quickSort(right)];
+}
+
+// Example usage
+console.log(quickSort([10, 7, 8, 9, 1, 5])); // Output: [1, 5, 7, 8, 9, 10]
+Key Points for Quick Sort
+Time Complexity: Best/Average: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn); Worst: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ).
+Space Complexity: 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) due to recursion.
+When to Use: Preferable for large in-memory datasets, performance-sensitive applications, and cases where stability is not required.
+In summary, Quick Sort is a powerful, fast algorithm suitable for many situations, especially if efficient space usage and average-case performance are prioritized over stability.
