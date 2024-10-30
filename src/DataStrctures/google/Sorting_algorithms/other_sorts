@@ -1,0 +1,237 @@
+ Counting Sort
+Counting Sort is a non-comparative sorting algorithm that is particularly efficient when the range of the numbers in the array is limited.
+
+Time Complexity: 
+𝑂
+(
+𝑛
++
+𝑘
+)
+O(n+k), where 
+𝑛
+n is the number of elements, and 
+𝑘
+k is the range of input values.
+Space Complexity: 
+𝑂
+(
+𝑘
+)
+O(k), as it requires a count array to store the frequency of elements.
+When to Use: When you have integer elements within a limited range, making it especially useful for sorting numbers, characters, or other discrete objects.
+Example Code (JavaScript):
+
+javascript
+Copy code
+function countingSort(arr, maxValue) {
+    const count = Array(maxValue + 1).fill(0);
+    const output = Array(arr.length);
+
+    // Count occurrences
+    for (let num of arr) {
+        count[num]++;
+    }
+
+    // Accumulate counts
+    for (let i = 1; i <= maxValue; i++) {
+        count[i] += count[i - 1];
+    }
+
+    // Build the output array
+    for (let i = arr.length - 1; i >= 0; i--) {
+        output[--count[arr[i]]] = arr[i];
+    }
+
+    return output;
+}
+
+// Example usage
+console.log(countingSort([4, 2, 2, 8, 3, 3, 1], 8)); // Output: [1, 2, 2, 3, 3, 4, 8]
+2. Radix Sort
+Radix Sort is a non-comparative, integer-based sorting algorithm that processes numbers digit by digit, from the least significant digit to the most significant.
+
+Time Complexity: 
+𝑂
+(
+𝑑
+⋅
+(
+𝑛
++
+𝑘
+)
+)
+O(d⋅(n+k)), where 
+𝑑
+d is the number of digits in the largest number, 
+𝑛
+n is the number of elements, and 
+𝑘
+k is the range of digits (0-9).
+Space Complexity: 
+𝑂
+(
+𝑛
++
+𝑘
+)
+O(n+k).
+When to Use: Ideal for sorting integers or strings with a fixed length or known length range, as it is more efficient than Counting Sort for large lists with a limited number of digits.
+Example Code (JavaScript):
+
+javascript
+Copy code
+function radixSort(arr) {
+    const max = Math.max(...arr);
+    let divisor = 1;
+
+    while (divisor <= max) {
+        arr = countingSortByDigit(arr, divisor);
+        divisor *= 10;
+    }
+    return arr;
+}
+
+function countingSortByDigit(arr, divisor) {
+    const count = Array(10).fill(0);
+    const output = Array(arr.length);
+
+    for (let num of arr) {
+        const digit = Math.floor(num / divisor) % 10;
+        count[digit]++;
+    }
+
+    for (let i = 1; i < 10; i++) {
+        count[i] += count[i - 1];
+    }
+
+    for (let i = arr.length - 1; i >= 0; i--) {
+        const digit = Math.floor(arr[i] / divisor) % 10;
+        output[--count[digit]] = arr[i];
+    }
+
+    return output;
+}
+
+// Example usage
+console.log(radixSort([170, 45, 75, 90, 802, 24, 2, 66])); // Output: [2, 24, 45, 66, 75
+
+Bucket Sort
+Bucket Sort works by distributing elements into a number of "buckets," sorting each bucket individually, and then concatenating the results.
+
+Time Complexity: Average: 
+𝑂
+(
+𝑛
++
+𝑘
+)
+O(n+k), where 
+𝑛
+n is the number of elements and 
+𝑘
+k is the number of buckets. Worst case: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), if all elements land in the same bucket.
+Space Complexity: 
+𝑂
+(
+𝑛
++
+𝑘
+)
+O(n+k).
+When to Use: Useful when data is uniformly distributed over a range, such as floating-point numbers or other values that naturally fall into ranges.
+function bucketSort(arr, bucketSize = 5) {
+    if (arr.length <= 1) return arr;
+
+    // Find the min and max values in the array
+    const minValue = Math.min(...arr);
+    const maxValue = Math.max(...arr);
+
+    // Initialize buckets
+    const bucketCount = Math.floor((maxValue - minValue) / bucketSize) + 1;
+    const buckets = Array.from({ length: bucketCount }, () => []);
+
+    // Distribute elements into buckets
+    for (let i = 0; i < arr.length; i++) {
+        const bucketIndex = Math.floor((arr[i] - minValue) / bucketSize);
+        buckets[bucketIndex].push(arr[i]);
+    }
+
+    // Sort each bucket and concatenate them
+    const sortedArray = [];
+    for (let i = 0; i < buckets.length; i++) {
+        if (buckets[i].length > 0) {
+            // Sort each individual bucket (using JavaScript's native sort for simplicity)
+            buckets[i].sort((a, b) => a - b);
+            sortedArray.push(...buckets[i]);
+        }
+    }
+
+    return sortedArray;
+}
+
+// Example usage
+console.log(bucketSort([29, 25, 3, 49, 9, 37, 21, 43])); // Output: [3, 9, 21, 25, 29, 37, 43, 49]
+5. Shell Sort
+Shell Sort is an optimized version of insertion sort that allows swapping elements over larger gaps and reduces the gap over time.
+
+Time Complexity: Varies based on gap sequence, typically between 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn) and 
+𝑂
+(
+𝑛
+3
+/
+2
+)
+O(n 
+3/2
+ ).
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as it’s an in-place sorting algorithm.
+When to Use: Shell Sort is practical for medium-sized arrays or when improved insertion sort performance is desired without the complexity of merge or quick sort.
+function shellSort(arr) {
+    let n = arr.length;
+
+    // Start with a large gap, then reduce the gap
+    for (let gap = Math.floor(n / 2); gap > 0; gap = Math.floor(gap / 2)) {
+        // Perform a gapped insertion sort for this gap size
+        for (let i = gap; i < n; i++) {
+            let temp = arr[i];
+            let j;
+
+            // Shift earlier gap-sorted elements up until the correct location for arr[i] is found
+            for (j = i; j >= gap && arr[j - gap] > temp; j -= gap) {
+                arr[j] = arr[j - gap];
+            }
+
+            // Put temp (the original arr[i]) in its correct location
+            arr[j] = temp;
+        }
+    }
+
+    return arr;
+}
+
+// Example usage
+console.log(shellSort([12, 34, 54, 2, 3])); // Output: [2, 3, 12, 34, 54]
