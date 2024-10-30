@@ -1,0 +1,109 @@
+Selection Sort Explained
+Selection Sort is an in-place, comparison-based sorting algorithm. It works by dividing the input array into two parts: a sorted section at the beginning and an unsorted section for the remaining elements. During each pass, it searches for the smallest (or largest, depending on the order) element in the unsorted part and swaps it with the first element of the unsorted part, thus expanding the sorted section by one element.
+
+How It Works
+Start with the first element as the current minimum element.
+Traverse the unsorted portion of the array to find the smallest element.
+Once found, swap it with the first element in the unsorted part.
+Move to the next position in the array and repeat steps 1–3 until the entire array is sorted.
+Example
+Let's sort the array [29, 10, 14, 37, 13] using Selection Sort:
+
+Initial Array: [29, 10, 14, 37, 13]
+Pass 1:
+Find the smallest element in [29, 10, 14, 37, 13], which is 10.
+Swap 10 with 29 → [10, 29, 14, 37, 13]
+Pass 2:
+Find the smallest element in [29, 14, 37, 13], which is 13.
+Swap 13 with 29 → [10, 13, 14, 37, 29]
+Pass 3:
+Find the smallest element in [14, 37, 29], which is 14.
+No swap needed, array remains [10, 13, 14, 37, 29]
+Pass 4:
+Find the smallest element in [37, 29], which is 29.
+Swap 29 with 37 → [10, 13, 14, 29, 37]
+Array is now fully sorted.
+Time Complexity (TC) and Space Complexity (SC)
+Time Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) for both best, average, and worst cases. Selection Sort always goes through 
+𝑛
+n passes, and each pass has a nested loop to find the minimum element, resulting in a quadratic time complexity.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), since it sorts the array in place and does not require additional memory.
+Advantages of Selection Sort
+Simplicity: Selection Sort is straightforward and easy to understand.
+Fewer Swaps: It performs a minimal number of swaps compared to algorithms like Bubble Sort, making it suitable when write operations are costly.
+In-Place Sorting: Selection Sort only needs constant additional memory, making it useful when memory usage is a constraint.
+When to Use Selection Sort
+Selection Sort is generally not the most efficient choice for large datasets due to its 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) time complexity. However, it can be beneficial in some cases:
+
+Small Data Sets: For small arrays or lists, Selection Sort's simplicity and low memory overhead can be advantageous.
+Write-Limited Environments: In cases where the cost of swapping elements is high (e.g., limited write operations on memory), Selection Sort’s minimal swaps can be beneficial.
+Learning Purposes: It’s commonly used as a teaching example to introduce sorting concepts because of its simplicity.
+Selection Sort in JavaScript
+Here’s how you can implement Selection Sort in JavaScript:
+
+javascript
+Copy code
+function selectionSort(arr) {
+    let n = arr.length;
+
+    for (let i = 0; i < n - 1; i++) {
+        // Assume the minimum element is the first unsorted element
+        let minIndex = i;
+
+        // Find the index of the minimum element in the unsorted part
+        for (let j = i + 1; j < n; j++) {
+            if (arr[j] < arr[minIndex]) {
+                minIndex = j;
+            }
+        }
+
+        // If minIndex has changed, swap the found minimum element with the first unsorted element
+        if (minIndex !== i) {
+            [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
+        }
+    }
+
+    return arr;
+}
+
+// Example usage
+console.log(selectionSort([29, 10, 14, 37, 13])); // Output: [10, 13, 14, 29, 37]
+Key Points
+Selection Sort has a time complexity of 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), which makes it inefficient on large datasets.
+Space Complexity is 
+𝑂
+(
+1
+)
+O(1), as it’s an in-place sorting algorithm.
+When to Use: Best for small datasets, write-limited environments, or as an educational tool.
+Overall, while Selection Sort isn’t ideal for sorting large lists, it has specific advantages in environments with constrained memory and limited write operations.
