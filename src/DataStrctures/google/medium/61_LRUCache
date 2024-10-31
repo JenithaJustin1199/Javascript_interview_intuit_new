@@ -1,0 +1,182 @@
+/**
+ * @param {number} capacity
+ */
+var LRUCache = function(capacity) {
+    this.capacity = capacity
+    this.LRU = new Map()
+};
+
+/** 
+ * @param {number} key
+ * @return {number}
+ */
+LRUCache.prototype.get = function(key) {
+    if(!this.LRU.has(key)) return -1
+    let val = this.LRU.get(key)
+    this.LRU.delete(key)
+    this.LRU.set(key,val)
+    return this.LRU.get(key)
+};
+
+/** 
+ * @param {number} key 
+ * @param {number} value
+ * @return {void}
+ */
+LRUCache.prototype.put = function(key, value) {
+    if(this.LRU.has(key)){
+        this.LRU.delete(key)
+        
+    }
+    this.LRU.set(key,value)
+    if(this.LRU.size>this.capacity){
+        let oldVlaue = this.LRU.keys().next().value
+        this.LRU.delete(oldVlaue)
+    }
+};
+
+/** 
+ * Your LRUCache object will be instantiated and called as such:
+ * var obj = new LRUCache(capacity)
+ * var param_1 = obj.get(key)
+ * obj.put(key,value)
+ */
+
+
+ The given code for the LRU Cache implementation leverages JavaScript's Map data structure, which preserves insertion order. This enables efficient get and put operations by using JavaScript's built-in Map methods.
+
+Complexity Analysis
+Time Complexity
+get operation:
+
+Checking if the key exists: O(1).
+Deleting and re-inserting the key: Each operation on Map (delete and set) is O(1).
+Therefore, the total time complexity for the get operation is O(1).
+put operation:
+
+Checking if the key exists: O(1).
+Deleting the key (if it already exists): O(1).
+Adding the key-value pair: O(1).
+Evicting the least recently used item (if the cache exceeds capacity): This involves calling keys().next().value to get the oldest key, which is O(1), followed by deleting it, which is also O(1).
+Therefore, the total time complexity for the put operation is O(1).
+Space Complexity
+The Map stores up to capacity number of elements, so the space complexity is O(capacity).
+Summary
+Time Complexity: O(1) for both get and put.
+Space Complexity: O(capacity).
+Explanation of Efficiency
+The Map data structure in JavaScript inherently maintains insertion order, making it suitable for LRU Cache implementations. By removing and re-inserting elements, this approach simulates the LRU order, where recently accessed elements are moved to the end. This keeps the least recently used element at the beginning of the Map, allowing efficient eviction when the cache exceeds capacity.
+
+
+
+Explain the same in LinkedList approach
+
+To implement the LRU Cache using a Linked List (specifically a Doubly Linked List) and a Hash Map, we’ll use the following approach:
+
+The Doubly Linked List will maintain the order of items based on recent usage, with the most recently used item at the head and the least recently used item at the tail.
+The Hash Map will provide quick access to nodes in the Doubly Linked List by storing the key-to-node mappings, allowing O(1) access.
+Approach
+get(key):
+
+Check if the key is in the hash map.
+If it is, move that node to the head of the list (to mark it as most recently used) and return its value.
+If not, return -1.
+put(key, value):
+
+If the key is already in the hash map, update its value and move it to the head.
+If the key is not in the cache:
+Check if the current number of items equals the cache’s capacity.
+If it does, remove the node at the tail (least recently used) and delete it from the hash map.
+Insert the new node at the head of the list and add it to the hash map.
+Here’s the JavaScript code using a Doubly Linked List and a Hash Map:
+
+javascript
+Copy code
+class Node {
+    constructor(key, value) {
+        this.key = key;
+        this.value = value;
+        this.prev = null;
+        this.next = null;
+    }
+}
+
+class LRUCache {
+    constructor(capacity) {
+        this.capacity = capacity;
+        this.cache = new Map(); // Hash map to store key-node mappings
+        this.head = new Node(0, 0); // Dummy head of the doubly linked list
+        this.tail = new Node(0, 0); // Dummy tail of the doubly linked list
+        this.head.next = this.tail;
+        this.tail.prev = this.head;
+    }
+
+    // Remove a node from the linked list
+    _remove(node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+
+    // Insert a node right after the head (most recently used position)
+    _insert(node) {
+        node.next = this.head.next;
+        node.prev = this.head;
+        this.head.next.prev = node;
+        this.head.next = node;
+    }
+
+    get(key) {
+        if (this.cache.has(key)) {
+            const node = this.cache.get(key);
+            this._remove(node); // Remove from its current position
+            this._insert(node); // Insert it at the head (most recently used)
+            return node.value;
+        }
+        return -1; // Key not found
+    }
+
+    put(key, value) {
+        if (this.cache.has(key)) {
+            this._remove(this.cache.get(key)); // Remove old node if it exists
+        }
+        const newNode = new Node(key, value);
+        this._insert(newNode); // Insert new node at the head
+        this.cache.set(key, newNode); // Add to hash map
+
+        if (this.cache.size > this.capacity) {
+            const lru = this.tail.prev;
+            this._remove(lru); // Remove from the linked list
+            this.cache.delete(lru.key); // Remove from hash map
+        }
+    }
+}
+Complexity Analysis
+Time Complexity
+get operation:
+
+Accessing a node in the hash map: O(1).
+Removing and reinserting the node in the linked list: O(1).
+Total time complexity: O(1).
+put operation:
+
+Checking and deleting from the hash map: O(1).
+Inserting a node into the linked list: O(1).
+Removing the least recently used node if capacity is exceeded: O(1).
+Total time complexity: O(1).
+Space Complexity
+The doubly linked list and the hash map together hold up to capacity nodes, so the space complexity is O(capacity).
+Explanation of Efficiency
+This approach is efficient because it combines the O(1) lookup of a hash map with the O(1) ordering of a doubly linked list. The doubly linked list allows quick reordering of nodes for LRU functionality, while the hash map ensures rapid access to elements based on the key.
+
+Advantages and Disadvantages
+Advantages:
+Constant time complexity for both get and put operations.
+The solution is well-suited for large caches due to the low time complexity per operation.
+Disadvantages:
+Implementing with a linked list can require more memory than a simpler structure (e.g., arrays).
+The code complexity is higher compared to simpler implementations that might use arrays or Maps alone.
+
+
+
+
+
