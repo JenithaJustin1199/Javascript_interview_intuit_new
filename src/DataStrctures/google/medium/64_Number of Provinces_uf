@@ -1,0 +1,154 @@
+To solve the "Number of Provinces" problem, we can modify the previous Union-Find approach to work with an adjacency matrix representing direct city connections.
+
+In this case, each city is represented as a node, and a province represents a group of connected nodes (cities). We need to count how many disconnected groups (provinces) exist in the matrix.
+
+Approach
+Union-Find (Disjoint Set):
+
+Each city starts as its own group. We use Union-Find to merge groups if two cities are directly connected.
+As we process each connection, we attempt to unify the cities. Each successful union operation reduces the count of separate groups.
+Iterate Over the Matrix:
+
+For each pair of cities (i, j) where i < j, if isConnected[i][j] == 1, this means there is a direct connection between city i and city j. We then use Union-Find to merge them.
+After processing all connections, the count of unique sets (provinces) is our answer.
+Code Implementation (JavaScript)
+javascript
+Copy code
+class UnionFind {
+    constructor(n) {
+        this.parent = Array.from({ length: n }, (_, i) => i);
+        this.rank = Array(n).fill(0);
+        this.count = n; // Initially, each city is its own province
+    }
+
+    find(x) {
+        if (this.parent[x] !== x) {
+            this.parent[x] = this.find(this.parent[x]); // Path compression
+        }
+        return this.parent[x];
+    }
+
+    union(x, y) {
+        let rootX = this.find(x);
+        let rootY = this.find(y);
+
+        if (rootX !== rootY) {
+            // Union by rank
+            if (this.rank[rootX] > this.rank[rootY]) {
+                this.parent[rootY] = rootX;
+            } else if (this.rank[rootX] < this.rank[rootY]) {
+                this.parent[rootX] = rootY;
+            } else {
+                this.parent[rootY] = rootX;
+                this.rank[rootX]++;
+            }
+            this.count--; // A successful union reduces the province count
+        }
+    }
+}
+
+function findCircleNum(isConnected) {
+    const n = isConnected.length;
+    const uf = new UnionFind(n);
+
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            if (isConnected[i][j] === 1) {
+                uf.union(i, j); // Merge cities i and j if they are directly connected
+            }
+        }
+    }
+
+    return uf.count; // Number of connected components (provinces)
+}
+
+// Example usage:
+const isConnected1 = [[1,1,0],[1,1,0],[0,0,1]];
+const isConnected2 = [[1,0,0],[0,1,0],[0,0,1]];
+console.log(findCircleNum(isConnected1)); // Output: 2
+console.log(findCircleNum(isConnected2)); // Output: 3
+Explanation
+Union-Find Initialization:
+
+Each city starts as its own group, so we initialize count to n (each city is initially its own province).
+find() uses path compression to speed up lookups, while union() merges cities and reduces the province count upon a successful union.
+Iterating Over the Matrix:
+
+We only iterate over the upper half of the matrix (j > i) since the matrix is symmetric (isConnected[i][j] == isConnected[j][i]), which avoids redundant checks.
+For each connected pair, we perform a union operation. Every time two separate provinces are connected, we decrement count.
+Return Province Count:
+
+After processing all connections, uf.count represents the number of connected components (provinces).
+Complexity Analysis
+Time Complexity: O(n^2), where n is the number of cities. We check each cell in the upper half of the matrix and perform union operations, which are nearly constant due to path compression and union by rank.
+Space Complexity: O(n) for the Union-Find structure.
+This approach efficiently counts the number of provinces and meets the problem constraints.
+
+
+
+Certainly! We can also solve the "Number of Provinces" problem using Depth-First Search (DFS), which offers an intuitive way to explore each province (connected component) by traversing connected cities.
+
+Approach Using DFS
+In this approach:
+
+We treat each city as a node in a graph.
+Each 1 in isConnected[i][j] represents an edge between city i and city j.
+We use DFS to explore all cities directly or indirectly connected to a starting city.
+Every time we start a new DFS from an unvisited city, we increment our province count, as this indicates a new group of connected cities.
+Steps
+Initialize a visited array to keep track of which cities have already been visited.
+Iterate through each city. If a city has not been visited, it signifies the start of a new province.
+For each unvisited city, start a DFS to mark all cities in its connected component as visited.
+Count each DFS initiation as a new province.
+Code Implementation (JavaScript)
+javascript
+Copy code
+function findCircleNum(isConnected) {
+    const n = isConnected.length;
+    const visited = new Array(n).fill(false);
+    let provinceCount = 0;
+
+    function dfs(city) {
+        // Mark the current city as visited
+        visited[city] = true;
+        
+        // Visit all directly connected cities
+        for (let neighbor = 0; neighbor < n; neighbor++) {
+            if (isConnected[city][neighbor] === 1 && !visited[neighbor]) {
+                dfs(neighbor); // Recursively visit all connected cities
+            }
+        }
+    }
+
+    // Iterate through all cities
+    for (let city = 0; city < n; city++) {
+        if (!visited[city]) {
+            dfs(city); // Start a DFS for each unvisited city
+            provinceCount++; // Increment the province count
+        }
+    }
+
+    return provinceCount;
+}
+
+// Example usage:
+const isConnected1 = [[1,1,0],[1,1,0],[0,0,1]];
+const isConnected2 = [[1,0,0],[0,1,0],[0,0,1]];
+console.log(findCircleNum(isConnected1)); // Output: 2
+console.log(findCircleNum(isConnected2)); // Output: 3
+Explanation
+DFS Function:
+The dfs function marks the current city as visited.
+It recursively explores all directly connected cities (neighbors) by checking if isConnected[city][neighbor] === 1.
+Counting Provinces:
+For each unvisited city, we start a DFS traversal, marking all cities in the same province.
+After each DFS traversal, we increment provinceCount.
+Complexity Analysis
+Time Complexity: O(n^2), where n is the number of cities. This is because we potentially visit each cell in the isConnected matrix once, as each DFS traversal explores all connections for a given city.
+Space Complexity: O(n) due to the visited array and the recursion stack used by DFS, which can go up to depth n in the worst case.
+Advantages and Limitations
+Advantages:
+Simpler to implement, as DFS handles each component separately, keeping the solution straightforward.
+Limitations:
+DFS could run into stack overflow issues if n is very large (near 200 with a deeply connected graph). However, with the constraints given here, this solution is optimal and works efficiently.
+DFS is an efficient approach for problems like these, where we need to find the number of connected components in a graph structure.
