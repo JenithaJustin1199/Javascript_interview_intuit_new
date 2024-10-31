@@ -1,0 +1,113 @@
+It sounds like you’re describing a scenario with a social network where people are labeled from 0 to n - 1, and you have a series of logs indicating interactions or relationships forming between people. Each log entry includes a timestamp and two people who interact. The goal is to determine the earliest time at which the entire group of people is connected (i.e., when everyone is part of a single social group or network).
+
+To solve this problem, we can use a Union-Find (Disjoint Set) data structure, which efficiently supports union and find operations. This is ideal for problems where we need to group elements and track connectivity.
+
+Approach
+Union-Find Data Structure:
+
+Use Union-Find to manage the groups of connected people.
+Initially, each person is in their own group, and we use Union-Find to merge groups whenever two people interact.
+Sorting Logs by Timestamp:
+
+Since we need to find the earliest time when everyone is connected, we sort the logs by the timestamp. This way, we process interactions in chronological order.
+Processing Logs:
+
+For each log entry (after sorting), we perform a union operation to merge the two groups of people involved in the interaction.
+After each union operation, we check if all people are now in the same group by tracking the number of connected components. If we reach one connected component, we return the current timestamp as the earliest time when the entire group is connected.
+Edge Cases:
+
+If n is 1, then the entire group is trivially connected at the beginning.
+If the logs do not contain enough interactions to connect all people, the function should return -1.
+Code Implementation (JavaScript)
+Here's how to implement this in JavaScript:
+
+javascript
+Copy code
+class UnionFind {
+    constructor(n) {
+        this.parent = Array.from({ length: n }, (_, i) => i);
+        this.rank = Array(n).fill(0);
+        this.count = n; // Number of connected components
+    }
+
+    find(x) {
+        if (this.parent[x] !== x) {
+            this.parent[x] = this.find(this.parent[x]); // Path compression
+        }
+        return this.parent[x];
+    }
+
+    union(x, y) {
+        let rootX = this.find(x);
+        let rootY = this.find(y);
+
+        if (rootX !== rootY) {
+            // Union by rank
+            if (this.rank[rootX] > this.rank[rootY]) {
+                this.parent[rootY] = rootX;
+            } else if (this.rank[rootX] < this.rank[rootY]) {
+                this.parent[rootX] = rootY;
+            } else {
+                this.parent[rootY] = rootX;
+                this.rank[rootX]++;
+            }
+            this.count--; // Reduce the number of connected components
+        }
+    }
+}
+
+function earliestAcq(logs, n) {
+    logs.sort((a, b) => a[0] - b[0]); // Sort logs by timestamp
+    const uf = new UnionFind(n);
+
+    for (const [timestamp, person1, person2] of logs) {
+        uf.union(person1, person2);
+        if (uf.count === 1) {
+            return timestamp; // All people are connected
+        }
+    }
+
+    return -1; // If we never fully connect the group
+}
+
+// Example usage:
+const logs = [
+    [20190101, 0, 1],
+    [20190104, 3, 4],
+    [20190107, 2, 3],
+    [20190211, 1, 5],
+    [20190224, 2, 4],
+    [20190301, 0, 3],
+    [20190312, 1, 2]
+];
+const n = 6;
+console.log(earliestAcq(logs, n)); // Output: 20190301
+Explanation
+Union-Find Initialization:
+
+We initialize UnionFind with n components.
+count starts at n and decreases every time two separate groups are merged.
+Processing Each Log Entry:
+
+For each log entry (sorted by timestamp), we use the union operation to connect the two people.
+After each union operation, we check uf.count. If it becomes 1, all people are in a single connected group, so we return the current timestamp.
+Returning -1:
+
+If we process all logs and never reach count === 1, it means we couldn’t connect everyone, so we return -1.
+Complexity Analysis
+Time Complexity:
+
+Sorting the logs takes O(m log m), where m is the number of logs.
+Each union and find operation has an amortized cost of O(α(n)) (almost constant time) due to path compression and union by rank, making the overall complexity close to O(m log m).
+Space Complexity:
+
+O(n) for the parent and rank arrays in Union-Find.
+Advantages and Disadvantages
+Advantages:
+
+Efficient for large inputs due to the Union-Find structure.
+Processes connections in chronological order, which ensures finding the earliest timestamp.
+Disadvantages:
+
+If the logs do not contain enough interactions to connect all people, we must return -1.
+This approach is efficient and suitable for determining the earliest time when the group becomes fully connected in a social network setting.
