@@ -1,0 +1,75 @@
+To solve the problem efficiently, we can keep track of the imbalance of parentheses using counters. Specifically, we can count the unbalanced open ( parentheses that need closing and the unmatched close ) parentheses that need opening.
+
+Approach
+Initialize Counters:
+
+openCount: to track the number of unmatched ( parentheses.
+closeCount: to track the number of unmatched ) parentheses.
+Iterate through the string:
+
+For each character:
+If it is an opening parenthesis (, increment the openCount by 1.
+If it is a closing parenthesis ), check if there are unmatched opening parentheses:
+If openCount > 0, this ) can balance an unmatched (, so decrement openCount by 1.
+Otherwise, increment closeCount by 1 because this ) has no matching ( before it.
+Calculate the Result:
+
+After processing all characters, the minimum number of moves needed to make the parentheses valid will be the sum of openCount and closeCount:
+openCount represents unmatched opening parentheses that need closing.
+closeCount represents unmatched closing parentheses that need opening.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the string, since we go through the string only once.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we only use a constant amount of space for the counters.
+Code Implementation
+Here's the JavaScript code for this solution:
+
+javascript
+Copy code
+/**
+ * @param {string} s
+ * @return {number}
+ */
+var minAddToMakeValid = function(s) {
+    let openCount = 0;
+    let closeCount = 0;
+    
+    for (let char of s) {
+        if (char === '(') {
+            openCount += 1;
+        } else if (char === ')') {
+            if (openCount > 0) {
+                openCount -= 1; // This `)` matches an unmatched `(`
+            } else {
+                closeCount += 1; // This `)` needs an opening `(`
+            }
+        }
+    }
+    
+    // The total moves needed is the sum of unmatched `(` and `)`
+    return openCount + closeCount;
+};
+Explanation with Examples
+Example 1: s = "())"
+
+openCount = 1 (after the first ().
+The first ) matches this (, so openCount = 0.
+The last ) has no matching (, so closeCount = 1.
+Result: openCount + closeCount = 1.
+Example 2: s = "((("
+
+Each ( increments openCount, ending with openCount = 3.
+There are no ) to match these, so closeCount = 0.
+Result: openCount + closeCount = 3.
+This approach is efficient, with only one pass through the string and minimal additional space.
