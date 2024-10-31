@@ -1,0 +1,285 @@
+It sounds like you want to implement a function that calculates 
+𝑥
+𝑛
+x 
+n
+  (x raised to the power of n) for any integer 
+𝑛
+n, where:
+
+𝑥
+x can be any number (not zero).
+𝑛
+n is an integer (positive, negative, or zero).
+Here’s how we can approach this:
+
+Approach: Fast Exponentiation (Exponentiation by Squaring)
+This approach efficiently calculates 
+𝑥
+𝑛
+x 
+n
+  in 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) time by:
+
+Dividing the power calculation into smaller components recursively.
+Utilizing the property that:
+If 
+𝑛
+n is even: 
+𝑥
+𝑛
+=
+(
+𝑥
+𝑛
+/
+2
+)
+×
+(
+𝑥
+𝑛
+/
+2
+)
+x 
+n
+ =(x 
+n/2
+ )×(x 
+n/2
+ ).
+If 
+𝑛
+n is odd: 
+𝑥
+𝑛
+=
+𝑥
+×
+(
+𝑥
+(
+𝑛
+−
+1
+)
+/
+2
+)
+×
+(
+𝑥
+(
+𝑛
+−
+1
+)
+/
+2
+)
+x 
+n
+ =x×(x 
+(n−1)/2
+ )×(x 
+(n−1)/2
+ ).
+For negative values of 
+𝑛
+n, we compute 
+𝑥
+−
+𝑛
+=
+1
+𝑥
+𝑛
+x 
+−n
+ = 
+x 
+n
+ 
+1
+​
+ .
+This approach is much faster than a naive 
+𝑂
+(
+𝑛
+)
+O(n) multiplication, making it ideal for large values of 
+𝑛
+n.
+
+Code Implementation (JavaScript)
+javascript
+Copy code
+function power(x, n) {
+    // Base cases
+    if (n === 0) return 1;           // x^0 = 1 for any x
+    if (n < 0) return 1 / power(x, -n);  // Handle negative powers
+
+    // Recursively calculate power using exponentiation by squaring
+    const halfPower = power(x, Math.floor(n / 2));
+
+    // If n is even, return halfPower * halfPower
+    if (n % 2 === 0) {
+        return halfPower * halfPower;
+    } else {
+        // If n is odd, return x * halfPower * halfPower
+        return x * halfPower * halfPower;
+    }
+}
+
+// Example usage:
+console.log(power(2, 10)); // Output: 1024
+console.log(power(2, -2)); // Output: 0.25
+console.log(power(3, 0));  // Output: 1
+Complexity Analysis
+Time Complexity
+The time complexity of this approach is O(log n):
+
+Each recursive call reduces 
+𝑛
+n by half, so the number of recursive calls is proportional to 
+log
+⁡
+𝑛
+logn.
+This is much faster than a straightforward approach that would take O(n) time.
+Space Complexity
+The space complexity is O(log n) due to the recursive call stack:
+
+The maximum depth of recursion corresponds to the number of times 
+𝑛
+n can be halved, which is 
+log
+⁡
+𝑛
+logn.
+Proof of Correctness
+Case 1: 
+𝑛
+=
+0
+n=0: By definition, any number raised to the power of 0 is 1, so power(x, 0) correctly returns 1.
+Case 2: 
+𝑛
+>
+0
+n>0:
+For even 
+𝑛
+n, 
+𝑥
+𝑛
+=
+(
+𝑥
+𝑛
+/
+2
+)
+2
+x 
+n
+ =(x 
+n/2
+ ) 
+2
+ , which is accurately handled by the recursive call structure.
+For odd 
+𝑛
+n, 
+𝑥
+𝑛
+=
+𝑥
+×
+(
+𝑥
+(
+𝑛
+−
+1
+)
+/
+2
+)
+2
+x 
+n
+ =x×(x 
+(n−1)/2
+ ) 
+2
+ , which is similarly handled.
+Case 3: 
+𝑛
+<
+0
+n<0: The function calculates 
+𝑥
+−
+𝑛
+=
+1
+𝑥
+𝑛
+x 
+−n
+ = 
+x 
+n
+ 
+1
+​
+  correctly by calling itself with -n.
+Advantages
+Efficient for large values of 
+𝑛
+n due to the logarithmic time complexity.
+Handles both positive and negative powers in a unified manner.
+Disadvantages
+Recursive Approach: May lead to stack overflow if 
+𝑛
+n is extremely large and the recursion limit is reached (though this is rare).
+Alternative Approach (Iterative)
+An iterative approach can also be used to avoid the recursion depth limitation. This uses the same principles of exponentiation by squaring in a loop.
+
+javascript
+Copy code
+function powerIterative(x, n) {
+    if (n === 0) return 1;
+    let result = 1;
+    let absN = Math.abs(n);
+
+    while (absN > 0) {
+        if (absN % 2 === 1) { // If n is odd, multiply result by x
+            result *= x;
+        }
+        x *= x;             // Square the base
+        absN = Math.floor(absN / 2);
+    }
+
+    return n > 0 ? result : 1 / result;
+}
+
+// Example usage:
+console.log(powerIterative(2, 10)); // Output: 1024
+console.log(powerIterative(2, -2)); // Output: 0.25
+console.log(powerIterative(3, 0));  // Output: 1
+Comparison of Iterative and Recursive Approaches
+Iterative: Avoids recursion depth limitations and has the same O(log n) time complexity.
+Recursive: May be more concise but can risk stack overflow for very large 
+𝑛
+n.
