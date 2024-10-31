@@ -1,0 +1,64 @@
+To solve the "K Closest Points to Origin" problem efficiently, we can use a max-heap (priority queue) approach to keep track of the k closest points. The max-heap will help us ensure that, at any point, we only have the k closest points by comparing the squared Euclidean distance of each point to the origin.
+
+Since MaxPriorityQueue may not be available in all JavaScript environments, we can use an array-based approach where we sort and maintain a list of the closest points, as explained in the previous answer. But for environments that support MinHeap or MaxHeap, here’s a quick solution using Array.sort for simplicity.
+
+Solution Using Sorting (Simpler but Not Optimal for Large Inputs)
+Calculate the squared distance for each point to avoid the overhead of computing the square root.
+Sort the points based on their distance to the origin.
+Return the first k points from the sorted list.
+Here's the JavaScript solution:
+
+javascript
+Copy code
+/**
+ * @param {number[][]} points
+ * @param {number} k
+ * @return {number[][]}
+ */
+var kClosest = function(points, k) {
+    // Calculate the distance squared for each point and sort by it
+    points.sort((a, b) => (a[0] ** 2 + a[1] ** 2) - (b[0] ** 2 + b[1] ** 2));
+    
+    // Return the first k points from the sorted array
+    return points.slice(0, k);
+};
+Explanation
+Sorting: Array.sort is used to sort the points based on their squared Euclidean distance, which has a time complexity of 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn).
+Return: We then take the first k points, which are the closest ones after sorting.
+Time Complexity
+The sorting operation takes 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
+)
+O(nlogn), which is efficient for moderately sized inputs.
+Space Complexity
+The space complexity is 
+𝑂
+(
+𝑛
+)
+O(n), where n is the number of points, due to the storage of the points array.
+Solution Using Heap (More Optimal for Large n)
+If we have a large number of points (n), a max-heap approach with size k would be optimal. Here’s a solution with a priority queue if available or via a custom max-heap structure to keep the solution at 
+𝑂
+(
+𝑛
+log
+⁡
+𝑘
+)
+O(nlogk) for larger inputs.
+
+Let me know if you'd like the heap-based solution for further optimization!
