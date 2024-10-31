@@ -1,0 +1,132 @@
+To generate an 
+𝑛
+×
+𝑛
+n×n matrix filled with elements from 1 to 
+𝑛
+2
+n 
+2
+  in spiral order, we can take an efficient approach similar to the traversal logic in the previous "Spiral Matrix" problem. The key difference is that we are filling in a new matrix rather than reading from an existing one.
+
+Approach
+Define boundaries for the top, bottom, left, and right edges.
+Initialize a matrix of size 
+𝑛
+×
+𝑛
+n×n filled with zeroes to store the result.
+Iterate through numbers from 1 to 
+𝑛
+2
+n 
+2
+ , placing each number into the matrix in a spiral pattern.
+Traverse left to right along the top boundary, then increment top.
+Traverse top to bottom along the right boundary, then decrement right.
+Traverse right to left along the bottom boundary, then decrement bottom.
+Traverse bottom to top along the left boundary, then increment left.
+Repeat these steps until all numbers from 1 to 
+𝑛
+2
+n 
+2
+  are placed.
+Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), since we visit each cell once.
+Space Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), for the output matrix.
+Code Implementation
+Here’s the optimized solution in JavaScript:
+
+javascript
+Copy code
+/**
+ * @param {number} n
+ * @return {number[][]}
+ */
+var generateMatrix = function(n) {
+    const matrix = Array.from({ length: n }, () => Array(n).fill(0)); // Initialize n x n matrix with 0s
+    let top = 0, bottom = n - 1, left = 0, right = n - 1;
+    let num = 1; // Start with number 1
+
+    while (top <= bottom && left <= right) {
+        // Fill top row from left to right
+        for (let i = left; i <= right; i++) {
+            matrix[top][i] = num++;
+        }
+        top++;
+
+        // Fill right column from top to bottom
+        for (let i = top; i <= bottom; i++) {
+            matrix[i][right] = num++;
+        }
+        right--;
+
+        // Fill bottom row from right to left
+        if (top <= bottom) {
+            for (let i = right; i >= left; i--) {
+                matrix[bottom][i] = num++;
+            }
+            bottom--;
+        }
+
+        // Fill left column from bottom to top
+        if (left <= right) {
+            for (let i = bottom; i >= top; i--) {
+                matrix[i][left] = num++;
+            }
+            left++;
+        }
+    }
+
+    return matrix;
+};
+Explanation
+The top, bottom, left, and right variables define the boundaries within which we fill the matrix.
+As we spiral inward, we adjust each boundary (top, bottom, left, right) to move closer to the center.
+We increment num as we place each element, ensuring we fill numbers from 1 to 
+𝑛
+2
+n 
+2
+  in the correct order.
+Example Walkthrough
+For 
+𝑛
+=
+3
+n=3:
+
+Initialize the boundaries: top = 0, bottom = 2, left = 0, right = 2.
+Traverse the matrix in a spiral pattern, filling in numbers until we reach 
+9
+9:
+First row left-to-right → [1, 2, 3]
+Right column top-to-bottom → [4, 5]
+Bottom row right-to-left → [6, 7]
+Left column bottom-to-top → [8], and then the center → [9]
+This approach is efficient for filling a spiral matrix in 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) time.
