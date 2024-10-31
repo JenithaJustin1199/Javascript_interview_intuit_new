@@ -1,0 +1,102 @@
+To solve this problem efficiently with 
+𝑂
+(
+log
+⁡
+(
+𝑛
+)
+)
+O(log(n)) time complexity, we can use a Binary Search approach. Since the array is a "mountain array" (it increases to a peak and then decreases), we can leverage this structure to find the peak index in 
+𝑂
+(
+log
+⁡
+(
+𝑛
+)
+)
+O(log(n)) time.
+
+Approach
+Binary Search:
+Start with left at the beginning of the array and right at the end.
+Find the middle index mid.
+If the element at mid is less than the element at mid + 1, we are in the increasing part of the mountain. This means the peak lies to the right, so we move left to mid + 1.
+If the element at mid is greater than the element at mid + 1, we are in the decreasing part of the mountain. This indicates that the peak is at mid or to the left, so we move right to mid.
+Continue this process until left equals right, which will be the peak index.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+log
+⁡
+(
+𝑛
+)
+)
+O(log(n)), since we’re using binary search.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we are using a constant amount of extra space.
+Code Implementation
+Here's the JavaScript implementation:
+
+javascript
+Copy code
+/**
+ * @param {number[]} arr
+ * @return {number}
+ */
+var peakIndexInMountainArray = function(arr) {
+    let left = 0;
+    let right = arr.length - 1;
+    
+    while (left < right) {
+        let mid = Math.floor((left + right) / 2);
+        
+        if (arr[mid] < arr[mid + 1]) {
+            // We are in the increasing part of the mountain
+            left = mid + 1;
+        } else {
+            // We are in the decreasing part of the mountain
+            right = mid;
+        }
+    }
+    
+    // left and right will converge to the peak index
+    return left;
+};
+Explanation
+Binary Search Logic: At each step, we halve the search space by moving left or right pointers.
+If arr[mid] < arr[mid + 1], it confirms we are in the increasing slope of the mountain, so we move left to mid + 1.
+If arr[mid] > arr[mid + 1], it means we’re in the decreasing slope, so the peak is either at mid or further to the left, and we move right to mid.
+Loop Termination: The loop continues until left == right, at which point both pointers will be at the peak index.
+Example Walkthrough
+For arr = [0, 2, 1, 0]:
+
+Start with left = 0 and right = 3.
+First mid calculation:
+mid = 1 (value 2). Since arr[1] > arr[2], we are in the decreasing part, so move right = mid.
+Now left = 0, right = 1.
+mid = 0 (value 0). Since arr[0] < arr[1], move left = mid + 1.
+Now left = 1, right = 1, and we have our peak at index 1.
+This approach efficiently finds the peak index in 
+𝑂
+(
+log
+⁡
+(
+𝑛
+)
+)
+O(log(n)) time complexity.
+
+
+
+
+
+
