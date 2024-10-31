@@ -1,0 +1,72 @@
+Yes, we can solve this question efficiently using Dynamic Programming (DP). This problem requires us to count square submatrices with all ones, which means that for each cell, we need to determine the size of the largest square submatrix ending at that cell that contains all ones.
+
+Approach
+Dynamic Programming Table:
+
+We can define a DP table dp[i][j] where each cell represents the size of the largest square submatrix ending at that cell.
+If matrix[i][j] is 1, then dp[i][j] will be the minimum of its three neighbors (dp[i-1][j], dp[i][j-1], and dp[i-1][j-1]) plus one. This ensures that only complete squares are counted.
+Formula:
+
+dp[i][j] = min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]) + 1 if matrix[i][j] == 1, otherwise dp[i][j] = 0.
+Count the Squares:
+
+The value of dp[i][j] at each cell represents the number of square submatrices that can end at that cell.
+Summing all values in the dp table gives us the total count of square submatrices with all ones.
+Edge Case:
+If the matrix has only zeros, the output should be 0 since there are no submatrices with all ones.
+Complexity Analysis
+Time Complexity: O(m * n), where m is the number of rows and n is the number of columns, since we iterate through each cell in the matrix once.
+Space Complexity: O(m * n) for the DP table, though we can optimize this to O(n) with a single row of memory if needed.
+Code Implementation (JavaScript)
+javascript
+Copy code
+function countSquares(matrix) {
+    const m = matrix.length;
+    const n = matrix[0].length;
+    let dp = Array.from({ length: m }, () => Array(n).fill(0));
+    let totalSquares = 0;
+
+    // Iterate through the matrix
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            if (matrix[i][j] === 1) {
+                // Base case: if we're in the first row or column, the largest square is just the cell itself
+                if (i === 0 || j === 0) {
+                    dp[i][j] = 1;
+                } else {
+                    // Use the minimum of the three neighbors to form larger squares
+                    dp[i][j] = Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]) + 1;
+                }
+                // Accumulate the number of squares
+                totalSquares += dp[i][j];
+            }
+        }
+    }
+
+    return totalSquares;
+}
+
+// Example usage:
+console.log(countSquares([
+  [0,1,1,1],
+  [1,1,1,1],
+  [0,1,1,1]
+])); // Output: 15
+
+console.log(countSquares([
+  [1,0,1],
+  [1,1,0],
+  [1,1,0]
+])); // Output: 7
+Explanation
+Base Case:
+
+For cells in the first row or first column, dp[i][j] is simply 1 if matrix[i][j] is 1, since they cannot form squares larger than 1x1.
+General Case:
+
+For other cells where matrix[i][j] = 1, dp[i][j] depends on the minimum of the values from the cell directly above, the cell to the left, and the cell diagonally up-left. Adding 1 to this minimum value allows us to "extend" the square submatrix to the current cell.
+Summing All Values in dp:
+
+Each value in the dp table directly represents the count of square submatrices ending at that cell, so summing all values gives the total count of all square submatrices in the matrix.
+Explanation of Efficiency
+This approach is efficient with O(m * n) time complexity and O(m * n) space complexity (or potentially O(n) space if we reduce the DP table size), making it well-suited for the input constraints 1 <= m, n <= 300.
