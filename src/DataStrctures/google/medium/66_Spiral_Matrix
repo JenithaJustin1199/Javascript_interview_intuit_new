@@ -1,0 +1,82 @@
+To solve the Spiral Matrix problem efficiently, we can use a boundary-tracking approach. By keeping track of the boundaries (top, bottom, left, and right) of the matrix, we can control the direction in which we traverse and collect elements in a spiral order without needing any additional memory for visited cells.
+
+Approach
+Initialize Boundaries:
+
+Define four boundaries: top, bottom, left, and right for the matrix.
+Set top and left to 0, bottom to m - 1 (last row), and right to n - 1 (last column).
+Traverse in Spiral Order:
+
+Move Right along the top boundary and increment top.
+Move Down along the right boundary and decrement right.
+Move Left along the bottom boundary and decrement bottom.
+Move Up along the left boundary and increment left.
+Repeat these steps in a cycle until the boundaries overlap (i.e., top > bottom or left > right).
+
+Terminate when boundaries overlap:
+
+As soon as top exceeds bottom or left exceeds right, stop the traversal.
+This approach ensures we collect all elements in the matrix in a spiral order with O(m * n) time complexity, where m is the number of rows and n is the number of columns.
+
+Code Implementation
+Here’s how this approach translates into JavaScript code:
+
+javascript
+Copy code
+function spiralOrder(matrix) {
+    const result = [];
+    if (!matrix.length || !matrix[0].length) return result;
+
+    let top = 0,
+        bottom = matrix.length - 1,
+        left = 0,
+        right = matrix[0].length - 1;
+
+    while (top <= bottom && left <= right) {
+        // Move right
+        for (let i = left; i <= right; i++) {
+            result.push(matrix[top][i]);
+        }
+        top++;
+
+        // Move down
+        for (let i = top; i <= bottom; i++) {
+            result.push(matrix[i][right]);
+        }
+        right--;
+
+        // Move left, if we are still within boundaries
+        if (top <= bottom) {
+            for (let i = right; i >= left; i--) {
+                result.push(matrix[bottom][i]);
+            }
+            bottom--;
+        }
+
+        // Move up, if we are still within boundaries
+        if (left <= right) {
+            for (let i = bottom; i >= top; i--) {
+                result.push(matrix[i][left]);
+            }
+            left++;
+        }
+    }
+
+    return result;
+}
+
+// Example usage:
+console.log(spiralOrder([[1, 2, 3], [4, 5, 6], [7, 8, 9]]));
+// Output: [1, 2, 3, 6, 9, 8, 7, 4, 5]
+Explanation of Time and Space Complexity
+Time Complexity: O(m * n), since we visit each element in the matrix exactly once.
+Space Complexity: O(1) extra space if we exclude the result array, as we are only using constant space for the boundary markers (top, bottom, left, and right).
+Advantages and Disadvantages
+Advantages:
+
+The boundary-tracking approach is straightforward and ensures each element is visited once, making it efficient.
+Minimal additional space required, as it only uses boundary markers instead of an entire additional matrix for tracking.
+Disadvantages:
+
+Complexity can increase slightly if matrix boundaries aren’t handled correctly, especially for edge cases like a single row or column.
+This is an optimal and simple approach to traverse any m x n matrix in spiral order.
