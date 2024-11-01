@@ -1,0 +1,80 @@
+To solve the Lowest Common Ancestor (LCA) problem in a Binary Search Tree (BST), we can leverage the properties of the BST. Specifically, in a BST:
+
+The left subtree of a node contains only nodes with values less than the node’s value.
+The right subtree of a node contains only nodes with values greater than the node’s value.
+Optimized Approach (Using BST Properties)
+Starting from the root, we check the values of p and q in relation to the current node.
+If both p and q are less than the current node, the LCA must be in the left subtree, so we move to the left child.
+If both p and q are greater than the current node, the LCA must be in the right subtree, so we move to the right child.
+If p and q are on opposite sides of the current node, or if one of them matches the current node, then the current node is the LCA.
+Time Complexity
+The time complexity is 
+𝑂
+(
+log
+⁡
+𝑁
+)
+O(logN) for a balanced BST and 
+𝑂
+(
+𝑁
+)
+O(N) for a skewed BST, where 
+𝑁
+N is the number of nodes.
+
+JavaScript Code
+javascript
+Copy code
+/**
+ * Definition for a binary tree node.
+ * function TreeNode(val) {
+ *     this.val = val;
+ *     this.left = this.right = null;
+ * }
+ */
+
+/**
+ * @param {TreeNode} root
+ * @param {TreeNode} p
+ * @param {TreeNode} q
+ * @return {TreeNode}
+ */
+var lowestCommonAncestor = function(root, p, q) {
+    while (root !== null) {
+        // If both p and q are greater than root, move to the right subtree
+        if (p.val > root.val && q.val > root.val) {
+            root = root.right;
+        }
+        // If both p and q are less than root, move to the left subtree
+        else if (p.val < root.val && q.val < root.val) {
+            root = root.left;
+        }
+        // We've found the split point, so root is the LCA
+        else {
+            return root;
+        }
+    }
+    return null; // If the BST or inputs are invalid
+};
+Explanation with Example
+Let’s consider the input tree:
+
+markdown
+Copy code
+        6
+       / \
+      2   8
+     / \ / \
+    0  4 7  9
+      / \
+     3   5
+For p = 2 and q = 8, we start at the root (6).
+
+Since 2 < 6 and 8 > 6, 6 is the LCA.
+For p = 2 and q = 4, we start at the root (6).
+
+Both 2 and 4 are less than 6, so we move to the left child (2).
+Now p = 2 matches the current node, so 2 is the LCA.
+This solution efficiently finds the LCA by traversing the BST based on the properties of p and q values relative to the root.
