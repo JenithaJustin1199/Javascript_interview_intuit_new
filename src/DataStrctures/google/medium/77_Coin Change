@@ -1,0 +1,177 @@
+This problem is known as the "Coin Change Problem." We aim to determine the minimum number of coins needed to reach a specified amount using denominations provided in an array.
+
+Assumptions
+coins is an array of positive integers where each element represents a coin denomination.
+amount is a non-negative integer representing the target amount.
+If it's impossible to reach the exact amount using the coins, return -1.
+Solution Approaches
+Approach 1: Dynamic Programming with Minimum Coins (Optimal Time Complexity)
+This is a common approach for minimizing values in such "minimum/maximum" type problems. We will use a dynamic programming array dp where dp[i] represents the minimum number of coins required to make up the amount i.
+
+DP Array Setup:
+
+Create an array dp of size amount + 1 where each element is initialized to Infinity, except dp[0] which is set to 0 (no coins are needed for zero amount).
+DP Transition:
+
+For each coin in coins, and for each sub-amount from coin to amount:
+Update dp[i] = min(dp[i], dp[i - coin] + 1).
+If dp[i - coin] is valid (not Infinity), this means we can use the coin to reach the amount i with fewer coins.
+Result Calculation:
+
+After filling the dp array, dp[amount] will contain the minimum number of coins needed to reach amount. If dp[amount] is still Infinity, return -1 (indicating it's impossible to reach the exact amount).
+Here’s the JavaScript code:
+
+javascript
+Copy code
+function coinChange(coins, amount) {
+    const dp = Array(amount + 1).fill(Infinity);
+    dp[0] = 0;
+
+    for (let coin of coins) {
+        for (let i = coin; i <= amount; i++) {
+            dp[i] = Math.min(dp[i], dp[i - coin] + 1);
+        }
+    }
+
+    return dp[amount] === Infinity ? -1 : dp[amount];
+}
+Time Complexity: 
+𝑂
+(
+𝑁
+×
+𝑀
+)
+O(N×M), where 
+𝑁
+N is the number of coins and 
+𝑀
+M is the amount.
+Space Complexity: 
+𝑂
+(
+𝑀
+)
+O(M), as we only use an array of size amount + 1.
+
+Approach 2: Breadth-First Search (BFS) for Minimal Coins (Alternative for Large Coin Sets)
+A BFS approach can also work here, where we treat each amount as a "node" and each coin as an "edge" in a graph traversal.
+
+BFS Initialization:
+
+Initialize a queue with the pair (0, 0) representing (currentAmount, coinCount).
+Use a Set to track visited amounts and avoid reprocessing the same amount multiple times.
+BFS Traversal:
+
+For each currentAmount, try adding each coin:
+If currentAmount + coin equals amount, return the coinCount + 1.
+If currentAmount + coin < amount and hasn’t been visited, enqueue (currentAmount + coin, coinCount + 1) and mark it as visited.
+If the queue is exhausted without reaching amount, return -1.
+Here’s the JavaScript code:
+
+javascript
+Copy code
+function coinChange(coins, amount) {
+    if (amount === 0) return 0;
+
+    const queue = [[0, 0]]; // [currentAmount, coinCount]
+    const visited = new Set();
+    visited.add(0);
+
+    while (queue.length > 0) {
+        const [currentAmount, coinCount] = queue.shift();
+
+        for (let coin of coins) {
+            const nextAmount = currentAmount + coin;
+
+            if (nextAmount === amount) return coinCount + 1;
+            if (nextAmount < amount && !visited.has(nextAmount)) {
+                queue.push([nextAmount, coinCount + 1]);
+                visited.add(nextAmount);
+            }
+        }
+    }
+
+    return -1;
+}
+Time Complexity: 
+𝑂
+(
+𝑁
+×
+𝑀
+)
+O(N×M), where 
+𝑁
+N is the number of coins and 
+𝑀
+M is the amount (worst case).
+Space Complexity: 
+𝑂
+(
+𝑀
+)
+O(M), due to the queue and visited set.
+
+Approach 3: Recursive Solution with Memoization (Simpler Code Complexity)
+This approach uses a top-down recursive method with memoization to store intermediate results. This is not as efficient as the DP approach but can be useful for smaller input sizes or cases requiring memoization.
+
+Recursive Function with Memoization:
+
+Define a recursive function minCoins that takes the remaining amount and returns the minimum coins needed to make up that amount.
+If amount is zero, return zero. If it’s negative, return Infinity (indicating it’s not possible).
+If the result is already calculated for amount, return it from memo.
+Recursive Transition:
+
+For each coin, call minCoins(amount - coin) and take the minimum result among all coins, adding 1 for the current coin.
+Store the result in memo to avoid redundant calculations.
+Result Calculation:
+
+If the result from minCoins for the initial amount is Infinity, return -1. Otherwise, return the result.
+Here’s the JavaScript code:
+
+javascript
+Copy code
+function coinChange(coins, amount) {
+    const memo = new Map();
+
+    function minCoins(remaining) {
+        if (remaining === 0) return 0;
+        if (remaining < 0) return Infinity;
+        if (memo.has(remaining)) return memo.get(remaining);
+
+        let minCount = Infinity;
+        for (let coin of coins) {
+            const count = minCoins(remaining - coin);
+            if (count !== Infinity) {
+                minCount = Math.min(minCount, count + 1);
+            }
+        }
+
+        memo.set(remaining, minCount);
+        return minCount;
+    }
+
+    const result = minCoins(amount);
+    return result === Infinity ? -1 : result;
+}
+Time Complexity: Exponential without memoization, reduced to 
+𝑂
+(
+𝑁
+×
+𝑀
+)
+O(N×M) with memoization.
+Space Complexity: 
+𝑂
+(
+𝑀
+)
+O(M), because of recursion depth and memoization.
+
+Comparison of Approaches
+Approach 1 (DP): Optimal for time complexity and memory efficiency for large amount values.
+Approach 2 (BFS): Useful for finding the shortest path in terms of "steps" (coins), though may have higher runtime for large amounts.
+Approach 3 (Recursion with Memoization): Simplified in terms of code complexity but not as efficient for large inputs.
+Recommended Approach: Approach 1 (DP) is usually the best choice for performance and reliability, especially for large input sizes.
