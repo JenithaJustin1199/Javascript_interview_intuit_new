@@ -1,0 +1,134 @@
+The most optimal approach for solving the "Maximal Square" problem is indeed through Dynamic Programming (DP). By analyzing the problem in terms of smaller subproblems, we can arrive at a DP formula that will help solve it efficiently.
+
+Dynamic Programming Approach
+DP Formula Derivation
+Observation:
+
+If a cell (i, j) in the matrix is a '1', it could potentially be the bottom-right corner of a square of ones.
+To find the largest square ending at (i, j), we need to know the largest squares ending at cells (i-1, j), (i, j-1), and (i-1, j-1). These represent the top, left, and top-left diagonal neighbors of (i, j).
+DP Formula:
+
+Define dp[i][j] as the side length of the largest square whose bottom-right corner is at (i, j).
+If matrix[i][j] is '1', then:
+𝑑
+𝑝
+[
+𝑖
+]
+[
+𝑗
+]
+=
+min
+⁡
+(
+𝑑
+𝑝
+[
+𝑖
+−
+1
+]
+[
+𝑗
+]
+,
+𝑑
+𝑝
+[
+𝑖
+]
+[
+𝑗
+−
+1
+]
+,
+𝑑
+𝑝
+[
+𝑖
+−
+1
+]
+[
+𝑗
+−
+1
+]
+)
++
+1
+dp[i][j]=min(dp[i−1][j],dp[i][j−1],dp[i−1][j−1])+1
+If matrix[i][j] is '0', then dp[i][j] = 0 (it cannot be part of any square of ones).
+Explanation of Formula:
+
+If matrix[i][j] is '1', the maximal square ending at (i, j) depends on the smallest square among its neighbors (top, left, and top-left diagonal).
+Adding 1 allows us to extend the square at (i, j) by one side if all three neighbors can also form a square.
+Base Case:
+
+For cells in the first row or first column, dp[i][j] = 1 if matrix[i][j] == '1', since they cannot form a larger square beyond themselves.
+Example Walkthrough
+Let's take matrix = [["1","0","1","0","0"],["1","0","1","1","1"],["1","1","1","1","1"],["1","0","0","1","0"]] as an example:
+
+Initialize dp as a 2D array of zeroes with the same dimensions as matrix.
+Iterate over each cell, applying the formula if matrix[i][j] == '1'.
+Start with dp[0][0] = 1 because matrix[0][0] == '1'.
+Moving to dp[1][2], matrix[1][2] == '1', so dp[1][2] = min(dp[0][2], dp[1][1], dp[0][1]) + 1 = 1.
+Continue until we compute dp[2][3] = 2, representing a 2x2 square.
+The maximum value in dp gives the side length of the largest square, and squaring this value gives the area.
+
+Code Implementation
+Here’s the code for this DP solution:
+
+javascript
+Copy code
+/**
+ * @param {character[][]} matrix
+ * @return {number}
+ */
+var maximalSquare = function(matrix) {
+    if (!matrix.length || !matrix[0].length) return 0;
+
+    const m = matrix.length;
+    const n = matrix[0].length;
+    const dp = Array.from({ length: m }, () => Array(n).fill(0));
+    let maxSide = 0;
+
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            if (matrix[i][j] === '1') {
+                if (i === 0 || j === 0) {
+                    dp[i][j] = 1;
+                } else {
+                    dp[i][j] = Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1;
+                }
+                maxSide = Math.max(maxSide, dp[i][j]);
+            }
+        }
+    }
+
+    return maxSide * maxSide;
+};
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n), where 
+𝑚
+m and 
+𝑛
+n are the dimensions of the matrix. We process each cell once.
+Space Complexity: 
+𝑂
+(
+𝑚
+×
+𝑛
+)
+O(m×n) for the dp array.
+This approach efficiently computes the maximal square area without needing to check all possible submatrices, achieving the required optimal complexity.
