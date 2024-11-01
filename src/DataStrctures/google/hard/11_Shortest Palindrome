@@ -1,0 +1,85 @@
+To solve the Shortest Palindrome problem efficiently, we can utilize a combination of string reversal and a pattern-matching technique (like the KMP algorithm).
+
+Approach
+The idea is to determine the longest prefix of the given string s that is also a palindrome. By finding this prefix, we can identify the minimum suffix that needs to be mirrored at the beginning of s to make it a palindrome.
+
+Reverse the String:
+
+Let rev_s be the reverse of the string s.
+Concatenate s and rev_s with a Special Character:
+
+We create a new string temp that is a combination of s + "#" + rev_s.
+The # acts as a delimiter to prevent overlapping issues between s and rev_s.
+Use the KMP Algorithm to Find the Longest Prefix:
+
+We use the prefix-suffix array (KMP Table) for temp, which helps identify the longest prefix of temp that matches a suffix.
+The value at the last index of this prefix-suffix array tells us the length of the longest palindromic prefix in s.
+Construct the Shortest Palindrome:
+
+To create the shortest palindrome, we take the non-palindromic suffix (from s after the longest palindromic prefix), reverse it, and append it to the front of s.
+Code Implementation
+Here's how you can implement this in JavaScript:
+
+javascript
+Copy code
+/**
+ * @param {string} s
+ * @return {string}
+ */
+var shortestPalindrome = function(s) {
+    let rev_s = s.split("").reverse().join("");
+    let temp = s + "#" + rev_s;
+    
+    // KMP table
+    let n = temp.length;
+    let lps = Array(n).fill(0); // Longest Prefix Suffix array
+    
+    // Building the LPS array
+    for (let i = 1, len = 0; i < n; ) {
+        if (temp[i] === temp[len]) {
+            len++;
+            lps[i] = len;
+            i++;
+        } else {
+            if (len !== 0) {
+                len = lps[len - 1];
+            } else {
+                lps[i] = 0;
+                i++;
+            }
+        }
+    }
+    
+    // Find the non-palindromic suffix
+    let longest_palindromic_prefix_len = lps[n - 1];
+    let suffix = s.slice(longest_palindromic_prefix_len);
+    
+    // Append the reverse of suffix to the front of s
+    return suffix.split("").reverse().join("") + s;
+};
+Explanation
+Reverse and Concatenate:
+
+For s = "abcd", we get rev_s = "dcba" and temp = "abcd#dcba".
+Building the KMP Table:
+
+The KMP table (lps array) for temp helps find the longest palindrome that starts from the beginning of s.
+In this example, lps tells us the longest prefix of s that is also a suffix of temp.
+Construct the Result:
+
+Based on the lps array, we know the characters of s that are not part of the palindromic prefix.
+Reverse this suffix and prepend it to s.
+Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) because we only need to build the KMP table once.
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n) for the lps array and the concatenated string temp.
+This solution is efficient and leverages KMP to find the longest palindromic prefix in linear time, making it ideal for handling large inputs.
