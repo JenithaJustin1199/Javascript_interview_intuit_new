@@ -1,0 +1,88 @@
+To solve this problem efficiently, we can use the sliding window approach to find the maximum number of consecutive 1s by flipping at most k zeros to 1s. This approach allows us to dynamically manage the number of zeros in the current window of consecutive elements.
+
+Approach: Sliding Window
+Initialize pointers and variables:
+
+Use two pointers (left and right) to represent the current window of the binary array.
+Use a counter, zerosCount, to track the number of zeros in the current window.
+Expand the window:
+
+Start by expanding the window by moving the right pointer.
+For each element at right, if it’s 0, increment zerosCount.
+Shrink the window if necessary:
+
+If zerosCount exceeds k, start shrinking the window from the left by moving the left pointer to the right.
+If the element at left was 0, decrement zerosCount since that zero is no longer in the window.
+Track the maximum length:
+
+The length of the current valid window (with at most k zeros) is right - left + 1.
+Keep track of the maximum window length seen so far.
+Time and Space Complexity
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of nums. The right pointer traverses each element once, and the left pointer only moves forward when zerosCount exceeds k, making it linear.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we only use a few extra variables.
+Solution Code
+Here’s the JavaScript implementation:
+
+javascript
+Copy code
+function longestOnes(nums, k) {
+    let left = 0;
+    let maxLength = 0;
+    let zerosCount = 0;
+
+    for (let right = 0; right < nums.length; right++) {
+        // Expand the window by including nums[right]
+        if (nums[right] === 0) {
+            zerosCount++;
+        }
+
+        // Shrink the window if zerosCount exceeds k
+        while (zerosCount > k) {
+            if (nums[left] === 0) {
+                zerosCount--;
+            }
+            left++;
+        }
+
+        // Calculate the maximum length of a valid window
+        maxLength = Math.max(maxLength, right - left + 1);
+    }
+
+    return maxLength;
+}
+Explanation with Example
+Example 1:
+Input: nums = [1,1,1,0,0,0,1,1,1,1,0], k = 2
+Process:
+As we expand the window with right, we increase zerosCount whenever we encounter 0.
+When zerosCount exceeds k, we move left to shrink the window until zerosCount is within the limit.
+Continue this process while tracking the maximum valid window length.
+Output: 6
+Example 2:
+Input: nums = [0,0,1,1,0,0,1,1,1,0,1,1,0,0,0,1,1,1,1], k = 3
+Output: 10
+Summary
+This sliding window approach is optimal for this problem, providing a time complexity of 
+𝑂
+(
+𝑛
+)
+O(n), which is efficient for large input sizes (up to 
+1
+0
+5
+10 
+5
+ ).
