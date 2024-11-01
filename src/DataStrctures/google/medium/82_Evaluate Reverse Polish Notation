@@ -1,0 +1,69 @@
+To solve the problem of evaluating an expression given in Reverse Polish Notation (RPN), we can use a stack data structure. The idea is to iterate through the tokens and use the stack to keep track of operands. When we encounter an operator, we pop the required number of operands from the stack, perform the operation, and then push the result back onto the stack.
+
+Steps to Solve the Problem
+Initialize a Stack: Create an empty stack to store operands.
+Iterate through Tokens: For each token in the input array:
+If the token is a number, convert it to an integer and push it onto the stack.
+If the token is an operator (+, -, *, /):
+Pop the top two numbers from the stack. These will be your operands.
+Apply the operator to these operands in the correct order.
+Push the result back onto the stack.
+Final Result: After processing all tokens, the result of the RPN expression will be the only number left in the stack.
+Important Considerations
+Division should truncate towards zero. In JavaScript (and many programming languages), you can achieve this by using Math.trunc() or by performing integer division while ensuring the correct sign.
+We assume that there will not be any division by zero based on the problem constraints.
+Implementation in JavaScript
+Here’s how you can implement this:
+
+javascript
+Copy code
+function evalRPN(tokens) {
+    const stack = [];
+    
+    for (let token of tokens) {
+        if (!isNaN(token)) {
+            // If token is a number, push it onto the stack
+            stack.push(Number(token));
+        } else {
+            // Token is an operator; pop two numbers from the stack
+            const b = stack.pop();
+            const a = stack.pop();
+            
+            let result;
+            switch (token) {
+                case '+':
+                    result = a + b;
+                    break;
+                case '-':
+                    result = a - b;
+                    break;
+                case '*':
+                    result = a * b;
+                    break;
+                case '/':
+                    // Perform integer division that truncates towards zero
+                    result = a / b > 0 ? Math.floor(a / b) : Math.ceil(a / b);
+                    break;
+            }
+            // Push the result back onto the stack
+            stack.push(result);
+        }
+    }
+    
+    // The last item in the stack is the result
+    return stack.pop();
+}
+
+// Example Usage:
+console.log(evalRPN(["2","1","+","3","*"])); // Output: 9
+console.log(evalRPN(["4","13","5","/","+"])); // Output: 6
+console.log(evalRPN(["10","6","9","3","+","-11","*","/","*","17","+","5","+"])); // Output: 22
+Explanation of the Code
+Initialization: We start by creating an empty stack.
+Processing Tokens:
+We check if each token is a number using isNaN(). If it’s a number, we convert it to an integer and push it onto the stack.
+If the token is an operator, we pop the last two operands from the stack, apply the operator, and push the result back onto the stack.
+Division Handling: We ensure that the division operation truncates towards zero by checking the sign of the result.
+Final Result: At the end of processing, the result will be the only remaining item in the stack.
+Efficiency
+The time complexity of this algorithm is O(n), where n is the number of tokens, since we process each token exactly once. The space complexity is also O(n) in the worst case due to the stack storing all operands. This implementation is efficient and handles the requirements of the problem well.
