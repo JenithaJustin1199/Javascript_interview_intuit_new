@@ -1,0 +1,255 @@
+To solve the problem of finding the longest palindromic substring efficiently, we can use the expand around center technique. This method allows us to check for palindromes in 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) time complexity, which is efficient enough given the constraints of the problem (where 
+𝑛
+n is the length of the string).
+
+Explanation of the Approach
+Palindromic Substring: A palindrome reads the same forward and backward. For example, "racecar" is a palindrome.
+Expand Around Center: The idea is to consider each character (and the gap between characters) as a center of a palindrome and expand outwards as long as we find matching characters on both sides.
+Two Cases for Expansion:
+Odd-length palindromes (single character center).
+Even-length palindromes (two-character center).
+Implementation in JavaScript
+Here’s the implementation of the expand around center technique:
+
+javascript
+Copy code
+/**
+ * @param {string} s
+ * @return {string}
+ */
+var longestPalindrome = function(s) {
+    let start = 0, end = 0;
+
+    const expandAroundCenter = (left, right) => {
+        while (left >= 0 && right < s.length && s[left] === s[right]) {
+            left--;
+            right++;
+        }
+        // Return the length of the palindrome
+        return right - left - 1; // return length of the palindrome
+    };
+
+    for (let i = 0; i < s.length; i++) {
+        const len1 = expandAroundCenter(i, i);     // Odd-length palindromes
+        const len2 = expandAroundCenter(i, i + 1); // Even-length palindromes
+        const len = Math.max(len1, len2);
+
+        if (len > end - start) {
+            start = i - Math.floor((len - 1) / 2); // Calculate start index of palindrome
+            end = i + Math.floor(len / 2);         // Calculate end index of palindrome
+        }
+    }
+
+    return s.slice(start, end + 1); // Return the longest palindromic substring
+};
+
+// Example usage:
+console.log(longestPalindrome("babad")); // Output: "bab" or "aba"
+console.log(longestPalindrome("cbbd"));  // Output: "bb"
+Explanation of the Code
+Function Definition: The longestPalindrome function takes a string s as input.
+Expand Around Center: The expandAroundCenter helper function checks how far we can expand outwards from the given indices left and right. It continues expanding as long as the characters on both sides are the same.
+Iterate through String: We iterate through each character in the string and apply the expansion method for both odd and even length cases.
+Update Indices: If the found palindrome is longer than the previously recorded longest, we update the start and end indices.
+Return Result: Finally, we slice the original string s from the start to end indices to return the longest palindromic substring.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), where 
+𝑛
+n is the length of the input string. This is because for each character, we might expand outwards for the entire length of the string.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1) for the space used by the algorithm, as we are only using a few extra variables.
+This method is efficient for the input constraints provided and will yield the correct longest palindromic substring. Let me know if you have any questions!
+
+
+
+
+
+
+You said:
+dp way to solve this?
+ChatGPT said:
+ChatGPT
+Certainly! We can also solve the Longest Palindromic Substring problem using a Dynamic Programming (DP) approach. This method will also yield a time complexity of 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) and a space complexity of 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ).
+
+Dynamic Programming Approach
+Define the DP Table:
+
+We use a 2D boolean array dp where dp[i][j] will be true if the substring s[i..j] is a palindrome.
+Base Cases:
+
+Every single character is a palindrome, so dp[i][i] = true for all i.
+Two consecutive characters are a palindrome if they are the same, so dp[i][i+1] = (s[i] === s[i+1]).
+Filling the DP Table:
+
+For substrings longer than 2 characters, we check if the characters at the current ends are equal and if the substring between them is also a palindrome. Specifically:
+𝑑
+𝑝
+[
+𝑖
+]
+[
+𝑗
+]
+=
+(
+𝑠
+[
+𝑖
+]
+=
+=
+𝑠
+[
+𝑗
+]
+)
+ and 
+𝑑
+𝑝
+[
+𝑖
++
+1
+]
+[
+𝑗
+−
+1
+]
+dp[i][j]=(s[i]==s[j]) and dp[i+1][j−1]
+Track the Longest Palindrome:
+
+Maintain variables to keep track of the start index and the maximum length of the palindrome found.
+Implementation in JavaScript
+Here's how you can implement the DP approach:
+
+javascript
+Copy code
+/**
+ * @param {string} s
+ * @return {string}
+ */
+var longestPalindrome = function(s) {
+    const n = s.length;
+    if (n < 1) return "";
+
+    // Create a DP table
+    const dp = Array.from(Array(n), () => Array(n).fill(false));
+    let start = 0;
+    let maxLength = 1;
+
+    // Single character palindromes
+    for (let i = 0; i < n; i++) {
+        dp[i][i] = true;
+    }
+
+    // Check for two character palindromes
+    for (let i = 0; i < n - 1; i++) {
+        if (s[i] === s[i + 1]) {
+            dp[i][i + 1] = true;
+            start = i; // Update start for 2-char palindrome
+            maxLength = 2; // Update maxLength
+        }
+    }
+
+    // Check for palindromes longer than 2 characters
+    for (let length = 3; length <= n; length++) {
+        for (let i = 0; i < n - length + 1; i++) {
+            const j = i + length - 1; // Ending index
+            // Check if the current substring is a palindrome
+            if (s[i] === s[j] && dp[i + 1][j - 1]) {
+                dp[i][j] = true;
+                start = i; // Update start index
+                maxLength = length; // Update maxLength
+            }
+        }
+    }
+
+    // Return the longest palindromic substring
+    return s.substring(start, start + maxLength);
+};
+
+// Example usage:
+console.log(longestPalindrome("babad")); // Output: "bab" or "aba"
+console.log(longestPalindrome("cbbd"));  // Output: "bb"
+Explanation of the Code
+DP Table Initialization:
+
+We initialize the DP table with false values. The table is of size 
+𝑛
+×
+𝑛
+n×n, where 
+𝑛
+n is the length of the string.
+Base Cases:
+
+The first loop marks all single character palindromes as true.
+The second loop checks pairs of characters and marks them as palindromes if they are equal.
+Filling the DP Table:
+
+We iterate through possible lengths of substrings, and for each substring, we check the conditions described above.
+Tracking the Longest Palindrome:
+
+Whenever we find a palindrome, we update the start index and the maxLength accordingly.
+Returning the Result:
+
+Finally, we return the longest palindromic substring using the calculated start and maxLength.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ), where 
+𝑛
+n is the length of the input string. This is due to the nested loops to fill the DP table.
+Space Complexity: 
+𝑂
+(
+𝑛
+2
+)
+O(n 
+2
+ ) for the DP table.
+This dynamic programming approach is straightforward and effective for solving the problem of finding the longest palindromic substring. If you have any further questions or need clarification, feel free to ask!
