@@ -1,0 +1,84 @@
+To solve the Find Peak Element problem in 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) time, we can use a binary search approach rather than a linear scan. This is efficient because we can leverage the property of the peak element's position relative to its neighbors.
+
+Approach
+Binary Search:
+
+We don't need to check every element, as the peak will "lead" us to it. If we examine the midpoint, we can determine in which direction to move based on the relative values of the midpoint and its neighbors.
+We check if the element at the midpoint is a peak by comparing it with its neighbors.
+If nums[mid] > nums[mid + 1], then there must be a peak on the left side (including mid itself). This is because, in a decreasing sequence, we always have a peak at the end of the sequence.
+If nums[mid] < nums[mid + 1], then there must be a peak on the right side. In an increasing sequence, there will be a peak at the end of the sequence.
+We continue this process until we narrow down to a single element, which is the peak.
+Conditions at Array Boundaries:
+
+The problem statement allows us to consider nums[-1] = -∞ and nums[n] = -∞, so we don't need to worry about boundaries in terms of going out of bounds while comparing mid.
+Code Implementation
+Here's the binary search approach in JavaScript:
+
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @return {number}
+ */
+var findPeakElement = function(nums) {
+    let left = 0;
+    let right = nums.length - 1;
+    
+    while (left < right) {
+        let mid = Math.floor((left + right) / 2);
+        
+        // Check if the mid element is greater than the next element
+        if (nums[mid] > nums[mid + 1]) {
+            // Move towards the left side (including mid as a potential peak)
+            right = mid;
+        } else {
+            // Move towards the right side
+            left = mid + 1;
+        }
+    }
+    
+    // At the end of the loop, left == right and it points to a peak element
+    return left;
+};
+Explanation with Example
+Example 1: nums = [1, 2, 3, 1]
+Initial state: left = 0, right = 3.
+First Iteration:
+mid = (0 + 3) / 2 = 1.
+nums[mid] = 2, nums[mid + 1] = 3.
+Since nums[mid] < nums[mid + 1], we move left = mid + 1 = 2.
+Second Iteration:
+left = 2, right = 3, mid = (2 + 3) / 2 = 2.
+nums[mid] = 3, nums[mid + 1] = 1.
+Since nums[mid] > nums[mid + 1], we move right = mid = 2.
+Now, left == right == 2, so we return 2, which is a peak element index.
+Complexity
+Time Complexity: 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) due to binary search.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as no additional space is required.
+This approach efficiently finds a peak element by eliminating half of the search space in each iteration, resulting in 
+𝑂
+(
+log
+⁡
+𝑛
+)
+O(logn) time complexity.
