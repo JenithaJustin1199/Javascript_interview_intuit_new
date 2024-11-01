@@ -1,0 +1,77 @@
+To solve this problem, we can take advantage of sorting the folders lexicographically. This way, any sub-folder of a folder will be grouped next to its parent folder. After sorting, we can iterate through the folders and keep track of the root folders, filtering out any sub-folders that appear.
+
+Approach:
+Sort the folder list:
+
+Sort the folders in lexicographical order. This ensures that if folder "/a" has sub-folders like "/a/b" or "/a/b/c", they will appear immediately after "/a" in the sorted list.
+Use a loop to check for sub-folders:
+
+Initialize an empty list result to store the root folders.
+For each folder in the sorted list:
+If it is not a sub-folder of the last folder in result, add it to result.
+We determine whether the current folder is a sub-folder by checking if it starts with the last folder in result followed by a slash ("/").
+Return the result:
+
+After processing all folders, the result list will contain only the root folders.
+Time and Space Complexity:
+Time Complexity: 
+𝑂
+(
+𝑛
+log
+⁡
+𝑛
++
+𝑚
+)
+O(nlogn+m), where 
+𝑛
+n is the number of folders (for sorting) and 
+𝑚
+m is the total number of characters in all folder names (for checking each folder).
+Space Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), as we store the resulting root folders in a list.
+Solution Code:
+Here’s the JavaScript solution:
+
+javascript
+Copy code
+function removeSubfolders(folder) {
+    // Sort folders lexicographically
+    folder.sort();
+    
+    const result = [];
+    
+    for (const f of folder) {
+        // If result is empty or the current folder is not a sub-folder of the last added folder
+        if (result.length === 0 || !f.startsWith(result[result.length - 1] + '/')) {
+            result.push(f);
+        }
+    }
+    
+    return result;
+}
+Explanation with Examples:
+Example 1:
+Input: folder = ["/a","/a/b","/c/d","/c/d/e","/c/f"]
+Sorted: ["/a", "/a/b", "/c/d", "/c/d/e", "/c/f"]
+Process:
+"/a" → add to result
+"/a/b" → skip, as it’s a sub-folder of "/a"
+"/c/d" → add to result
+"/c/d/e" → skip, as it’s a sub-folder of "/c/d"
+"/c/f" → add to result
+Output: ["/a", "/c/d", "/c/f"]
+Example 2:
+Input: folder = ["/a","/a/b/c","/a/b/d"]
+Sorted: ["/a", "/a/b/c", "/a/b/d"]
+Output: ["/a"] (all other folders are sub-folders of "/a")
+Example 3:
+Input: folder = ["/a/b/c","/a/b/ca","/a/b/d"]
+Sorted: ["/a/b/c", "/a/b/ca", "/a/b/d"]
+Output: ["/a/b/c", "/a/b/ca", "/a/b/d"] (no folders are sub-folders of each other)
+This solution is efficient and handles large inputs well by reducing unnecessary checks for each folder’s sub-folder status.
