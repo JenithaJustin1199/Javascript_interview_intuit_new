@@ -1,0 +1,61 @@
+Certainly! The problem of finding unique combinations that sum up to a target can be solved using a backtracking approach. In this method, we will explore all possible combinations of the candidates by recursively building them and keeping track of the current sum.
+
+Approach:
+Backtracking Function: We will create a helper function that will:
+
+Take the current combination, the remaining target, and the starting index as parameters.
+If the remaining target is zero, we have found a valid combination, and we can add it to our results.
+If the remaining target is negative, we stop the exploration as we've exceeded the target.
+Iterate through the candidates starting from the given index (to allow repeated usage of the same candidate) and recursively call the function, subtracting the candidate value from the remaining target.
+Avoid Duplicates: Since the input array is guaranteed to contain distinct integers, we do not need to handle duplicate combinations by explicitly sorting or checking frequencies.
+
+Base Cases: Handle cases where the target is less than the smallest candidate by returning an empty array.
+
+Here’s the implementation of the above approach in JavaScript:
+
+javascript
+Copy code
+var combinationSum = function(candidates, target) {
+    const results = [];
+
+    function backtrack(combination, remaining, start) {
+        // If the remaining target is zero, we found a valid combination
+        if (remaining === 0) {
+            results.push([...combination]); // Add a copy of the combination
+            return;
+        }
+
+        // If the remaining target is less than zero, return as no valid combination can be formed
+        if (remaining < 0) {
+            return;
+        }
+
+        // Iterate through the candidates starting from 'start' index
+        for (let i = start; i < candidates.length; i++) {
+            combination.push(candidates[i]); // Choose the candidate
+            backtrack(combination, remaining - candidates[i], i); // Recur with updated values
+            combination.pop(); // Backtrack: remove the last chosen candidate
+        }
+    }
+
+    backtrack([], target, 0); // Start the backtracking process
+    return results; // Return all valid combinations
+};
+
+// Example usage:
+console.log(combinationSum([2, 3, 6, 7], 7)); // Output: [[2,2,3],[7]]
+console.log(combinationSum([2, 3, 5], 8));    // Output: [[2,2,2,2],[2,3,3],[3,5]]
+console.log(combinationSum([2], 1));           // Output: []
+Explanation of the Code:
+Initialization: We define a function combinationSum that initializes the results array and starts the backtracking process.
+
+Backtrack Function:
+
+Base Case (Valid Combination): If the remaining target reaches zero, the current combination is valid and is added to the results.
+Base Case (Exceeded Target): If the remaining target is negative, we simply return.
+Iterating through Candidates: We loop through the candidates, pushing the current candidate into the combination and calling backtrack recursively. After returning from the recursion, we pop the candidate to try the next one.
+Final Output: After the backtracking completes, we return the list of valid combinations.
+
+Time Complexity:
+The time complexity can vary depending on the input but is generally exponential due to the recursive nature of the problem.
+This approach efficiently finds al
