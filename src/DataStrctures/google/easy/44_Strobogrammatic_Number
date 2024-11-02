@@ -1,0 +1,75 @@
+A strobogrammatic number is a number that looks the same when rotated 180 degrees. When flipped, the digits should form another valid number (or the same number). For example, 69, 96, 88, and 11 are strobogrammatic, but 2, 3, 4, and 7 are not.
+
+To solve this problem, we need to check if each digit in the string has a corresponding "rotated" digit, and that the whole number reads the same from both ends when flipped upside down.
+
+Strobogrammatic Digit Pairs
+The pairs of digits that look the same or mirror each other when rotated are:
+
+0 ↔ 0
+1 ↔ 1
+6 ↔ 9
+8 ↔ 8
+9 ↔ 6
+Approach
+Use two pointers: one starting at the beginning of the string (left) and one at the end (right).
+For each pair of characters (s[left] and s[right]):
+Check if they form a valid strobogrammatic pair based on the above mappings.
+If any pair does not match, the number is not strobogrammatic.
+Move left and right pointers towards the center until they cross or meet.
+If all pairs match, the number is strobogrammatic.
+Code Implementation in JavaScript
+javascript
+Copy code
+/**
+ * @param {string} num
+ * @return {boolean}
+ */
+var isStrobogrammatic = function(num) {
+    const strobogrammaticPairs = {
+        '0': '0',
+        '1': '1',
+        '6': '9',
+        '8': '8',
+        '9': '6'
+    };
+
+    let left = 0;
+    let right = num.length - 1;
+
+    while (left <= right) {
+        if (!(num[left] in strobogrammaticPairs) || strobogrammaticPairs[num[left]] !== num[right]) {
+            return false;
+        }
+        left++;
+        right--;
+    }
+
+    return true;
+};
+Example Walkthrough
+Example 1: num = "69"
+
+left = 0, right = 1
+num[0] = '6', num[1] = '9' (Valid pair, 6 ↔ 9)
+Both pointers cross each other, so the function returns true.
+Example 2: num = "962"
+
+left = 0, right = 2
+num[0] = '9', num[2] = '2'
+2 does not have a valid strobogrammatic pair, so the function returns false.
+Example 3: num = "818"
+
+left = 0, right = 2
+num[0] = '8', num[2] = '8' (Valid pair, 8 ↔ 8)
+left = 1, right = 1
+num[1] = '1', num[1] = '1' (Valid pair, 1 ↔ 1)
+All pairs match, so the function returns true.
+Time Complexity
+This solution is 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the string num, as we check each digit at most once.
