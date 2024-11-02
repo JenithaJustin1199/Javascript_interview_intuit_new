@@ -1,0 +1,102 @@
+To solve the problem of counting the number of non-empty subarrays whose sums are divisible by a given integer 
+𝑘
+k, we can utilize a combination of prefix sums and a hash map to store the frequency of these sums modulo 
+𝑘
+k.
+
+Approach
+Prefix Sum: We will maintain a running sum (prefix sum) of the elements in the array as we iterate through it. For each element, we compute the cumulative sum up to that index.
+
+Modulo Operation: For each prefix sum, we compute its value modulo 
+𝑘
+k. If two prefix sums have the same modulo 
+𝑘
+k value, it means the subarray between these two indices has a sum that is divisible by 
+𝑘
+k.
+
+Hash Map for Counting: We'll use a hash map (or an array, depending on the constraints) to keep track of how many times each modulo value has occurred. If we find that the current prefix sum modulo 
+𝑘
+k has been seen before, it means there exists a subarray ending at the current index that is divisible by 
+𝑘
+k.
+
+Handling Negative Modulo: In JavaScript, the modulo operator can return a negative result for negative numbers. To handle this, we normalize the modulo result by adding 
+𝑘
+k and then taking modulo 
+𝑘
+k again.
+
+Counting Subarrays: Every time we encounter a prefix sum modulo 
+𝑘
+k that has already been counted, we add the number of times it has occurred to our result.
+
+Implementation
+Here is how this approach can be implemented in JavaScript:
+
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @param {number} k
+ * @return {number}
+ */
+var subarraysDivByK = function(nums, k) {
+    let count = 0;
+    let prefixSum = 0;
+    const modCount = new Map();
+    
+    // Initialize with mod 0 to count subarrays starting from index 0
+    modCount.set(0, 1);
+
+    for (let num of nums) {
+        prefixSum += num; // Update prefix sum
+        
+        // Calculate the current mod
+        let mod = ((prefixSum % k) + k) % k; // Normalize mod
+        
+        // If this mod has been seen before, add its count to result
+        if (modCount.has(mod)) {
+            count += modCount.get(mod);
+        }
+        
+        // Update the count of this mod in the map
+        modCount.set(mod, (modCount.get(mod) || 0) + 1);
+    }
+
+    return count;
+};
+
+// Example usage:
+console.log(subarraysDivByK([4,5,0,-2,-3,1], 5)); // Output: 7
+console.log(subarraysDivByK([5], 9)); // Output: 0
+Explanation of the Code
+Initialization: We create a count to store the number of valid subarrays, a prefixSum to keep track of the cumulative sum, and a modCount map to store the frequency of each modulo result.
+
+Iterating through the array: For each number in nums, we update the prefixSum, calculate its modulo with respect to 
+𝑘
+k, and ensure it's non-negative.
+
+Count Valid Subarrays: If the current modulo has been seen before, we add its frequency to the count because it indicates that there are that many subarrays whose sums are divisible by 
+𝑘
+k.
+
+Update the Map: We then update the frequency of the current modulo in the modCount map.
+
+Time Complexity
+The time complexity of this approach is 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the length of the input array nums, since we are iterating through the array just once.
+Space Complexity
+The space complexity is 
+𝑂
+(
+𝑘
+)
+O(k), which is required for storing the count of modulo results in the hash map. In the worst case, we might store all possible modulo values.
+This approach is efficient and works well within the given constraints, making it suitable for large input sizes.
