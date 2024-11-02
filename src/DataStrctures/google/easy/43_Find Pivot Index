@@ -1,0 +1,90 @@
+To solve the "Find Pivot Index" problem efficiently, we can leverage a single-pass approach with the help of prefix sums. Here’s how:
+
+Approach
+Calculate Total Sum: First, we calculate the total sum of the array. This will help us compute the right sum for any index quickly.
+Iterate with Left Sum: We initialize a variable leftSum to 0, which will keep track of the sum of elements to the left of the current index as we iterate.
+Check Pivot Condition: For each element at index i:
+Calculate the rightSum as totalSum - leftSum - nums[i].
+If leftSum equals rightSum, then index i is the pivot, and we can return it.
+Update Left Sum: If the current index is not a pivot, add nums[i] to leftSum and proceed to the next index.
+Return -1 if No Pivot Found: If we finish iterating without finding a pivot, return -1.
+This approach is efficient with a time complexity of 
+𝑂
+(
+𝑛
+)
+O(n) since we only pass through the array twice: once to calculate the total sum and once to find the pivot.
+
+Code Implementation
+javascript
+Copy code
+/**
+ * @param {number[]} nums
+ * @return {number}
+ */
+var pivotIndex = function(nums) {
+    // Step 1: Calculate the total sum of the array
+    const totalSum = nums.reduce((acc, num) => acc + num, 0);
+    
+    // Step 2: Initialize left sum as 0
+    let leftSum = 0;
+    
+    // Step 3: Iterate through the array to find the pivot index
+    for (let i = 0; i < nums.length; i++) {
+        // Calculate the right sum by subtracting left sum and current number from total sum
+        const rightSum = totalSum - leftSum - nums[i];
+        
+        // Check if left sum equals right sum
+        if (leftSum === rightSum) {
+            return i; // Pivot index found
+        }
+        
+        // Update left sum for the next index
+        leftSum += nums[i];
+    }
+    
+    // Step 4: If no pivot index is found, return -1
+    return -1;
+};
+Explanation with Example
+Let's go through an example with nums = [1,7,3,6,5,6]:
+
+Calculate totalSum: 
+1
++
+7
++
+3
++
+6
++
+5
++
+6
+=
+28
+1+7+3+6+5+6=28
+Initialize leftSum = 0.
+Iterate through each index and calculate rightSum:
+At index 0: leftSum = 0, rightSum = 28 - 0 - 1 = 27 (not a pivot).
+At index 1: leftSum = 1, rightSum = 28 - 1 - 7 = 20 (not a pivot).
+At index 2: leftSum = 8, rightSum = 28 - 8 - 3 = 17 (not a pivot).
+At index 3: leftSum = 11, rightSum = 28 - 11 - 6 = 11 (pivot found).
+The algorithm returns index 3, which is the correct pivot index.
+
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the number of elements in nums.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1), as we only use a few variables to store the total sum and left sum.
+This solution is both time-efficient and space-efficient for large arrays.
