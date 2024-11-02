@@ -1,0 +1,204 @@
+To solve the problem of finding the Lowest Common Ancestor (LCA) of two given nodes in a binary tree, we can use a recursive approach. The main idea is to traverse the tree starting from the root and check for the presence of the two nodes (p and q).
+
+Key Steps in the Algorithm
+Base Case: If the current node is null, we return null. If the current node matches either p or q, we return that node.
+
+Recursive Traversal: We recursively call the function on the left and right children of the current node.
+
+Determine LCA: After the recursive calls, we check:
+
+If both the left and right calls return non-null values, it means that p is found in one subtree and q in the other, which indicates that the current node is their LCA.
+If only one of the calls returns a non-null value, we propagate that non-null node up the tree.
+Return the Result: Finally, the function will return the LCA node when both p and q are found.
+
+JavaScript Implementation
+Here’s how you can implement the above logic in JavaScript:
+
+javascript
+Copy code
+class TreeNode {
+    constructor(val) {
+        this.val = val;
+        this.left = this.right = null;
+    }
+}
+
+function lowestCommonAncestor(root, p, q) {
+    // Base case: if the root is null or matches p or q
+    if (root === null || root === p || root === q) {
+        return root;
+    }
+
+    // Recursively search for p and q in the left and right subtrees
+    const left = lowestCommonAncestor(root.left, p, q);
+    const right = lowestCommonAncestor(root.right, p, q);
+
+    // If both left and right are non-null, root is the LCA
+    if (left !== null && right !== null) {
+        return root;
+    }
+
+    // Otherwise, return the non-null child (either left or right)
+    return left !== null ? left : right;
+}
+
+// Example usage:
+const root = new TreeNode(3);
+root.left = new TreeNode(5);
+root.right = new TreeNode(1);
+root.left.left = new TreeNode(6);
+root.left.right = new TreeNode(2);
+root.left.right.left = new TreeNode(7);
+root.left.right.right = new TreeNode(4);
+root.right.left = new TreeNode(0);
+root.right.right = new TreeNode(8);
+
+const p = root.left; // Node with value 5
+const q = root.right; // Node with value 1
+
+console.log(lowestCommonAncestor(root, p, q).val); // Output: 3
+Explanation of the Code
+TreeNode Class: This defines the structure of a tree node with a value and pointers to left and right children.
+
+Function lowestCommonAncestor:
+
+Base Cases: The function checks if the root is null or if it matches either p or q. If so, it returns root.
+Recursive Calls: It calls itself for the left and right children of the current node.
+LCA Determination: It checks if both left and right calls returned non-null values. If they did, the current node is the LCA. Otherwise, it returns the non-null result.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑁
+)
+O(N), where 
+𝑁
+N is the number of nodes in the binary tree. In the worst case, we visit all nodes.
+Space Complexity: 
+𝑂
+(
+𝐻
+)
+O(H), where 
+𝐻
+H is the height of the tree due to recursion stack space. In the worst case, for a skewed tree, it can be 
+𝑂
+(
+𝑁
+)
+O(N).
+This algorithm effectively finds the LCA for two nodes in a binary tree while being efficient and clear in its implementation.
+
+
+
+
+
+
+You said:
+using bfs loop?
+ChatGPT said:
+ChatGPT
+To find the Lowest Common Ancestor (LCA) of two nodes in a binary tree using a breadth-first search (BFS) approach, we can follow these steps:
+
+Use a Queue: We'll employ a queue to perform a level-order traversal of the tree. This will help us explore nodes level by level.
+
+Parent Mapping: We'll create a mapping of each node to its parent. This will allow us to backtrack from the nodes p and q to find their LCA.
+
+Finding the LCA:
+
+Start BFS from the root, recording the parent of each node in the mapping.
+Once we've built the parent mapping, backtrack from both p and q, marking the ancestors of p.
+Then, traverse from q until we find the first ancestor that is also an ancestor of p. This will be the LCA.
+JavaScript Implementation
+Here’s how you can implement this using BFS:
+
+javascript
+Copy code
+class TreeNode {
+    constructor(val) {
+        this.val = val;
+        this.left = this.right = null;
+    }
+}
+
+function lowestCommonAncestor(root, p, q) {
+    if (!root) return null;
+
+    // Map to store parent pointers
+    const parent = new Map();
+    const queue = [root];
+    
+    // Perform BFS to populate the parent map
+    while (queue.length) {
+        const node = queue.shift();
+
+        // Set the parent of the left child
+        if (node.left) {
+            parent.set(node.left, node);
+            queue.push(node.left);
+        }
+
+        // Set the parent of the right child
+        if (node.right) {
+            parent.set(node.right, node);
+            queue.push(node.right);
+        }
+    }
+
+    // Set to track the ancestors of p
+    const ancestors = new Set();
+    
+    // Backtrack from p and record its ancestors
+    while (p) {
+        ancestors.add(p);
+        p = parent.get(p);
+    }
+
+    // Backtrack from q and find the first common ancestor
+    while (!ancestors.has(q)) {
+        q = parent.get(q);
+    }
+
+    return q; // q is now the LCA of the original p and q
+}
+
+// Example usage:
+const root = new TreeNode(3);
+root.left = new TreeNode(5);
+root.right = new TreeNode(1);
+root.left.left = new TreeNode(6);
+root.left.right = new TreeNode(2);
+root.left.right.left = new TreeNode(7);
+root.left.right.right = new TreeNode(4);
+root.right.left = new TreeNode(0);
+root.right.right = new TreeNode(8);
+
+const p = root.left; // Node with value 5
+const q = root.right; // Node with value 1
+
+console.log(lowestCommonAncestor(root, p, q).val); // Output: 3
+Explanation of the Code
+TreeNode Class: Defines the structure of a tree node.
+
+Function lowestCommonAncestor:
+
+Parent Mapping: We initialize a Map to store each node's parent and a queue for BFS.
+BFS Loop: We iterate through each node, enqueueing its children and populating the parent mapping.
+Tracking Ancestors: We backtrack from node p, adding each ancestor to a Set.
+Finding LCA: We then backtrack from node q, checking if the ancestor is in the Set. The first common ancestor found is the LCA.
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑁
+)
+O(N), where 
+𝑁
+N is the number of nodes in the tree. We perform a BFS traversal of all nodes.
+Space Complexity: 
+𝑂
+(
+𝑁
+)
+O(N) for the parent mapping and the queue used in BFS.
+This BFS approach provides an effective way to find the LCA of two nodes in a binary tree.
