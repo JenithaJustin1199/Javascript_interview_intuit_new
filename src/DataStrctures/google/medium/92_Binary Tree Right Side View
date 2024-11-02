@@ -1,0 +1,66 @@
+
+To solve the problem of obtaining the right side view of a binary tree, we can perform a level-order traversal (also known as breadth-first traversal) using a queue. During this traversal, we keep track of the last node we visit at each level, as this node will be visible from the right side.
+
+Approach:
+Level-Order Traversal: Use a queue to explore each level of the tree.
+Track Rightmost Nodes: For each level, store the value of the last node encountered. This value represents what is visible from the right side for that level.
+Return Results: Collect the rightmost nodes in a list and return it at the end.
+Implementation in JavaScript:
+Here’s how you can implement this approach:
+
+javascript
+Copy code
+// Definition for a binary tree node.
+function TreeNode(val, left, right) {
+    this.val = (val === undefined ? 0 : val);
+    this.left = (left === undefined ? null : left);
+    this.right = (right === undefined ? null : right);
+}
+
+var rightSideView = function(root) {
+    if (!root) return []; // If the tree is empty, return an empty array
+
+    const result = [];
+    const queue = [root];
+
+    while (queue.length > 0) {
+        const levelSize = queue.length; // Number of nodes at the current level
+        
+        for (let i = 0; i < levelSize; i++) {
+            const node = queue.shift(); // Dequeue the front node
+            
+            // If it's the last node in this level, add it to the result
+            if (i === levelSize - 1) {
+                result.push(node.val);
+            }
+            
+            // Enqueue the left and right children of the node
+            if (node.left) queue.push(node.left);
+            if (node.right) queue.push(node.right);
+        }
+    }
+
+    return result; // Return the collected right side view values
+};
+
+// Example usage:
+// Creating a binary tree: [1,2,3,null,5,null,4]
+const root = new TreeNode(1);
+root.left = new TreeNode(2);
+root.right = new TreeNode(3);
+root.left.right = new TreeNode(5);
+root.right.right = new TreeNode(4);
+
+console.log(rightSideView(root)); // Output: [1, 3, 4]
+Explanation of the Code:
+TreeNode Definition: We define a TreeNode class to represent each node of the binary tree.
+Right Side View Function:
+Check if the root is null and return an empty array if it is.
+Use a queue to perform level-order traversal.
+For each level, loop through all nodes and push the last node's value to the result array.
+Add the left and right children of each node to the queue for the next level.
+Return the Result: After completing the traversal, return the result array containing the right side view values.
+Complexity:
+Time Complexity: O(n), where n is the number of nodes in the tree. We visit each node exactly once.
+Space Complexity: O(m), where m is the maximum number of nodes at any level. This could go up to O(n) in the case of a complete binary tree.
+This solution efficiently gathers the right side view of a binary tree and is optimized for the constraints typically given in such problems.
