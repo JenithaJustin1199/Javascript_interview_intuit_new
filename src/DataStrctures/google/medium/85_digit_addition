@@ -1,0 +1,53 @@
+To solve this problem, we need to increment the integer represented by the array digits by 1. This problem resembles adding 1 to a number with potential "carry" propagation. Here’s how we can approach it:
+
+Start from the Last Digit: Begin from the last element in the array, which represents the least significant digit.
+Increment and Handle Carry: Add 1 to this digit. If it becomes 10, set it to 0 (because it needs a carry), and move to the next most significant digit.
+Continue the Carry: Repeat the process as long as there’s a carry to propagate.
+Final Carry: If there’s still a carry after processing all digits (like going from [9, 9, 9] to [1, 0, 0, 0]), we need to add an additional 1 at the beginning of the array.
+Solution Code
+javascript
+Copy code
+function plusOne(digits) {
+    for (let i = digits.length - 1; i >= 0; i--) {
+        if (digits[i] < 9) {
+            digits[i] += 1;
+            return digits;
+        }
+        digits[i] = 0;
+    }
+    // If we exited the loop, we had a carry all the way through
+    digits.unshift(1);
+    return digits;
+}
+Explanation of the Code
+Loop from the End: We start from the last element in the array and move backward.
+Incrementing and Checking for Carry:
+If the current digit is less than 9, we increment it and return the array immediately because there’s no carry.
+If it’s 9, we set it to 0 (which indicates a carry needs to move to the next digit).
+Handle the Edge Case for All 9s:
+If we complete the loop and every digit was a 9, we’ll end up with an array of 0s (e.g., [9, 9] becomes [0, 0]).
+In this case, we insert 1 at the beginning, making the result [1, 0, 0].
+Examples
+Example 1
+javascript
+Copy code
+plusOne([1, 2, 3]); // Output: [1, 2, 4]
+Example 2
+javascript
+Copy code
+plusOne([9, 9, 9]); // Output: [1, 0, 0, 0]
+Complexity Analysis
+Time Complexity: 
+𝑂
+(
+𝑛
+)
+O(n), where 
+𝑛
+n is the number of digits. We may need to iterate through all digits in the worst case.
+Space Complexity: 
+𝑂
+(
+1
+)
+O(1) additional space, if we don’t count the input and output array. However, the result may need one additional space in the case of a carry that affects a new most significant digit.
