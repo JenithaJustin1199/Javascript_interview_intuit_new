@@ -1,0 +1,71 @@
+To solve the problem of finding the distance of the nearest 0 for each cell in a binary matrix, we can use a Breadth-First Search (BFS) approach. This method is efficient and allows us to traverse the matrix layer by layer from the 0s, effectively calculating the distances for all cells in one pass.
+
+Here’s a step-by-step explanation of the approach, followed by the implementation in JavaScript:
+
+Approach:
+Initialize a Queue: Start by creating a queue that will hold the coordinates of all the 0s in the matrix. This will allow us to perform BFS from each 0.
+
+Distance Matrix: Create a distance matrix of the same size as the input matrix, initialized with Infinity for all cells except for cells containing 0, which should be initialized to 0.
+
+BFS Traversal:
+
+Enqueue all 0 positions into the queue.
+For each position, check its adjacent cells (up, down, left, right).
+If an adjacent cell has a distance greater than the current cell's distance + 1, update its distance and enqueue its position.
+Return the Result: After the BFS traversal, the distance matrix will contain the shortest distance to a 0 for each cell.
+
+Implementation in JavaScript:
+javascript
+Copy code
+function updateMatrix(mat) {
+    const m = mat.length;
+    const n = mat[0].length;
+    const distances = Array.from({ length: m }, () => Array(n).fill(Infinity));
+    const queue = [];
+
+    // Initialize the queue with all the '0' positions
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            if (mat[i][j] === 0) {
+                distances[i][j] = 0; // Distance to self is 0
+                queue.push([i, j]);
+            }
+        }
+    }
+
+    // Directions for adjacent cells (up, down, left, right)
+    const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    // BFS
+    while (queue.length > 0) {
+        const [x, y] = queue.shift();
+
+        for (const [dx, dy] of directions) {
+            const nx = x + dx;
+            const ny = y + dy;
+
+            // Check bounds and if we can update the distance
+            if (nx >= 0 && nx < m && ny >= 0 && ny < n) {
+                if (distances[nx][ny] > distances[x][y] + 1) {
+                    distances[nx][ny] = distances[x][y] + 1;
+                    queue.push([nx, ny]);
+                }
+            }
+        }
+    }
+
+    return distances;
+}
+
+// Example usage:
+console.log(updateMatrix([[0,0,0],[0,1,0],[0,0,0]])); // Output: [[0,0,0],[0,1,0],[0,0,0]]
+console.log(updateMatrix([[0,0,0],[0,1,0],[1,1,1]])); // Output: [[0,0,0],[0,1,0],[1,2,1]]
+Explanation of the Code:
+Initialization: We first set up our distance matrix and queue.
+BFS Process: We explore all four directions for each cell, updating distances as we find shorter paths to a 0.
+Boundary Checks: Ensure we do not go out of bounds while checking adjacent cells.
+Final Output: The distances matrix is returned, containing the shortest distances for all cells.
+Complexity:
+Time Complexity: O(m * n), where m is the number of rows and n is the number of columns in the matrix, as each cell is processed once.
+Space Complexity: O(m * n) for the distance matrix and queue.
+This approach is efficient and well-suited for the problem constraints provided.
