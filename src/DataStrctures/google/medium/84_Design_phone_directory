@@ -1,0 +1,106 @@
+To implement a PhoneDirectory class that manages phone numbers within a fixed maximum number of slots, we'll need to handle the following operations:
+
+Initialization: Set up a directory with available slots (from 0 to maxNumbers - 1).
+Provide a Number: Return an available number. If no numbers are available, return -1.
+Check Availability: Check if a specific number is available or assigned.
+Release a Number: Recycle a previously assigned number, making it available again.
+To achieve these requirements efficiently, we can use:
+
+A set to track available numbers.
+A queue to manage and retrieve available numbers quickly.
+Solution
+Here is the implementation of the PhoneDirectory class in JavaScript:
+
+javascript
+Copy code
+class PhoneDirectory {
+    /**
+     * @param {number} maxNumbers - The maximum number of slots in the directory.
+     */
+    constructor(maxNumbers) {
+        this.availableNumbers = new Set();
+        this.queue = [];
+        
+        // Initialize with numbers from 0 to maxNumbers - 1
+        for (let i = 0; i < maxNumbers; i++) {
+            this.availableNumbers.add(i);
+            this.queue.push(i);
+        }
+    }
+
+    /**
+     * Provide an available number.
+     * @return {number} - The available number. If no number is available, return -1.
+     */
+    get() {
+        if (this.queue.length === 0) return -1; // No available numbers
+        
+        const number = this.queue.shift(); // Retrieve the first available number
+        this.availableNumbers.delete(number); // Mark it as assigned
+        return number;
+    }
+
+    /**
+     * Check if a number is available.
+     * @param {number} number - The number to check.
+     * @return {boolean} - True if the number is available, false if it is assigned.
+     */
+    check(number) {
+        return this.availableNumbers.has(number);
+    }
+
+    /**
+     * Release or recycle a number, making it available again.
+     * @param {number} number - The number to release.
+     */
+    release(number) {
+        // Only add it back if it's not already available
+        if (!this.availableNumbers.has(number)) {
+            this.availableNumbers.add(number);
+            this.queue.push(number);
+        }
+    }
+}
+Explanation of Each Method
+Constructor (constructor(maxNumbers)):
+
+Initializes the PhoneDirectory with maxNumbers slots.
+Fills the availableNumbers set and queue with numbers from 0 to maxNumbers - 1, marking all numbers as available initially.
+Get (get()):
+
+Retrieves the first available number from the queue and removes it from the availableNumbers set.
+If no numbers are available (queue is empty), it returns -1.
+Check (check(number)):
+
+Checks if a given number is available by looking it up in the availableNumbers set.
+Returns true if the number is available, false otherwise.
+Release (release(number)):
+
+Recycles the given number back into availability if it's not already in the availableNumbers set.
+Adds the number to both the availableNumbers set and queue.
+Usage Example
+javascript
+Copy code
+let directory = new PhoneDirectory(3); // Initialize with max 3 slots
+
+console.log(directory.get());    // Outputs: 0 (first available number)
+console.log(directory.get());    // Outputs: 1
+console.log(directory.check(2)); // Outputs: true (2 is available)
+console.log(directory.get());    // Outputs: 2
+console.log(directory.check(2)); // Outputs: false (2 is now assigned)
+directory.release(2);            // Release number 2
+console.log(directory.check(2)); // Outputs: true (2 is available again)
+Complexity Analysis
+Time Complexity:
+get(), release(), and check() operations are 
+𝑂
+(
+1
+)
+O(1) on average due to efficient operations with the set and queue.
+Space Complexity:
+𝑂
+(
+maxNumbers
+)
+O(maxNumbers), as we store up to maxNumbers elements in the set and queue.
