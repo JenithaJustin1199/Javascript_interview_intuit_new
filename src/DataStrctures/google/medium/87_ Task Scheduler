@@ -1,0 +1,89 @@
+To solve this problem, we can use a greedy approach with a priority queue. The main idea is to schedule tasks in such a way that we maximize the usage of CPU intervals, while ensuring that each task with the same label has at least a gap of n intervals.
+
+Here's a breakdown of the solution:
+
+Count the Frequencies:
+
+First, we need to know how many times each task needs to be completed. This helps to determine the most frequent tasks, which will influence the number of intervals.
+Organize by Frequency:
+
+The most frequent task will dominate the minimum length required for the sequence since it has to be separated by n intervals from itself.
+Let's call the maximum frequency of any task f_max.
+Calculate Intervals:
+
+If there are k tasks with the frequency f_max, then the minimum intervals required to complete all tasks can be calculated using the formula:
+intervals
+=
+(
+𝑓
+max
+−
+1
+)
+×
+(
+𝑛
++
+1
+)
++
+𝑘
+intervals=(f 
+max
+​
+ −1)×(n+1)+k
+Here, (f_max - 1) * (n + 1) gives the base intervals needed to separate the most frequent tasks by at least n intervals, and + k accounts for the last row of the tasks with the maximum frequency.
+Handle Idle Time:
+
+If there are more tasks that can fit into the available slots without violating the constraints, the total length of intervals required will just be the number of tasks.
+Otherwise, the formula above will give the minimum intervals required, including idle intervals.
+
+Explanation of Code:
+task_counts counts occurrences of each task.
+max_heap is a max-heap (using negative values to simulate a max-heap) that helps prioritize tasks with higher frequency.
+In each cycle of n + 1, we pop the most frequent tasks, decrement their count, and if any task still needs completion, we push it back.
+intervals keeps track of CPU intervals required, including idle intervals if necessary.
+This approach ensures that we are using the minimum CPU intervals required while respecting the cooling period n between tasks of the same label.
+
+const leastInterval = (tasks, n) => {
+    // Step 1: Count the frequency of each task
+    const taskCounts = new Map();
+    for (const task of tasks) {
+        taskCounts.set(task, (taskCounts.get(task) || 0) + 1);
+    }
+    
+    // Step 2: Create a max heap of task frequencies
+    const maxHeap = [];
+    for (const count of taskCounts.values()) {
+        maxHeap.push(-count); // use negative values to simulate a max-heap
+    }
+    maxHeap.sort((a, b) => a - b); // sort to maintain max-heap properties
+    
+    let intervals = 0;
+
+    // Step 3: Process tasks with cooling period
+    while (maxHeap.length > 0) {
+        const temp = [];
+        // Fill up to n + 1 slots
+        for (let i = 0; i <= n; i++) {
+            if (maxHeap.length > 0) {
+                temp.push(maxHeap.shift());
+            }
+        }
+        
+        // Process tasks in this cycle and add them back if they're not finished
+        for (const count of temp) {
+            if (count + 1 < 0) {
+                maxHeap.push(count + 1);
+            }
+        }
+        
+        // Re-sort maxHeap to maintain max-heap order
+        maxHeap.sort((a, b) => a - b);
+        
+        // If maxHeap is empty, no need for idle intervals beyond the current tasks
+        intervals += maxHeap.length > 0 ? n + 1 : temp.length;
+    }
+    
+    return intervals;
+};
