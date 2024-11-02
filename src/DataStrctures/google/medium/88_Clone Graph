@@ -1,0 +1,59 @@
+Your implementation of the graph cloning function is almost correct, but there are a couple of small issues that need to be addressed. Here's a breakdown of the corrections:
+
+Issues in Your Code
+Property Access Error:
+
+You are accessing current.value instead of current.val. Since the _Node constructor defines the value of a node as this.val, you should access it using current.val.
+Use of new Node:
+
+Ensure you use new _Node() instead of new Node() when creating a cloned node. This is important because the function is defined to use _Node.
+Corrected Code
+Here's the revised version of your code:
+
+javascript
+Copy code
+/**
+ * // Definition for a _Node.
+ * function _Node(val, neighbors) {
+ *    this.val = val === undefined ? 0 : val;
+ *    this.neighbors = neighbors === undefined ? [] : neighbors;
+ * };
+ */
+
+/**
+ * @param {_Node} node
+ * @return {_Node}
+ */
+var cloneGraph = function(node) {
+    if (!node) return null; // Handle the case for an empty graph
+
+    let visited = new Map(); // Map to keep track of visited nodes
+
+    function dfs(current) {
+        // Check if the current node has already been cloned
+        if (visited.has(current)) {
+            return visited.get(current);
+        }
+
+        // Create a clone of the current node
+        const clonedNode = new _Node(current.val); // Correctly use current.val
+        visited.set(current, clonedNode); // Map the original node to the cloned node
+
+        // Recursively clone the neighbors
+        for (let neighbor of current.neighbors) {
+            clonedNode.neighbors.push(dfs(neighbor));
+        }
+        return clonedNode; // Return the cloned node
+    }
+
+    return dfs(node); // Start DFS from the given node
+};
+Summary of Changes
+Access Correct Property: Changed current.value to current.val to correctly reference the value of the node.
+Clone Creation: Used new _Node(current.val) to create a clone of the node.
+Explanation of the Code
+DFS Approach: The function uses Depth-First Search (DFS) to traverse the graph.
+Visited Map: A Map is used to keep track of cloned nodes to avoid duplicating the cloning process for the same node.
+Base Case: If the input node is null, the function immediately returns null.
+Neighbor Cloning: It recursively clones each neighbor of the current node and adds it to the cloned node's neighbors.
+With these corrections, your code should work correctly to clone a graph. If you have any further questions or need more help, feel free to ask!
