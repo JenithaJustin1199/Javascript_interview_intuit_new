@@ -1,0 +1,67 @@
+Your implementation of the MinStack class is almost correct, but there is a small mistake in the push method's conditional check for updating the minStack. Specifically, when you check if the val should be pushed onto the minStack, you are mistakenly referencing this.getMin instead of calling the function this.getMin(). This results in a reference to the function rather than the minimum value.
+
+Here's the corrected code:
+
+javascript
+Copy code
+var MinStack = function() {
+    this.stack = [];
+    this.minStack = [];
+};
+
+/** 
+ * @param {number} val
+ * @return {void}
+ */
+MinStack.prototype.push = function(val) {
+    this.stack.push(val);
+    // Call getMin() instead of referencing it directly
+    if (this.minStack.length === 0 || val <= this.getMin()) {
+        this.minStack.push(val);
+    }
+};
+
+/**
+ * @return {void}
+ */
+MinStack.prototype.pop = function() {
+    const popped = this.stack.pop();
+    // Check if popped is equal to the current minimum
+    if (popped === this.getMin()) {
+        this.minStack.pop();
+    }
+};
+
+/**
+ * @return {number}
+ */
+MinStack.prototype.top = function() {
+    return this.stack[this.stack.length - 1];
+};
+
+/**
+ * @return {number}
+ */
+MinStack.prototype.getMin = function() {
+    return this.minStack[this.minStack.length - 1];
+};
+
+/** 
+ * Your MinStack object will be instantiated and called as such:
+ * var obj = new MinStack();
+ * obj.push(val);
+ * obj.pop();
+ * var param_3 = obj.top();
+ * var param_4 = obj.getMin();
+ */
+Key Changes Made:
+Conditional Check in push:
+
+Changed if (this.minStack.length === 0 || val < this.getMin) to if (this.minStack.length === 0 || val <= this.getMin()).
+This change ensures that you are comparing val against the current minimum value returned by getMin().
+Comparison Operator:
+
+I changed the comparison operator from < to <= to ensure that if the new value is equal to the current minimum, it is also pushed onto the minStack. This allows for duplicate minimum values to be stored, which is often desired in a min stack.
+Time Complexity:
+The time complexity of all methods remains O(1) as required.
+With these changes, your MinStack implementation should work correctly. Feel free to test it with various inputs to verify its behavior!
