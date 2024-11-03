@@ -1,0 +1,80 @@
+To solve the "Word Search" problem efficiently, we can use a Depth-First Search (DFS) approach with backtracking. This technique will allow us to explore all possible paths in the grid while pruning paths that don't match the given word. Here’s a step-by-step breakdown of the approach:
+
+Approach
+Iterate Over Each Cell: For each cell in the grid, check if it matches the first letter of the word. If it does, start a DFS from that cell.
+
+Depth-First Search (DFS): Implement a recursive function that will:
+
+Check if the current position matches the corresponding character in the word.
+If all characters of the word are found, return true.
+Mark the cell as visited (to prevent using the same letter twice).
+Explore all four possible directions (up, down, left, right).
+After exploring, backtrack by unmarking the visited cell.
+Base Cases:
+
+If the current index exceeds the length of the word, return true.
+If the current position is out of bounds or doesn't match the corresponding letter in the word, return false.
+Search Pruning: If at any point the remaining characters of the word cannot be found based on the letters left in the grid, we can prune that path.
+
+Implementation
+Here’s how you can implement the above approach in JavaScript:
+
+javascript
+Copy code
+var exist = function(board, word) {
+    const m = board.length;
+    const n = board[0].length;
+
+    const dfs = (i, j, index) => {
+        // If we have found all characters
+        if (index === word.length) return true;
+
+        // Check boundaries and character match
+        if (i < 0 || i >= m || j < 0 || j >= n || board[i][j] !== word[index]) {
+            return false;
+        }
+
+        // Mark the cell as visited
+        const temp = board[i][j];
+        board[i][j] = '#'; // Mark as visited with a special character
+
+        // Explore all four directions
+        const found = dfs(i + 1, j, index + 1) || // Down
+                      dfs(i - 1, j, index + 1) || // Up
+                      dfs(i, j + 1, index + 1) || // Right
+                      dfs(i, j - 1, index + 1);   // Left
+
+        // Backtrack: Unmark the cell
+        board[i][j] = temp; // Restore original value
+
+        return found;
+    };
+
+    // Start DFS from each cell
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            if (board[i][j] === word[0] && dfs(i, j, 0)) {
+                return true;
+            }
+        }
+    }
+
+    return false; // Word not found
+};
+Explanation of the Code
+The exist function initializes the dimensions of the board and defines the DFS helper function.
+The dfs function checks for boundary conditions, matches characters, and recursively searches in all four directions.
+Each time a character matches, we mark the cell to avoid revisiting it during the current path.
+After exploring, we backtrack by restoring the original cell value.
+Finally, we iterate through each cell of the grid and call dfs to check if the word can be formed starting from that cell.
+Complexity
+Time Complexity: O(m * n * 4^L), where L is the length of the word. In the worst case, we might explore all possible paths, but pruning helps reduce the number of unnecessary paths.
+Space Complexity: O(L) for the recursion stack, where L is the length of the word.
+Conclusion
+This approach efficiently finds whether the word exists in the grid using DFS and backtracking with pruning, ensuring that we do not explore unnecessary paths.
+
+
+
+
+
+
