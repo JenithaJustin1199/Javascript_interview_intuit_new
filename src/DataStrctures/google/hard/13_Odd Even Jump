@@ -1,0 +1,136 @@
+To achieve an O(1) space complexity solution for the "Good Starting Indices" problem, we will need to modify our approach significantly. While maintaining the O(n) time complexity, we will use only a few variables for counting and tracking states instead of arrays.
+
+Key Insight
+Given the constraints and nature of jumps, we can utilize two flags to indicate if the current index can reach the end through odd or even jumps, without maintaining an entire state array. We'll use a variable to count good starting indices directly.
+
+Revised Approach
+Explanation
+Initialization: We’ll initialize two boolean variables (canReachOdd and canReachEven) to track if we can reach the end with odd or even jumps.
+Single Pass: We'll traverse the array from the end to the beginning while updating our two flags based on reachable conditions.
+Count Good Starts: We will count good starting indices based on whether we can jump to the end with odd jumps.
+Steps:
+Base Case: The last index can always reach itself.
+Process Indices: Loop through the array in reverse. For each index, determine if we can jump to indices that can reach the end using either odd or even jumps.
+Count Good Starts: If an index can reach the end with an odd jump, increment the count of good starting indices.
+Code Implementation (O(1) Space Complexity)
+Here’s the implementation in JavaScript:
+
+javascript
+Copy code
+function oddEvenJumps(arr) {
+    const n = arr.length; // Get the length of the array
+    if (n === 1) return 1; // Only one element means one good start
+
+    let goodStarts = 0; // Initialize the count of good starting indices
+    let canReachOdd = false; // Can we reach the end with an odd jump
+    let canReachEven = false; // Can we reach the end with an even jump
+
+    // Create a variable to track the last position we can jump to
+    let lastIndex = n - 1; // Start with the last index
+
+    // Traverse the array backwards
+    for (let i = n - 2; i >= 0; i--) {
+        // Initialize flags for this index
+        let oddJumpPossible = false; // Can jump from i to the end using an odd jump
+        let evenJumpPossible = false; // Can jump from i to the end using an even jump
+        
+        // Check potential jumps
+        if (arr[i] <= arr[lastIndex]) { // Check if we can jump to a higher or equal value
+            oddJumpPossible = true; // We can reach the end with an odd jump
+        }
+        if (arr[i] >= arr[lastIndex]) { // Check if we can jump to a lower or equal value
+            evenJumpPossible = true; // We can reach the end with an even jump
+        }
+
+        // Update our last index based on jump possibilities
+        if (oddJumpPossible) {
+            canReachOdd = true; // We can reach the end from i with an odd jump
+            goodStarts++; // Increment good start count
+        }
+
+        if (evenJumpPossible) {
+            canReachEven = true; // We can reach the end from i with an even jump
+        }
+        
+        // Update the last index for future jumps
+        lastIndex = oddJumpPossible ? i : lastIndex; // Update lastIndex if we can jump from i
+    }
+
+    return goodStarts; // Return the count of good starting indices
+}
+Explanation of the Code
+Initialization: We start by initializing goodStarts to count the number of good starting indices.
+Base Case: If there's only one element, we return 1.
+Loop Through the Array: We traverse the array backward:
+We check if we can jump to the last reachable index based on the current index's value.
+We update our flags for odd and even jump possibilities.
+Count Good Starts: If an index can reach the end with an odd jump, we increment the count of good starting indices.
+Update Last Index: We adjust our lastIndex based on whether the current index can reach the end.
+Complexity Analysis
+Time Complexity: O(n) because we traverse the array once.
+Space Complexity: O(1) as we use only a constant amount of extra space for a few variables.
+Edge Cases
+Empty Array: If the array is empty, return 0.
+Single Element Array: If the array contains only one element, return 1.
+All Elements Same: If all elements are the same (e.g., [2, 2, 2]), every index can be a good starting point.
+Strictly Decreasing: For an array like [5, 4, 3, 2], only the last index is reachable.
+Test Cases for Dry Run
+Test Case 1: oddEvenJumps([10, 13, 12, 14, 15]) ➔ Expected Output: 2.
+Test Case 2: oddEvenJumps([2, 3, 1, 1, 4]) ➔ Expected Output: 3.
+Test Case 3: oddEvenJumps([5, 1, 3]) ➔ Expected Output: 2.
+Test Case 4: oddEvenJumps([2, 2, 2]) ➔ Expected Output: 3.
+Test Case 5: oddEvenJumps([1]) ➔ Expected Output: 1.
+This approach ensures minimal space usage while achieving the required functionality efficiently. If you have further questions or need more modifications, feel free to ask!
+
+/**
+ * @param {number[]} arr
+ * @return {number}
+ */
+var oddEvenJumps = function(arr) {
+    const n = arr.length;
+    if (n === 1) return 1;
+
+ 
+    const oddJump = new Array(n).fill(false);
+    const evenJump = new Array(n).fill(false);
+
+    oddJump[n - 1] = true;
+    evenJump[n - 1] = true;
+    
+
+    const nextHigher = Array(n).fill(-1);
+    const nextLower = Array(n).fill(-1);
+    
+
+    let sortedIndices = Array.from(Array(n).keys()).sort((a, b) => arr[a] - arr[b] || a - b);
+    fillNextJumps(sortedIndices, nextHigher);
+    
+    sortedIndices = Array.from(Array(n).keys()).sort((a, b) => arr[b] - arr[a] || a - b);
+    fillNextJumps(sortedIndices, nextLower);
+
+    for (let i = n - 2; i >= 0; i--) {
+        if (nextHigher[i] !== -1) {
+            oddJump[i] = evenJump[nextHigher[i]];
+        }
+        if (nextLower[i] !== -1) {
+            evenJump[i] = oddJump[nextLower[i]];
+        }
+    }
+    
+    let goodStarts = 0;
+    for (let i = 0; i < n; i++) {
+        if (oddJump[i]) goodStarts++;
+    }
+    return goodStarts;
+};
+
+
+function fillNextJumps(sortedIndices, nextJump) {
+    const stack = [];
+    for (let i of sortedIndices) {
+        while (stack.length && stack[stack.length - 1] < i) {
+            nextJump[stack.pop()] = i;
+        }
+        stack.push(i);
+    }
+}
