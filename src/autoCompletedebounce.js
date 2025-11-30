@@ -1,10 +1,13 @@
-import React, { useState } from "react";
-import { mockData } from "./mockData";
+import React, { useState, useRef } from "react";
+import mockData from "./mockData";
 import { debounce } from "./useDebounce";
 
 const AutoComplete = () => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState([]);
+
+  // cache reference (persists between re-renders)
+  const cacheRef = useRef({});
 
   const filterResult = (query) => {
     if (!query.trim()) {
@@ -12,11 +15,22 @@ const AutoComplete = () => {
       return;
     }
 
+    // 1️⃣ Check from cache
+    if (cacheRef.current[query]) {
+      console.log("FROM CACHE:", query);
+      setResult(cacheRef.current[query]);
+      return;
+    }
+
+    // 2️⃣ Compute fresh result
     const filtered = mockData.filter((data) =>
       data.toLowerCase().includes(query.toLowerCase())
     );
 
-    setResult(filtered); // important: update state
+    // 3️⃣ Store in cache
+    cacheRef.current[query] = filtered;
+
+    setResult(filtered);
   };
 
   const debouncedFilter = debounce(filterResult, 1000);
@@ -27,11 +41,13 @@ const AutoComplete = () => {
         className="inputBox"
         type="text"
         value={query}
+        placeholder="Search..."
         onChange={(e) => {
           setQuery(e.target.value);
-          debouncedFilter(e.target.value); // correct usage
+          debouncedFilter(e.target.value);
         }}
       />
+
       {result.length > 0 && (
         <ul className="list">
           {result.map((val) => (
@@ -44,6 +60,7 @@ const AutoComplete = () => {
 };
 
 export default AutoComplete;
+
 export const mockData = [
   "Javascript",
   "Java",
