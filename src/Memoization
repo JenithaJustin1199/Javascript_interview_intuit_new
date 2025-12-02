@@ -1,0 +1,25 @@
+// A simple memoization function
+function memoize(fn) {  
+  const cache = {};                     // object to store previous results
+  
+  return function(...args) {            // return a new function that wraps the original
+    const key = JSON.stringify(args);   // convert arguments into a string key
+    
+    if (cache[key]) {                   // if result already exists in cache
+      return cache[key];                // return cached value
+    }
+    
+    const result = fn(...args);         // call the original function normally
+    cache[key] = result;                // store its result in the cache
+    return result;                      // return the computed result
+  };
+}
+function slowAdd(a, b) {
+  console.log("Computing...");  // just to see when it actually runs
+  return a + b;
+}
+
+const fastAdd = memoize(slowAdd);
+
+console.log(fastAdd(10, 20)); // "Computing..." → 30
+console.log(fastAdd(10, 20)); // returns cached result → 30 (no log this time)
