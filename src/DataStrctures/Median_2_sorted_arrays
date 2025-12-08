@@ -1,0 +1,106 @@
+/**
+ * @param {number[]} nums1
+ * @param {number[]} nums2
+ * @return {number}
+ */
+var findMedianSortedArrays = function (nums1, nums2) {
+    //arr1 = 1,3,4,7,10,12
+    //arr2 = 2,3,6,15
+
+    //idea 
+    //left 1 = 3, left2 = 4
+    //right1 = 6, right2 = 7
+    //conditions
+    // left1 <= right2 ? 3 <= 7 ✔
+    //left2 <= right1 ? 4 <= 6 ✔
+
+    // why binary search on smaller elements?
+    // Binary search must run on smaller array because:
+
+    // ✔ Guarantees valid partition formulas
+
+    // (i + j = half → j never becomes negative or out of range)
+
+    // ✔ Avoids invalid indexing
+
+    // Binary-searching on large array may produce j < 0 or j > n
+
+    // ✔ Ensures O(log(min(m, n))) — strictly the smallest possible
+
+    // Binary searching the larger array gives worse performance.
+
+    // ✔ Simpler boundaries
+
+    // Edge cases handled easily using ±Infinity.
+
+    //    nums1 = [2,3|6,15]
+    //    nums2 = [1,3,4 || 7,10,2]
+
+    //    m = 6 , n= 4
+    //    total = 10 half = 5
+    //    left =0 right = 3
+    //    mid1 = 1
+    //    mid2 = 4
+    //    left1 = 2
+    if (nums1.length > nums2.length) {
+        return findMedianSortedArrays(nums2, nums1); // swap arrays
+    }
+
+    // Lengths of the arrays
+    let m = nums1.length;
+    let n = nums2.length;
+
+    // Total number of elements in both arrays
+    let total = m + n;
+
+    // Half count: elements we want in the left partition (handles odd and even)
+    let half = Math.floor((total + 1) / 2);
+
+    // Binary search boundaries on nums1
+    let left = 0;
+    let right = m;
+
+    // Start binary search
+    while (left <= right) {
+
+        // Partition index in nums1
+        let mid1 = Math.floor((left + right) / 2);
+
+        // Partition index in nums2 must complement nums1's partition
+        let mid2 = half - mid1;
+
+        // Values immediately on the left and right of partition in nums1
+        // Use -Infinity and +Infinity when partition hits boundaries
+        let left1 = mid1 > 0 ? nums1[mid1 - 1] : -Infinity;
+        let right1 = mid1 < m ? nums1[mid1] : Infinity;
+
+        // Same logic for nums2
+        let left2 = mid2 > 0 ? nums2[mid2 - 1] : -Infinity;
+        let right2 = mid2 < n ? nums2[mid2] : Infinity;
+
+        // Check if we found a valid partition:
+        // max(left side) <= min(right side) for both arrays
+        if (left1 <= right2 && left2 <= right1) {
+
+            // If total is even → median is average of two middle values
+            if (total % 2 === 0) {
+                return (Math.max(left1, left2) + Math.min(right1, right2)) / 2;
+            }
+            // If odd → median is max of left side
+            else {
+                return Math.max(left1, left2);
+            }
+        }
+
+        // If left1 is too big, shrink the right boundary (move partition left)
+        else if (left1 > right2) {
+            right = mid1 - 1;
+        }
+
+        // Else move partition to the right
+        else {
+            left = mid1 + 1;
+        }
+    }
+
+};
