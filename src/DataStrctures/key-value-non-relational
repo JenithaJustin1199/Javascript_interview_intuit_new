@@ -1,0 +1,441 @@
+A key-value store, also referred to as a key-value database, is a non-relational database. Each unique identifier is stored as a key with its associated value. This data pairing is known as a “key-value” pair.
+
+In a key-value pair, the key must be unique, and the value associated with the key can be accessed through the key. Keys can be plain text or hashed values. For performance reasons, a short key works better. What do keys look like? Here are a few examples:
+
+Plain text key: “last_logged_in_at”
+
+Hashed key: 253DDEC4
+
+Characteristics
+
+->No tables
+
+->No joins
+
+->No schema
+
+->Super fast (O(1) lookup)
+
+->Scalable horizontally
+
+Things to be considered:
+ 1) Data partition (sharding) -> to scale horizontally (storage + throughput). One machine cannot hold or serve all keys at web scale.
+What: split the key space across many nodes so each node handles only a subset of keys.
+Why: to scale horizontally (storage + throughput). One machine cannot hold or serve all keys at web scale.
+Two common partitioning strategies
+->Consistent hashing (aka ring)
+Pros: Minimal key movement on node add/remove; easy elastic scaling.
+Cons: Need virtual nodes to balance; more complex to reason about range queries.
+->Range-based partitioning (sorted key ranges)
+Pros: Good for range scans, simpler for certain workloads.
+Cons: Hotspots if keys are skewed; rebalancing can be heavy.
+
+ 2) Data replication — what & why
+What: store multiple copies (replicas) of each key on different nodes.
+Why: durability and availability (if one node fails, data still served).
+
+3) Consistency — models & choices
+Consistency spectrum
+Strong consistency: after a successful write, all reads return the latest value (or you route reads to leader).
+Eventual consistency: writes eventually propagate; reads may see older values.
+ausal, Session, Read-your-writes, Monotonic reads: intermediary guarantees.
+How KV stores choose
+Redis (single leader) often provides strong consistency per instance.
+Dynamo/Cassandra choose eventual consistency with tunable R/W.
+Design knobs
+Leader-based + sync replication for strong consistency (slower, less available during leader failure).
+Leaderless + quorum for tunable consistency/availability.
+Trade-off note (CAP): If partition occurs, systems must choose between Availability (serve requests) and Consistency (return latest); many KV stores choose AP or tunable CP depending on config.
+
+4) Inconsistency resolution strategies
+When replicas diverge (write during partition), we must reconcile:
+Simple approaches
+->Last-Write-Wins (LWW) using timestamp
+Pros: Simple.
+Cons: Susceptible to clock skew, lost updates.
+->Versioned approaches
+Vector clocks (Dynamo)
+Each update carries a vector clock; on conflicting versions, system can detect concurrency and either auto-resolve or return multiple versions to client.
+pros: Correctly detects concurrent updates.
+Cons: Vector clocks grow with number of writers; complex.
+
+5) Handling failures (node/network) — patterns
+->Node failure
+Replica takeover / leader election: if leader dies, elect a new leader (Raft, Paxos).
+Hinted handoff: Dynamo approach — a coordinator stores the write intended for a down replica and hands it off when replica recovers.
+Read repair / anti-entropy: background processes that reconcile divergent replicas (Merkle trees to find differing ranges).
+->Network partition
+If AP mode: continue serving reads/writes to reachable replicas (eventual consistency).
+If CP mode: refuse writes on minority side to preserve consistency.
+->Disk failure / persistence
+WAL (write-ahead log) / append-only log to ensure durability before acknowledging writes. Periodic snapshots and compaction.
+->Monitoring & autoscaling
+Heartbeats, health checks, circuit breakers, automated replacement.
+Trade-off note: Hinted handoff temporarily increases inconsistency but improves availability. Leader election preserves consistency but impacts availability during failover.
+
+6) System architecture diagram (stick diagram)
+
+High-level components: Clients → LB → Coordinator / Router → Partitioned Replica Groups (with storage + WAL) → Background services (Compaction, Repair) → Monitoring
+
+[Clients]
+   |
+[Load Balancer / API Gateway]
+   |
+[Coordinator / Router]
+   |  (uses consistent-hash or metadata lookup)
+   |
++-----------------------------------------------+
+|                Cluster                        |
+|  +-----------+   +-----------+   +-----------+ |
+|  |Partition 1|   |Partition 2|   |Partition 3| |
+|  |Leader(A)  |   |Leader(B)  |   |Leader(C)  | |
+|  |Replicas   |   |Replicas   |   |Replicas   | |
+|  +-----------+   +-----------+   +-----------+ |
++-----------------------------------------------+
+   |
+[Background workers: compaction, anti-entropy, repair]
+   |
+[Persistent storage (WAL files, SSTables etc.)] 
+   |
+[Monitoring / Metrics / Alerts]
+
+7) Write path — step-by-step (two variants)
+ both leader-based and leaderless quorum write paths.
+A. Leader-based write path (stronger consistency)
+Components: Coordinator (router) + Partition Leader + Followers, WAL
+Client → Coordinator → determines partition (via consistent-hash/metadata) → forward to partition leader.
+
+Leader writes to local WAL (append-only) for durability.
+A Write-Ahead Log (WAL) is a durability mechanism used in databases and distributed systems:
+Before modifying the actual database/storage, all changes are first written sequentially to a log on disk.
+Leader applies write to in-memory store and updates on-disk snapshot asynchronously.
+Leader replicates write to followers (synchronously or asynchronously depending on policy).
+If sync replication (leader waits for followers' ack) → strong consistency.
+If async → lower latency, eventual consistency.
+On success (according to required acks), leader returns success to client.
+Followers write to their WAL + apply.
+
+Pseudocode (leader-based):
+
+Coordinator.receiveWrite(key, value):
+  leader = lookupLeader(key)
+  send(leader, WriteReq(key, value))
+
+Leader.onWrite(req):
+  wal.append(req)
+  applyToMemtable(req)
+  for follower in followers:
+     send(follower, Replicate(req))
+  waitForAcks(requiredFollowers)  // depending on sync/async
+  respondToClient(success)
+Trade-off: sync replication increases latency but gives durability/consistency.
+
+B. Leaderless quorum write path (Dynamo-style)
+Parameters: N (replicas), W (write quorum)
+Coordinator (any node) receives write → computes N target replicas (consistent hashing) → sends write to all N.
+Each replica writes to local storage/WAL and responds.
+Coordinator returns success to client after receiving W acknowledgments.
+If some nodes are down, coordinator can do hinted handoff or write to fewer nodes and rely on repair later.
+
+Pseudocode (quorum):
+
+Coordinator.receiveWrite(key, value):
+  replicas = findReplicas(key)  // N nodes
+  pending = []
+  for node in replicas:
+    pending.push( sendAsync(node, WriteReq) )
+  wait for W successes or timeout
+  if W successes -> return success
+  else -> return failure or try hinted handoff
+
+
+Trade-off: with W + R > N you get strong consistency; with lower W/R you get higher availability.
+
+8) Read path — step-by-step
+A. Leader-based (reads from leader)
+Coordinator routes read to leader for the partition.
+Leader returns latest value (from memtable / persisted store).
+Optionally, serve from follower if leader busy and use read-repair/lease to ensure freshness.
+Trade-off: always hitting leader can create leader hotspot.
+
+B. Quorum-read (Dynamo-style)
+Parameters: R (read quorum)
+Coordinator query R of N replicas (or first R that respond).
+If versions are consistent → return.
+If conflicts (multiple versions) → reconcile:
+Use LWW to pick latest; OR
+Merge using vector clocks / CRDT; OR
+Return siblings to client for merge.
+Optionally perform read-repair: write the resolved value to replicas that are stale in background.
+Pseudocode (quorum read):
+
+Coordinator.receiveRead(key):
+  replicas = findReplicas(key)
+  responses = sendParallel(replicas, ReadReq) // gather R responses
+  if versions identical -> return value
+  else -> resolved = resolveConflict(responses) // LWW, merge, etc.
+        // optionally trigger background repair:
+        for node in replicas:
+           if node.stale -> sendAsync(node, Write(resolved))
+        return resolved
+
+
+Trade-off: read may be slower (R replicas), but provides stronger consistency if R + W > N.
+
+9) Inconsistency resolution in read/write paths (practical techniques)
+On read: if multiple versions returned:
+LWW: pick highest timestamp
+Vector clock: if one dominates → pick; if concurrent → return siblings or merge
+Read-repair: when stale replicas found during read, coordinator writes corrected value back asynchronously.
+Anti-entropy (Merkle Trees): periodic comparison of Merkle trees for ranges between replicas to find mismatches and stream diffs (efficient for large datasets).
+
+10) Failure scenarios + concrete handling
+a) Replica down during write
+Leader-based: leader times out waiting for follower; either fail write or proceed if configured (e.g., majority acks).
+Leaderless: coordinator continues after W acknowledgments and stores hinted handoff for down replicas.
+
+b) Network partition
+AP config: both sides accept writes → divergence → need later reconciliation (vector clocks/CRDT).
+CP config: minority side refuses writes to avoid splits.
+
+c) Disk corruption
+Use checksums per record (SSTable), keep multiple replicas, and use background repair to recover missing/corrupt data.
+
+d) Split-brain
+Use consensus (Raft/Paxos) for leader election, ensure only one leader per partition.
+
+
+-------------- LLD ---------------
+For Hashing we can start with MurmurHash3 is:
+
+A non-cryptographic hash function
+
+Designed for speed and uniform distribution
+
+Outputs 32-bit or 128-bit hash values depending on implementation
+
+Used in hash tables, Bloom filters, distributed hash tables (DHTs)
+
+Unlike cryptographic hashes, MurmurHash3 is fast and does not provide security, but it’s perfect for distributing keys evenly.
+
+-----------------------------------------------------------------------
+Perfect! Let’s build a **full, final LLD for a distributed Key-Value Store** — complete with:
+
+* **System architecture diagram**
+* **Data models**
+* **Classes / modules**
+* **Methods**
+* **Quorum / replication / versioning included**
+
+I’ll keep it **teacher-style, interview-ready, and clear**.
+
+---
+
+# **1️⃣ High-Level System Architecture Diagram**
+
+```
+                  +-----------------------------+
+                  |          Clients            |
+                  +-------------+---------------+
+                                |
+                                v
+                  +-----------------------------+
+                  |        Coordinator/API      |
+                  | - Receives client requests  |
+                  | - Finds N replicas via ring |
+                  | - Handles quorum W/R        |
+                  | - Hinted handoff            |
+                  +-------------+---------------+
+                                |
+                                v
+          +---------------------------+---------------------------+
+          |                           |                           |
+          v                           v                           v
+      +--------+                  +--------+                  +--------+
+      | Node A |                  | Node B |                  | Node C |
+      |--------|                  |--------|                  |--------|
+      | Store  |                  | Store  |                  | Store  |
+      | WAL    |                  | WAL    |                  | WAL    |
+      | VC     |                  | VC     |                  | VC     |
+      +--------+                  +--------+                  +--------+
+          |                           |                           |
+          +----------- Background Services ----------------------+
+                          - TTL cleanup
+                          - Anti-entropy / repair
+                          - Compaction
+```
+
+**Legend:**
+
+* **VC** → Vector Clock for versioning
+* **WAL** → Write Ahead Log (for durability)
+* **Coordinator** → Routes requests & handles quorum logic
+
+---
+
+# **2️⃣ Data Models**
+
+### **KeyValueEntry**
+
+```json
+{
+  "key": "string",
+  "value": "any",
+  "vectorClock": { "nodeA": 3, "nodeB": 2 }, // tracks versions
+  "ttl": 1670003000000,                     // optional expiry timestamp
+  "timestamp": 1670000000000                // last update time
+}
+```
+
+### **Node**
+
+```json
+{
+  "nodeId": "string",
+  "store": { "key": KeyValueEntry },
+  "wal": [KeyValueEntry],   // append-only log for durability
+  "isDown": false
+}
+```
+
+### **Coordinator**
+
+```json
+{
+  "hashRing": { nodeId -> hash },
+  "replicationFactor": N,
+  "quorumR": R,
+  "quorumW": W,
+  "hintedHandoff": { nodeId -> [KeyValueEntry] }
+}
+```
+
+---
+
+# **3️⃣ Classes & Methods (JavaScript / Pseudocode)**
+
+### **A. VectorClock**
+
+```js
+class VectorClock {
+  constructor(clock = {}) { this.clock = { ...clock }; }
+  increment(nodeId) { this.clock[nodeId] = (this.clock[nodeId] || 0) + 1; }
+  compare(other) { /* returns BEFORE / AFTER / CONCURRENT */ }
+}
+```
+
+### **B. WAL**
+
+```js
+class WAL {
+  constructor(nodeId) { this.nodeId = nodeId; this.log = []; }
+  append(entry) { this.log.push(entry); }
+  replay() { return this.log; }
+}
+```
+
+### **C. NodeStorage**
+
+```js
+class NodeStorage {
+  constructor(nodeId) {
+    this.nodeId = nodeId;
+    this.store = {};      // key -> KeyValueEntry
+    this.wal = new WAL(nodeId);
+    this.isDown = false;
+  }
+  write(entry) { /* WAL first, then store */ }
+  read(key) { return this.store[key] || null; }
+  setDown(state) { this.isDown = state; }
+}
+```
+
+### **D. ConsistentHashRing**
+
+```js
+class ConsistentHashRing {
+  constructor(virtualNodes = 5) { this.ring = []; this.nodes = {}; }
+  addNode(nodeId, storage) { /* add virtual nodes to ring */ }
+  getReplicas(key, count) { /* returns N nodes clockwise */ }
+}
+```
+
+### **E. Coordinator**
+
+```js
+class Coordinator {
+  constructor(hashRing, N=3, R=2, W=2) {
+    this.ring = hashRing;
+    this.N = N; this.R = R; this.W = W;
+    this.hints = {}; // nodeId -> [KeyValueEntry]
+  }
+
+  write(key, value) {
+    const replicas = this.ring.getReplicas(key, this.N);
+    const vc = new VectorClock(); vc.increment("COORD");
+    let success = 0;
+
+    for (let nodeId of replicas) {
+      const node = this.ring.nodes[nodeId];
+      try { node.write({ key, value, vectorClock: vc }); success++; }
+      catch { this.hints[nodeId] = this.hints[nodeId] || [];
+              this.hints[nodeId].push({ key, value, vectorClock: vc }); }
+    }
+
+    return success >= this.W;
+  }
+
+  read(key) {
+    const replicas = this.ring.getReplicas(key, this.N);
+    let responses = [];
+    for (let nodeId of replicas) {
+      const node = this.ring.nodes[nodeId];
+      try { const val = node.read(key); if(val) responses.push(val); } catch {}
+    }
+    if (responses.length < this.R) return null;
+
+    // Resolve conflicts via vector clock
+    let final = responses[0];
+    for (let r of responses) {
+      if(r.vectorClock.compare(final.vectorClock) === "AFTER") final = r;
+    }
+    return final.value;
+  }
+
+  replayHints(nodeId) { /* replay stored writes when node recovers */ }
+}
+```
+
+---
+
+# **4️⃣ Flow Summary**
+
+### **Write Path**
+
+1. Client → Coordinator → Find N replicas via consistent hash
+2. Coordinator → Each replica write (W quorum required)
+3. Node writes to WAL then in-memory store
+4. Node down → store hinted handoff
+5. Coordinator responds after W acks
+
+### **Read Path**
+
+1. Client → Coordinator → Query R replicas
+2. Collect versions → Resolve conflicts via vector clocks
+3. Return latest value
+4. Optional read repair (update stale replicas)
+
+---
+
+# **5️⃣ Trade-offs / Points to Discuss in Interview**
+
+| Decision                   | Trade-off                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| N (replication factor)     | Higher N → durability, lower availability; storage cost increases                                      |
+| W / R                      | W + R > N → strong consistency; lower W/R → faster writes/reads, eventual consistency                  |
+| WAL                        | Ensures durability, but adds write latency                                                             |
+| TTL                        | Fast in-memory deletion, but periodic cleanup needed for disk storage                                  |
+| Leaderless vs Leader-based | Leaderless → high availability, requires conflict resolution; Leader → ordered writes, slower failover |
+
+---
+
