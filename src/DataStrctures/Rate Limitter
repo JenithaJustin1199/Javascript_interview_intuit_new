@@ -1,0 +1,431 @@
+Problem Definition
+Goal: Design a Rate Limiter system that:
+-> Limits the number of requests per user/service in a time window
+-> Supports distributed services (microservices, API Gateway)
+-> Handles bursts gracefully
+-. Supports retry/backoff and high availability
+
+Questions to clarify with interviewer:
+-> Limit type: per-user, per-IP, per-service, or global?
+-> Time window: fixed (1s/1m) or sliding?
+-> Allowed burst?
+-> Scale: 1000 requests/sec vs millions/sec?
+
+Rate Limiter Placement
+Where to enforce limits:
+Client-side: Prevent excessive requests early, not secure.
+API Gateway / Load Balancer: First line of defense, enforce per-user / per-service limits.
+Service Layer: Fine-grained rate limits per API endpoint.
+
+Fixed Window Counter
+
+Concept:
+
+Keep a counter per client per fixed window (e.g., 1 minute)
+
+Reset counter at the end of each window
+
+Example:
+
+Limit: 5 requests per 10 seconds
+
+Window: 10 seconds
+
+Timeline (requests from Client A):
+
+Time: 0s → 1 request → allowed (count=1)
+Time: 2s → 2nd request → allowed (count=2)
+Time: 5s → 3rd request → allowed (count=3)
+Time: 9s → 4th request → allowed (count=4)
+Time: 10s → window resets → count=0
+Time: 10.1s → 1 request → allowed (new window)
+
+
+Stick Diagram:
+
+Window 0-10s: [#### ] (4/5)
+Window 10-20s: [#    ] (1/5)
+
+
+Pros: Simple, low memory
+Cons: Burst at boundary (requests at end of previous + start of next window can exceed limit)
+
+2️⃣ Sliding Window Log
+
+Concept:
+
+Keep timestamps of every request
+
+Count requests in the last window dynamically
+
+Example:
+
+Limit: 5 requests per 10 seconds
+
+Request timestamps: 0s, 2s, 5s, 7s, 9s, 11s
+
+Check: Count requests in last 10s window → reject if over 5
+
+Stick Diagram:
+
+Request times: 0  2  5  7  9  11
+Sliding window 10s: 
+0-10s: [0 2 5 7 9] → 5 requests → allowed
+1-11s: [2 5 7 9 11] → 5 requests → allowed
+
+
+Pros: Accurate, smooth
+Cons: High memory for high QPS (store every timestamp)
+
+3️⃣ Sliding Window Counter (Approximation)
+
+Concept:
+
+Approximate sliding window by dividing into sub-windows
+
+Sum counts of last N sub-windows
+
+Example:
+
+10-second window → 2 sub-windows of 5s each
+
+Count requests in current + previous sub-window → approximate request count
+
+Stick Diagram:
+
+Sub-windows: 0-5s | 5-10s
+Client A counts: 3       | 2
+Total in last 10s = 3+2 = 5 → limit reached
+
+
+Pros: Less memory than log, smooth limit
+Cons: Approximate (may allow slight overshoot)
+
+4️⃣ Token Bucket
+
+Concept:
+
+Each client has a bucket of tokens (capacity = max requests)
+
+Tokens refill at a fixed rate
+
+Request consumes a token; reject if none left
+
+Example:
+
+Bucket capacity = 5, refill = 1 token/sec
+
+Requests: 5 rapid requests → consume all tokens
+
+Next request 1s later → 1 token refilled → allowed
+
+Stick Diagram:
+
+Tokens: [# # # # #]  // capacity 5
+Client requests: 1 2 3 4 5 → consume tokens
+Tokens left: [ ]
+Next token refilled after 1s → [#]
+
+
+Pros: Smooth bursts, simple
+Cons: Needs storage to maintain tokens
+
+5️⃣ Leaky Bucket
+
+Concept:
+
+Requests enter a bucket (queue)
+
+Leak out at a fixed rate → constant output rate
+
+If bucket full → reject incoming requests
+
+Example:
+
+Bucket capacity = 5, leak rate = 1 request/sec
+
+6 requests arrive at once → 5 accepted, 1 rejected
+
+Stick Diagram:
+
+Incoming requests: [1 2 3 4 5 6]
+Bucket capacity=5 → [1 2 3 4 5] accepted, 6 rejected
+Requests leak out at 1/sec
+
+
+Pros: Smooth outgoing requests, handles bursts
+Cons: Fixed output rate → may delay requests
+
+6️⃣ Comparison Table
+Algorithm	-----> Pros ------>	Cons ----->	Example Scenario
+Fixed Window	Simple, -------->low memory---->	Burst at boundaries	------> API with low QPS
+Sliding Window Log	----->Accurate, smooth ---->	High memory ------>	Login endpoints, fine-grained rate
+Sliding Window Counter ------>	Approximation, low memory	-------> Slight overshoot	--------> High QPS APIs
+Token Bucket ------->	Smooth bursts, simple ----->	Needs token storage ------>	Burst-prone APIs, download rate limiting
+Leaky Bucket ------->	Smooth output	---->Fixed output rate, queue overflow	------> Streaming or constant rate processing
+
+2️⃣ Storage (In-memory vs Redis)
+1)In-memory:
+->Store counters or tokens in the application memory.
+Pros: Extremely fast, zero network latency, easy to implement.
+Cons: Not shared across servers → distributed services may enforce inconsistent limits.
+Example: Two API gateway nodes maintaining separate in-memory counters → a client could bypass limits by hitting different nodes.
+
+2) Redis (or other shared storage):
+Centralized storage for counters/tokens.
+Pros: Shared state across all instances → consistent rate limiting.
+Cons: Slightly slower (network latency, Redis commands), introduces single point of failure if not replicated.
+Example: All API gateway nodes increment the same Redis counter → accurate global limit enforcement.
+
+Trade-off summary:
+In-memory: Fast, simple, but only good for single node or approximate limits.
+Redis: Accurate across distributed services, slightly slower, needs replication/HA for fault tolerance.
+
+3️⃣ Local vs Centralized Counters
+Local counters:
+Each node maintains its own counters or tokens.
+Pros: Low latency, no network calls, scales horizontally easily.
+Cons: Approximate limit enforcement — total across nodes may exceed limit.
+Example: Limit = 5 requests per user per second, 2 nodes. Each node allows 5 → effectively 10 requests/sec total.
+Centralized counters:
+All nodes check a single shared counter (Redis, DB).
+Pros: Accurate limit enforcement, global consistency.
+Cons: Adds network latency for each request; bottleneck if not scalable.
+
+Trade-off summary:
+Local: Fast, approximate; good for high throughput systems where exact limit is not critical.
+Centralized: Accurate, consistent; good when strict enforcement is needed.
+
+4️⃣ Backoff (Exponential vs Fixed)
+
+Purpose:
+When a client exceeds the rate limit, they should retry after some time rather than hammering the server.
+Exponential Backoff:
+Retry interval grows exponentially (1s → 2s → 4s → 8s).
+Pros: Reduces request storms, prevents server overload, smooths retries.
+Cons: Increased latency for client; may take longer to succeed.
+
+  
+
+Fixed Backoff:
+Retry interval is constant (e.g., always wait 2s).
+Pros: Simple, predictable
+Cons: Can cause synchronized retries → “thundering herd” problem.
+
+  ----------------- LLD ----------------
+  /**
+ * ClientRateInfo
+ * ----------------
+ * Stores state for each client in the rate limiter
+ */
+class ClientRateInfo {
+  constructor() {
+    this.count = 0;               // Fixed window counter
+    this.windowStart = Date.now(); // Timestamp for window
+    this.tokens = 0;              // Token bucket tokens
+    this.lastRefill = Date.now(); // Last token refill timestamp
+  }
+}
+
+  Base RateLimiter Interface
+/**
+ * Base RateLimiter class
+ * All specific algorithms inherit from this
+ */
+class RateLimiter {
+  /**
+   * Checks if a request from a client is allowed
+   * @param {string} clientId
+   * @returns {boolean} allowed or not
+   */
+  allow(clientId) {
+    throw new Error("allow() must be implemented in subclass");
+  }
+
+  /**
+   * Get remaining quota for client
+   */
+  getQuota(clientId) {
+    throw new Error("getQuota() must be implemented in subclass");
+  }
+}
+
+3️⃣ Fixed Window Rate Limiter
+class FixedWindowRateLimiter extends RateLimiter {
+  /**
+   * @param {number} limit - max requests per window
+   * @param {number} windowSizeMs - window in ms
+   */
+  constructor(limit, windowSizeMs) {
+    super();
+    this.limit = limit;
+    this.windowSizeMs = windowSizeMs;
+    this.clients = {}; // clientId -> ClientRateInfo
+  }
+
+  allow(clientId) {
+    const now = Date.now();
+    if (!this.clients[clientId]) this.clients[clientId] = new ClientRateInfo();
+
+    const client = this.clients[clientId];
+
+    // Reset window if expired
+    if (now - client.windowStart >= this.windowSizeMs) {
+      client.windowStart = now;
+      client.count = 0;
+    }
+
+    if (client.count < this.limit) {
+      client.count++;
+      return true;
+    }
+
+    return false; // rate limit exceeded
+  }
+
+  getQuota(clientId) {
+    const client = this.clients[clientId] || new ClientRateInfo();
+    return {
+      remaining: Math.max(this.limit - client.count, 0),
+      resetTime: client.windowStart + this.windowSizeMs
+    };
+  }
+}
+
+
+Stick Diagram – Fixed Window:
+
+Window 0-10s: #### (4/5)
+Window 10-20s: #    (1/5)
+
+4️⃣ Token Bucket Rate Limiter
+class TokenBucketRateLimiter extends RateLimiter {
+  /**
+   * @param {number} capacity - max tokens in bucket
+   * @param {number} refillRatePerSec - tokens added per second
+   */
+  constructor(capacity, refillRatePerSec) {
+    super();
+    this.capacity = capacity;
+    this.refillRate = refillRatePerSec;
+    this.clients = {}; // clientId -> ClientRateInfo
+  }
+
+  allow(clientId) {
+    const now = Date.now();
+    if (!this.clients[clientId]) this.clients[clientId] = new ClientRateInfo();
+
+    const client = this.clients[clientId];
+
+    // Refill tokens
+    const elapsedSec = (now - client.lastRefill) / 1000;
+    client.tokens = Math.min(this.capacity, client.tokens + elapsedSec * this.refillRate);
+    client.lastRefill = now;
+
+    if (client.tokens >= 1) {
+      client.tokens -= 1; // consume token
+      return true;
+    }
+
+    return false; // rate limit exceeded
+  }
+
+  getQuota(clientId) {
+    const client = this.clients[clientId] || new ClientRateInfo();
+    return {
+      remaining: Math.floor(client.tokens),
+      refillTime: client.lastRefill + 1000 / this.refillRate
+    };
+  }
+}
+
+
+Stick Diagram – Token Bucket:
+
+Tokens: [# # # # #]   capacity=5
+Requests: 1 2 3 4 5 -> consume all tokens
+Next refill after 1s -> [#]
+
+5️⃣ Sliding Window Log Rate Limiter
+class SlidingWindowLogRateLimiter extends RateLimiter {
+  /**
+   * @param {number} limit - max requests per window
+   * @param {number} windowSizeMs - window size in ms
+   */
+  constructor(limit, windowSizeMs) {
+    super();
+    this.limit = limit;
+    this.windowSizeMs = windowSizeMs;
+    this.clients = {}; // clientId -> array of timestamps
+  }
+
+  allow(clientId) {
+    const now = Date.now();
+    if (!this.clients[clientId]) this.clients[clientId] = [];
+
+    const timestamps = this.clients[clientId];
+
+    // Remove timestamps older than window
+    while (timestamps.length > 0 && now - timestamps[0] > this.windowSizeMs) {
+      timestamps.shift();
+    }
+
+    if (timestamps.length < this.limit) {
+      timestamps.push(now);
+      return true;
+    }
+
+    return false;
+  }
+
+  getQuota(clientId) {
+    const timestamps = this.clients[clientId] || [];
+    return {
+      remaining: Math.max(this.limit - timestamps.length, 0),
+      nextReset: timestamps.length > 0 ? timestamps[0] + this.windowSizeMs : Date.now()
+    };
+  }
+}
+
+
+Stick Diagram – Sliding Window Log:
+
+Timestamps: 0 2 5 7 9
+Sliding 10s window → count = 5 → limit reached
+
+6️⃣ Backoff / Retry Logic
+function exponentialBackoff(retryCount, baseDelay = 1000, maxDelay = 16000) {
+  // delay = 2^retryCount * baseDelay (with cap)
+  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+  const jitter = Math.random() * 0.2 * delay; // add 20% jitter
+  return delay + jitter;
+}
+
+
+Example:
+
+Retry 1 → ~1.1s
+
+Retry 2 → ~2.2s
+
+Retry 3 → ~4.3s
+
+This prevents thundering herd when clients retry after limit.
+
+7️⃣ Distributed / Scalable Design
+
+Single Node: Use in-memory maps for counters or tokens.
+
+Multiple API nodes: Use Redis / Memcached for shared counters or token buckets.
+
+API Gateway: Rate limiting should be at the edge, before hitting backend services.
+
+Backoff: Send Retry-After header to clients when request rejected.
+
+Stick Diagram – Distributed Token Bucket:
+
+[Client] -> [API Gateway 1] -\
+[Client] -> [API Gateway 2] --> [Redis / Shared Token Bucket]
+[Client] -> [API Gateway 3] -/
+        |
+      Microservices
