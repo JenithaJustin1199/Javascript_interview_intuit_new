@@ -1,0 +1,373 @@
+Imagine a board with numbered squares from 1 to 100 (10×10).
+->Players start off the board at 0. On their turn they:
+->Roll a dice (1–6).
+->Move forward that many squares.
+->If they land on the bottom of a ladder, they climb up to its top.
+->If they land on the head of a snake, they slide down to its tail.
+->If the move would go beyond square 100, the move is invalid (depends on rules — could stay or bounce back).
+
+First player to exactly reach square 100 wins (exactness is common; variants allow overshoot or bounce-back).
+
+That’s it — repeat turns in round-robin until someone wins.
+
+2) Requirements (what is required)
+
+Functional
+Create a game with N players (2–4 typically).
+Start / pause / resume / end game.
+Roll dice and move player.
+Apply snakes/ladders transitions.
+Enforce turn order and win condition.
+Provide game state (board positions, history).
+(Optional) Support custom board sizes, custom snakes/ladders, multiple dice.
+
+Non-functional
+Low latency for moves.
+Deterministic game rules.
+Integrity (no cheating).
+Persistence for longer games (optional).
+Support for single-device play and online multiplayer (optional).
+
+Edge-cases
+Two players land same square — permitted.
+Exact roll required to win — define behavior.
+What if dice is zero (invalid) — reject.
+Concurrency: multiple roll requests at once — must serialize per game.
+
+3) Rules variations (decide up-front)
+Pick one (state it in design):
+Exact finish required (common).
+Bounce-back: if roll overshoots, bounce backwards.
+Allow overshoot: reaching/passing 100 wins.
+
+We'll implement exact finish required in examples (can be toggled easily).
+
+-> Entity List Summary (LLD-ready)
+Core Entities
+Board
+Snake
+Ladder
+Player
+Dice
+Game
+
+Optional Entities
+GameAnalytics
+TurnHistory
+DiceStrategy (for extensibility)
+GameConfig (board size, random snakes, etc.)
+
+------> ✅ Snake & Ladder — Data Models (Pure JS Classes)
+// === Snake ===
+class Snake {
+  constructor(start, end) {
+    if (start <= end) throw new Error("Snake start must be > end");
+    this.start = start;
+    this.end = end;
+  }
+}
+
+// === Ladder ===
+class Ladder {
+  constructor(start, end) {
+    if (start >= end) throw new Error("Ladder start must be < end");
+    this.start = start;
+    this.end = end;
+  }
+}
+
+// === Board ===
+class Board {
+  constructor(size = 100) {
+    this.size = size;
+    this.snakes = new Map();   // start -> end
+    this.ladders = new Map();  // start -> end
+  }
+
+  addSnake(start, end) {
+    this.snakes.set(start, end);
+  }
+
+  addLadder(start, end) {
+    this.ladders.set(start, end);
+  }
+
+  // Check if player landed on snake/ladder
+  getNextPosition(position) {
+    if (this.snakes.has(position)) {
+      return { newPos: this.snakes.get(position), type: 'snake' };
+    }
+    if (this.ladders.has(position)) {
+      return { newPos: this.ladders.get(position), type: 'ladder' };
+    }
+    return { newPos: position, type: null };
+  }
+}
+
+// === Dice ===
+class Dice {
+  constructor(sides = 6) {
+    this.sides = sides;
+  }
+
+  roll() {
+    return Math.floor(Math.random() * this.sides) + 1;
+  }
+}
+
+// === Player ===
+class Player {
+  constructor(name) {
+    this.name = name;
+    this.position = 0;
+    this.hasWon = false;
+  }
+}
+
+// === Game ===
+class Game {
+  constructor(board, dice, options = {}) {
+    this.board = board;
+    this.dice = dice;
+    this.players = [];
+    this.currentTurn = 0; // index of current player
+    this.isFinished = false;
+    this.history = [];    // track moves
+    this.options = {
+      exactFinish: options.exactFinish ?? true // if true, player must land exactly on last square
+    };
+  }
+
+  addPlayer(player) {
+    this.players.push(player);
+  }
+
+  getCurrentPlayer() {
+    return this.players[this.currentTurn];
+  }
+
+  // Move player logic
+  playTurn(player, diceRoll = null) {
+    if (this.isFinished) throw new Error('Game has ended');
+
+    if (player !== this.getCurrentPlayer()) {
+      throw new Error("Not this player's turn");
+    }
+
+    const roll = diceRoll || this.dice.roll();
+    let from = player.position;
+    let tentative = from + roll;
+
+    // Handle exact-finish rule
+    if (this.options.exactFinish && tentative > this.board.size) {
+      tentative = from; // cannot move
+    }
+
+    const { newPos, type } = this.board.getNextPosition(tentative);
+    player.position = newPos;
+
+    // Check win
+    if (newPos === this.board.size) {
+      player.hasWon = true;
+      this.isFinished = true;
+    }
+
+    // Save move history
+    this.history.push({
+      ts: Date.now(),
+      player: player.name,
+      dice: roll,
+      from,
+      to: newPos,
+      via: type
+    });
+
+    // Advance turn if game not finished
+    if (!this.isFinished) {
+      this.currentTurn = (this.currentTurn + 1) % this.players.length;
+    }
+
+    return {
+      player: player.name,
+      from,
+      to: newPos,
+      dice: roll,
+      via: type,
+      won: player.hasWon
+    };
+  }
+}
+Usage Example (Simple Game Flow)
+// Create Board
+const board = new Board();
+board.addSnake(16, 6);
+board.addSnake(49, 11);
+board.addLadder(2, 38);
+board.addLadder(7, 14);
+
+// Create Dice
+const dice = new Dice();
+
+// Create Players
+const p1 = new Player('Alice');
+const p2 = new Player('Bob');
+
+// Create Game
+const game = new Game(board, dice);
+game.addPlayer(p1);
+game.addPlayer(p2);
+
+// Start playing
+while (!game.isFinished) {
+  const player = game.getCurrentPlayer();
+  const moveResult = game.playTurn(player);
+  console.log(moveResult);
+}
+
+console.log(`Winner is ${game.players.find(p => p.hasWon).name}`);
+
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Concern                 | Approach in LLD                               | Trade-offs                                                 |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Extensibility           | Board, Dice, Player, Game classes            | Easy to add multiple dice, boards, custom snakes/ladders. |
+|                         |                                               | SRP ensures each class has one responsibility.            |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Single Responsibility   | Dice handles rolling, Board handles          | Clean separation; makes unit testing easier.              |
+| (SRP)                   | transitions, Player holds state, Game        |                                                            |
+|                         | coordinates turns                             |                                                            |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Dependency Injection    | Inject Board and Dice into Game constructor | Makes it testable (inject mock dice for deterministic     |
+| (DI)                    |                                               | tests).                                                    |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Fairness                | Server / authoritative dice roll             | Prevent cheating; can later extend to RNG seeding.        |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Concurrency             | Online multiplayer: serialize moves per game | Avoids two players rolling simultaneously and corrupting  |
+|                         | (worker-per-game or DB lock)                 | state.                                                     |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Exact Finish vs Overshoot| Configurable via options.exactFinish        | Classic rule (exact) slows late-game; overshoot option    |
+|                         |                                               | speeds it up.                                              |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Persistence / Recovery  | Use history array; optionally persist        | Allows replay or recovery after crash.                    |
+|                         | GameState to DB                               |                                                            |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+| Extensibility for       | history logs moves                             | Later can compute average dice rolls, snakes hit, ladder |
+| Analytics               |                                               | climbs.                                                    |
++-------------------------+-----------------------------------------------+------------------------------------------------------------+
+
+
+Snake & Ladder — Real-Time System (HLD)
++--------------------------+
+|        Clients           |
+|--------------------------|
+| Web / Mobile / Browser   |
+| Connect via WebSocket /  |
+| REST API                 |
++-----------+--------------+
+            |
+            v
++--------------------------+
+|     Load Balancer        |
+|--------------------------|
+| Distribute requests to   |
+| multiple Game Servers    |
++-----------+--------------+
+            |
+            v
++--------------------------+
+|     Game Server Cluster  |
+|--------------------------|
+| - Game Manager           |
+| - Player Session Handler |
+| - Move / Turn Processor  |
+| - Dice RNG Service       |
++----+----------+----------+
+     |          |
+     v          v
++-------------------+       +--------------------+
+| In-Memory Store   |       | Message Queue      |
+| (Redis / Memcache)|       | (Kafka / RabbitMQ) |
+| - GameState       |       | - Async analytics  |
+| - Player Positions|       | - Event-driven updates |
++-------------------+       +--------------------+
+     |          ^
+     |          |
+     v          |
++-------------------+
+| Persistent DB     |
+| (Postgres / Mongo)|
+| - Game History    |
+| - Player Stats    |
++-------------------+
+
+🧩 Components & Responsibilities
+
+Clients: Users playing in real-time (web/mobile)
+
+Load Balancer: Distributes players across servers; ensures fairness and low latency
+
+Game Server Cluster:
+
+Game Manager → orchestrates game flow (turns, win checks)
+
+Player Session Handler → tracks active sessions & moves
+
+Move / Turn Processor → applies dice rolls, snakes/ladders
+
+Dice RNG Service → authoritative dice to prevent cheating
+
+In-Memory Store (Redis/Memcached):
+
+Hot game states, positions, active players
+
+Low-latency reads/writes
+
+Persistent DB:
+
+Replayable history
+
+Player stats, analytics
+
+Message Queue:
+
+Async analytics: moves, dice rolls, ladder/snakes hits
+
+Event-driven updates for dashboards
+
+⚡ Real-Time Flow
+Client rolls dice
+      |
+      v
+Load Balancer routes request
+      |
+      v
+Game Server:
+  1. Validate turn
+  2. Roll dice (or use RNG)
+  3. Move player
+  4. Check snakes/ladders
+  5. Update in-memory store
+      |
+      v
+Broadcast updated positions to clients via WebSocket
+      |
+      v
+Async:
+  - Send move/event to Message Queue
+  - Persist to DB
+
+🔹 Key Real-Time Design Considerations
+
+WebSocket for low-latency updates to all players
+
+In-memory cache for hot game states
+
+Async analytics to not block main game flow
+
+Load balancing for multiple concurrent games
+
+Game-level locks / concurrency control to serialize moves per game
+
+Persistence for recovery and replay
+
+If you want, I can next draw an ASCII sequence diagram for a single turn in this real-time system, showing dice roll → move → broadcast → DB/event queue.
+
