@@ -1,0 +1,398 @@
+What is a URL Shortener? (TL;DR)
+A service that maps a long URL to a short unique key (e.g., bit.ly/Ab3dE) and redirects users to the original long URL when the short link is visited. It also commonly provides analytics (clicks, referrers, geo, device).
+Core ops:
+Create(shorten): longURL → shortCode (write)
+Resolve(redirect): shortCode → longURL (read, must be low-latency, high QPS)
+Analytics: record click metadata (async)
+
+--> Primary constraints:
+
+Very read-heavy (redirects >> creates)
+Low latency for redirect (HTTP 301/302)
+Unique mapping, optional custom aliases
+High availability and scalability
+
+-->Back of the envelope estimation
+Write operation: 100 million URLs are generated per day.
+Write operation per second: 100 million / 24 /3600 = 1160
+Read operation: Assuming ratio of read operation to write operation is 10:1, read operation per second: 1160 * 10 = 11,600
+Assuming the URL shortener service will run for 10 years, this means we must support 100 million * 365 * 10 = 365 billion records.
+Assume average URL length is 100.
+Storage requirement over 10 years: 365 billion * 100 bytes = 36.5 TB
+
+--> Redirects
+301 redirect. A 301 redirect shows that the requested URL is “permanently” moved to the long URL. 
+Since it is permanently redirected, the browser caches the response, and subsequent requests for 
+the same URL will not be sent to the URL shortening service. 
+Instead, requests are redirected to the long URL server directly.
+302 redirect. A 302 redirect means that the URL is “temporarily” moved to the long URL, 
+meaning that subsequent requests for the same URL will be sent to the URL shortening service first. Then, they are redirected to the long URL server.
+
+Each redirection method has its pros and cons. 
+If the priority is to reduce the server load, using 301 redirect makes sense as only the first request of the same URL is sent to URL shortening servers. 
+However, if analytics is important, 302 redirect is a better choice as it can track click rate and source of the click more easily.
+
+--->URL shortening
+The hash function must satisfy the following requirements:
+Each longURL must be hashed to one hashValue.
+Each hashValue can be mapped back to the longURL.
+
+---> Determine Hash length
+The hashValue consists of characters from [0-9, a-z, A-Z], containing 10 + 26 + 26 = 62 possible characters.
+To figure out the length of hashValue, find the smallest n such that 62^n ≥ 365 billion. 
+The system must support up to 365 billion URLs based on the back of the envelope estimation.
+62^7 = 3,521,614,606,208 = ~3.5 trillion
+so the length of hashValue is 7.
+
+----> Determine the HAsh function
+1. Hash + collision resolution
+2. Base 62 conversion
+
+1) Hash + collision resolution
+To shorten a long URL, we should implement a hash function that hashes a long URL to a 7-character string. 
+A straightforward solution is to use well-known hash functions like CRC32, MD5, or SHA-1. 
+even the shortest hash value (from CRC32) is too long (more than 7 characters)
+The first approach is to collect the first 7 characters of a hash value; 
+this method can lead to hash collisions. To resolve hash collisions, 
+we can recursively append a new predefined string until no more collision is discovered. 
+ ┌────────────┐
+ │   START    │
+ └─────┬──────┘
+       │
+       ▼
+ ┌──────────────┐
+ │ Input longURL│
+ └─────┬────────┘
+       │
+       ▼
+ ┌──────────────────────────────┐
+ │ Compute hash(longURL)        │
+ │ Extract first 7 chars         │
+ │   shortURL = hash[0:7]       │
+ └─────┬────────────────────────┘
+       │
+       ▼
+ ┌──────────────────────────────┐
+ │ Check Bloom Filter:          │
+ │ Does shortURL probably exist?│
+ └─────┬────────────────────────┘
+   YES │           NO
+       │             │
+       ▼             ▼
+┌────────────────┐   ┌────────────────────────┐
+│ Query database │   │ Save {shortURL,longURL}│
+│ for collision  │   │ into DB                 │
+└─────┬──────────┘   └───────────┬────────────┘
+  YES │ collision                 │ success
+      │                           │
+      ▼                           ▼
+┌──────────────────────────┐   ┌──────────────┐
+│ Append predefined salt   │   │     END      │
+│ longURL = longURL + SALT │   └──────────────┘
+└──────┬───────────────────┘
+       │
+       ▼
+   (go back and re-hash)
+
+Bloom filter -> A Bloom Filter is a space-efficient, 
+probabilistic data structure used to test whether an element might be in a set or is definitely not in the set.
+You ask: “Is this short URL already used?”
+
+Bloom filter answers:
+NO → definitely not present (100% correct)
+YES → maybe present (could be a false positive)
+
+2) Base 62 conversion
+Base-62 is a number system that uses 62 characters:
+0-9  → 10 digits   (values 0–9)
+a-z  → 26 letters  (values 10–35)
+A-Z  → 26 letters  (values 36–61)
+
+Total = 10 + 26 + 26 = 62 symbols
+We use Base-62 in URL shorteners because:
+It produces short, readable IDs
+Characters are URL-safe
+Representation is dense (large numbers → few characters)
+
+----> Comparision:
+✔ Hashing Approach → Good when you want deterministic mapping & privacy
+But collision handling adds complexity, needs DB check, and scales harder.
+
+✔ Base-62 ID Approach → Fastest, safest from collisions, simplest to scale
+But predictable, so not great for secure or private short URLs.
+
+         +----------------+
+         |  longURL input |
+         +--------+-------+
+                  |
+                  v
+        +----------------------+
+        | Check DB: does this  |
+        | longURL already exist?|
+        +----------+-----------+
+                   |
+       +-----------+------------+
+       |                        |
+    YES (found)               NO (not found)
+       |                        |
+       v                        v
++--------------+      +-------------------------+
+| Fetch its    |      | Generate new unique ID  |
+| existing ID  |      | (Snowflake / Counter)   |
++------+-------+      +-----------+-------------+
+       |                           |
+       v                           v
++--------------+        +-------------------------+
+| NotReq Convert ID   |        | Convert ID to shortURL  |
+| to shortURL  |        | using Base62 encoding   |
++------+------       +-----------+-------------
+       |                           |
+       v                           v
++--------------+         +------------------------+
+| Return the   |         | Insert new row into DB |
+| shortURL     |         | (ID, shortURL, longURL)|
++--------------+         +-----------+------------+
+                                   |
+                                   v
+                        +---------------------------+
+                        | Return the shortURL to the |
+                        |            client           |
+                        +---------------------------+
+
+---> Low latency path with cache and CDN
+Browser -> CDN -> (hit?) -> if yes: Redirect
+         -> LB -> ResolveService
+ResolveService -> Redis (cache lookup) -> hit? -> if hit redirect
+Else -> DB lookup -> if found: cache set, enqueue analytics, redirect
+Else -> 404
+
+-> Write-heavy vs Read-heavy optimizations
+URL Shortener is typically read-heavy (redirects >> creates). Design accordingly:
+Read-heavy optimizations
+Aggressive edge caching (CDN)
+In-memory caches (Redis) local to each region
+Read replicas and sharding
+Use very cheap lookup path (cache first), avoid joins
+
+--> Since its multiple redirections analytics how many user clicked?
+                User clicks shortURL
+                        |
+                        v
+            +---------------------------+
+            |  Redirect Service         |
+            |  (HTTP: GET /{shortId})   |
+            +---------------------------+
+                        |
+     +------------------+-----------------------+
+     |                                          |
+     v                                          v
+Lookup longURL in DB                 Publish analytics event
+(very fast, Redis/DB)                to message queue (Kafka)
+     |                                          |
+     v                                          |
+Redirect user -----------------------------> Queue stores event
+
+
+                   Message Queue (Kafka)
+                           |
+                           v
+                     +-----------+
+                     | Consumers |
+                     | (Workers) |
+                     +-----+-----+
+                           |
+                           v
+         +--------------------------------------+
+         | Aggregate & store analytics into:     |
+         |  - ClickHouse / BigQuery / Druid      |
+         |  - Redis (real-time counters)         |
+         +------------------+--------------------+
+                           |
+                           v
+                Analytics Dashboard / API
+
+--------------LLD------------------------------------------------------ LLD --
++------------------------+
+|   URLShortenerService  |
++------------------------+
+| shorten(longURL)       |
+| resolve(shortCode)     |
++------------+-----------+
+             |
+             v
++------------------------+
+|   CodeGenerator        |
++------------------------+
+| generateID()           |
+| encodeBase62(id)       |
+| decodeBase62(code)     |
++------------------------+
+             |
+             v
++------------------------+
+|   URLRepository        |
++------------------------+
+| findByLongURL()        |
+| findByShortCode()      |
+| save(mapping)          |
++------------------------+
+             |
+             v
++------------------------+
+|   Cache (Redis)        |
++------------------------+
+| get(shortCode)         |
+| set(shortCode, data)   |
++------------------------+
+             |
+             v
++------------------------+
+|   AnalyticsProducer    |
++------------------------+
+| publish(event)         |
++------------------------+
+
+class Base62 {
+  constructor() {
+    this.charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  }
+
+  // Convert numeric ID → 7-char base62 code
+  encode(num) {
+    let base = 62;
+    let result = "";
+    while (num > 0) {
+      result = this.charset[num % base] + result;
+      num = Math.floor(num / base);
+    }
+    return result.padStart(7, '0'); // ensure 7 chars
+  }
+
+  // Convert code → numeric ID
+  decode(code) {
+    let base = 62, num = 0;
+    for (let ch of code) {
+      num = num * base + this.charset.indexOf(ch);
+    }
+    return num;
+  }
+}
+
+class URLRepository {
+  constructor() {
+    this.idToURL = new Map();       // id -> longURL
+    this.longToId = new Map();      // longURL -> id
+    this.shortToId = new Map();     // shortCode -> id
+  }
+
+  findByLongURL(longURL) {
+    return this.longToId.get(longURL);
+  }
+
+  findByShortCode(shortCode) {
+    return this.shortToId.get(shortCode);
+  }
+
+  save(id, shortCode, longURL) {
+    this.idToURL.set(id, longURL);
+    this.longToId.set(longURL, id);
+    this.shortToId.set(shortCode, id);
+  }
+}
+
+3.4 Cache Layer (Redis Mock)
+class Cache {
+  constructor() {
+    this.cache = new Map();
+  }
+
+  get(key) {
+    return this.cache.get(key);
+  }
+
+  set(key, value) {
+    this.cache.set(key, value);
+  }
+}
+
+3.5 Analytics Producer (Async Queue mock)
+class AnalyticsProducer {
+  publish(event) {
+    console.log("📊 Analytics event queued:", event);
+  }
+}
+
+3.6 Main URL Shortener Service
+class URLShortenerService {
+  constructor() {
+    this.idGen = new IDGenerator();
+    this.base62 = new Base62();
+    this.repo = new URLRepository();
+    this.cache = new Cache();
+    this.analytics = new AnalyticsProducer();
+  }
+
+  // STEP 1: Shorten URL
+  shorten(longURL) {
+    // Case 1: URL already exists
+    let existingId = this.repo.findByLongURL(longURL);
+    if (existingId) {
+      let shortCode = this.base62.encode(existingId);
+      return `https://short.ly/${shortCode}`;
+    }
+
+    // Case 2: New URL → generate ID
+    let id = this.idGen.generate();
+    let shortCode = this.base62.encode(id);
+
+    // Persist in DB
+    this.repo.save(id, shortCode, longURL);
+
+    return `https://short.ly/${shortCode}`;
+  }
+
+  // STEP 2: Resolve short code → long URL
+  resolve(shortCode) {
+    // 1. Try cache
+    let cached = this.cache.get(shortCode);
+    if (cached) {
+      this.analytics.publish({ shortCode, timestamp: Date.now() });
+      return cached;
+    }
+
+    // 2. DB lookup
+    let id = this.repo.findByShortCode(shortCode);
+    if (!id) return null;
+
+    let longURL = this.repo.idToURL.get(id);
+
+    // 3. Set cache
+    this.cache.set(shortCode, longURL);
+
+    // 4. Send analytics event
+    this.analytics.publish({ shortCode, timestamp: Date.now() });
+
+    return longURL;
+  }
+}
+
+3.7 Usage Example
+let svc = new URLShortenerService();
+
+let shortURL = svc.shorten("https://en.wikipedia.org/wiki/Systems_design");
+console.log("Short URL:", shortURL);
+
+let original = svc.resolve(shortURL.split("/").pop());
+console.log("Resolved ->", original);
+
+🎯 4. Sharding Strategy (ByteByteGo style)
+shortCode hash → shard#
+           |
+hash(shortCode) % N shards
+           |
++----------+-----------+
+| Shard 0 | Shard 1   | Shard 2 ...
+
+
+Sharding key = shortCode
+Ensures consistent reads + writes in the same node.
