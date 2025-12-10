@@ -1,0 +1,642 @@
+What is a Presence Service?
+Tracks user online/offline status and intermediate states (Busy, Away, In-call, Do Not Disturb).
+Provides real-time updates to subscribers (friends, team members, channels).
+Must scale to millions of users, like Teams or Outlook.
+Key challenges:
+Low-latency updates
+Fan-out to many subscribers
+Multi-tenant isolation
+Handling network partitions and failures
+
+Clients (Teams Desktop/Web/Mobile)
+   |  Heartbeats & Presence Events
+   v
++--------------------+
+| Presence API Layer |
+|  - Receives heartbeats
+|  - Processes status updates
++---------+----------+
+          |
+          v
++---------+----------+       +----------------+
+| Presence Clusters  | <---> | Redis/In-Mem  |
+| (Sharded by userId)|       | Store for      |
+|  - Stores user status      | fast lookups   |
+|  - Maintains WebSocket     | & fan-out      |
+|    connections             | caching        |
++---------+----------+       +----------------+
+          |
+          v
+  Fan-out / WebSocket Push
+          |
+          v
+Subscribed Clients
+
+1) HeartBeat
+A heartbeat is a small, periodic message that a client (mobile/web app/device) sends to the presence service to indicate it is still connected and alive. The presence service updates the user’s lastSeen / lastHeartbeat timestamp and keeps the user marked online while heartbeats arrive within a configured window.
+Purpose:
+Detect connected vs disconnected clients
+Keep presence state fresh for fan-out
+Detect dead sockets / crashed apps
+Trigger reconnection or cleanup
+-> HeartBeat Rules
+-> Client side
+Send heartbeat every H seconds (e.g., 5s, 15s, 30s).
+Optionally include small payload: userId, deviceId, seq, timestamp, health.
+Add jitter (random small offset) to avoid synchronized spikes.
+-> Server side
+On receiving heartbeat: update lastHeartbeat(userId) = now.
+Consider user online if now - lastHeartbeat <= TTL.
+Consider user offline if now - lastHeartbeat > TTL or after N missed heartbeats.
+Common heuristic:
+TTL ≈ 2 × H or TTL ≈ 3 × H (depends on reliability).
+Example: If H = 10s, TTL = 30s (offline if no heartbeat for 30s).
+Missed heartbeat policy:
+Option A (simple): mark offline after timeout TTL.
+Option B (robust): require M consecutive missed heartbeats (e.g., M=3) to mark offline.
+Where it lives in the stack: client → (WebSocket or persistent connection) → presence shard / gateway.
+
+2) Presence State Storage in an Online Presence System
+In any real-time system (WhatsApp, Slack, Discord), the first requirement is:
+👉 “For each user, store their current presence status: online, offline, idle, typing, last seen timestamp, etc.”
+This is done using a Presence State Store, usually backed by:
+In-memory store (fast, but volatile)
+Redis (fast, durable, supports replication)
+Sharded clusters (for scalability)
+
+* What Do We Store? (Data Model)
+Each user’s presence is a simple key-value entry:
+
+Key   → userId
+Value → { status: "online", lastHeartbeat: 1733828192 }
+Example:
+
+"user123" : { 
+  "status" : "online",
+  "lastHeartbeat" : 1733828192 
+}
+This store is used for:
+Maintaining current user state
+Sending updates to friends/followers
+Checking if a WebSocket is alive (heartbeat-based)
+
+* Why Use Redis / In-Memory?
+⏱️ Super-low latency
+Presence updates must be sub-10ms:
+user connects → update presence
+user disconnects → update presence
+friends need updates instantly
+
+In-memory or Redis gives microsecond-level read/write latency.
+
+* How Sharding Works (Hash-based Partitioning)
+Presence data is extremely write-heavy:
+Millions of users sending heartbeats every 2–5 seconds
+Millions going online/offline
+A single Redis instance cannot handle that load.
+So, we shard the presence store across many Redis servers.
+
+✔️ How to decide which Redis shard stores a user?
+shardNumber = hash(userId) % N
+Where:
+hash(userId) → a fast hash (MurmurHash3)
+N → number of Redis shards
+
+Example:
+
+Say we have 10 Redis shards.
+User "jeni_92"
+hash("jeni_92") % 10 = 7
+
+
+→ Shard 7 stores Jeni's presence.
+
+This gives:
+Horizontal scaling
+Uniform distribution of users
+Massive parallelism
+Reduced hot-spotting
+
+* How Sharding Helps Real-Time Fan-Out
+Presence updates can fan-out into thousands of updates:
+Example:
+Your WhatsApp "online" update → all 200 contacts.
+If each presence update were stored in one central Redis, it becomes a bottleneck.
+Sharding fixes this:
+Each shard handles only its portion of users
+Fan-out logic reads from correct shard only
+Load spreads evenly
+
+* What Happens on a Friend Query?
+Suppose Alice wants the presence of Bob.
+We compute:
+shard = hash(bobUserId) % N
+Then query only that shard. ⚡ Fast.
+If Alice has 200 friends:
+Their IDs map to many shards
+Worker fetches presence in parallel
+Results returned in < 20 ms
+
+* Trade-offs Explained Clearly
+Decision	------> Benefit ---->	Cost
+In-memory	---> Fastest, microsecond access ------>	Loses data on crash, no persistence
+Redis------>	Fast + replicated + persistent	---->Little slower than memory, network hop
+Sharded Redis	----> Horizontal scaling avoids hot-spot ----> 	Need routing logic + shard management
+Sharded In-Memory ---->	Extreme speed for WhatsApp-scale-->	No durability, must rebuild on restart
+
+* Cross-Shard Complexity (Important Interview Point)
+Sharding introduces complexity:
+Example Problem
+Alice is in shard 1.
+Bob is in shard 5.
+When Alice comes online:
+Shard 1 worker must fetch Alice’s followers
+Followers belong to many shards
+It needs to notify corresponding WebSocket servers
+Requires a pub/sub broadcast layer (Kafka / Redis Stream)
+This is called cross-shard fan-out, and systems must handle:
+Routing messages
+Aggregating presence states
+Avoiding duplicate updates
+Avoiding hot shards
+
+3) Fan out
+Fan-out is the process where an event generated by one user is propagated to all users who are interested in that event.
+In an Online Presence Service:
+User A comes online
+All of A’s friends, or all members of A’s channels/rooms, must be notified
+This could be 5 people, 50 people, or 5,000 people
+So the system must fan-out the presence update from A → all subscribers.
+Fan-Out Example: Presence
+Suppose User A connects.
+User A has 3 friends: B, C, D.
+Then system will perform:
+Presence Shard → sends updates:
+  A is online → B
+  A is online → C
+  A is online → D
+
+🍔 Why is Fan-Out Hard?
+Because if you have:
+50M users
+Each has 100 friends
+Each sends heartbeat every 5s
+Then you have:
+50M / 5 seconds = 10M events per second
+10M events * 100 friends = 1 billion fan-out ops/sec
+This is why sharding, pub/sub, event queues, and WebSockets become necessary.
+
+Problem: Fan-Out Is Expensive
+
+If 1 update → 10,000 users, and we push individually:
+1 update * 10,000 followers = 10,000 writes
+This does NOT scale.
+Especially in real-time presence systems:
+A celebrity coming online generates millions of updates.
+A stock price change generates millions of updates per second.
+So real-time systems must AVOID pushing updates individually.
+
+🧠 How Real Systems Avoid Fan-Out Complexity
+Below are the industry-standard solutions used by Meta, WhatsApp, Twitter, Discord, Slack.
+✅ 1. Fan-out-on-read (Pull Model)
+
+Instead of sending updates to every follower, store data once and let users fetch when needed.
+Example:
+Instagram stores the post in a central store.
+Users’ feeds are computed when they open the app.
+Why it helps?
+Avoids massive writes.
+Shifts work from producer → consumer.
+
+✅ 2. Maintain WebSocket Channels per Shard / Room
+Instead of sending separately to each user:
+WebSockets belong to shards, not users.
+Example:
+User is placed into “presence room shard 12”
+Worker broadcasts once per shard
+1 message → 10,000 connections (via WS server)
+Reduces:
+10,000 sends  →  1 broadcast per shard
+
+✅ 3. Use Pub/Sub Instead of Direct Fan-out
+Producer publishes once → Kafka, Redis Streams, Pulsar
+Consumers (WebSocket servers) subscribe and broadcast.
+Advantage:
+Producer does NOT know follower list
+→ No fan-out burden
+
+------------------------------- LLDs -------------------------------
+Data Models (POJOs)
+// PresenceState.js
+// Simple enum for presence states
+const PresenceState = {
+  ONLINE: "ONLINE",
+  OFFLINE: "OFFLINE",
+  AWAY: "AWAY",
+  BUSY: "BUSY",
+  IN_CALL: "IN_CALL",
+  UNKNOWN: "UNKNOWN"
+};
+
+module.exports = { PresenceState };
+
+// PresenceMessage.js
+// The canonical message used to update presence
+class PresenceMessage {
+  /**
+   * @param {string} userId - canonical user id
+   * @param {string} state - one of PresenceState
+   * @param {string} source - client id (device) or service name
+   * @param {number} timestamp - milliseconds epoch
+   * @param {object} metadata - optional extra info (callId, activity)
+   * @param {number} version - strictly-increasing version / sequence for this user
+   */
+  constructor({ userId, state, source = "client", timestamp = Date.now(), metadata = {}, version = 0 }) {
+    this.userId = userId;
+    this.state = state;
+    this.source = source;
+    this.timestamp = timestamp;
+    this.metadata = metadata;
+    this.version = version; // helps with idempotency and ordering
+  }
+}
+
+module.exports = { PresenceMessage };
+
+// SubscriberEntry.js
+// Represents a subscription (who wants updates for a user)
+class SubscriberEntry {
+  /**
+   * @param {string} subscriberId - id of subscriber (another user or channel)
+   * @param {string} connectionId - websocket connection id if online
+   * @param {object} preferences - e.g., only push for IN_CALL |
+   */
+  constructor(subscriberId, connectionId = null, preferences = {}) {
+    this.subscriberId = subscriberId;
+    this.connectionId = connectionId;
+    this.preferences = preferences;
+  }
+}
+
+module.exports = { SubscriberEntry };
+
+2) Small helpers: Versioning & TTL
+// VersionUtil.js
+// Very small helper to compare versions (vector clocks could be used if needed)
+const VersionUtil = {
+  // return true if newVersion is newer than oldVersion
+  isNewer: function(oldVersion = 0, newVersion = 0) {
+    return newVersion > oldVersion;
+  }
+};
+
+module.exports = { VersionUtil };
+
+// TTLUtil.js
+const TTLUtil = {
+  // check if timestamp is expired given ttlMs
+  isExpired(ts, ttlMs) {
+    if (!ttlMs) return false;
+    return Date.now() - ts > ttlMs;
+  }
+};
+
+module.exports = { TTLUtil };
+
+3) PresenceStore — core in-memory store (swap for Redis in prod)
+// PresenceStore.js
+const { PresenceState } = require('./PresenceState');
+const { VersionUtil } = require('./VersionUtil');
+const { TTLUtil } = require('./TTLUtil');
+
+/**
+ * PresenceStore responsibilities:
+ * - Keep latest presence per user: { state, timestamp, source, version, metadata }
+ * - Provide get/update with version checks (to avoid stale writes)
+ * - Support TTL (auto-expire offline after timeout)
+ *
+ * Production note: this maps to Redis hashes or in-memory cache + persistence / replication.
+ */
+class PresenceStore {
+  constructor({ defaultTtlMs = 90 * 1000 } = {}) {
+    this.store = new Map(); // userId -> presenceRecord
+    this.defaultTtlMs = defaultTtlMs; // treat missing heartbeat as offline after this
+  }
+
+  /**
+   * Get presence record for a user
+   * @param {string} userId
+   * @returns {object|null}
+   */
+  get(userId) {
+    const rec = this.store.get(userId);
+    if (!rec) return null;
+    // expire stale entries based on TTL
+    if (TTLUtil.isExpired(rec.timestamp, this.defaultTtlMs)) {
+      // mark as offline lazily
+      return { userId, state: PresenceState.OFFLINE, timestamp: rec.timestamp, version: rec.version, source: rec.source };
+    }
+    return { ...rec };
+  }
+
+  /**
+   * Update presence record only if version is newer.
+   * Returns: { updated: boolean, previous: obj|null, current: obj }
+   */
+  update(presenceMessage) {
+    const { userId, state, timestamp, metadata, version, source } = presenceMessage;
+    const existing = this.store.get(userId);
+
+    // if existing version is newer, drop stale update
+    if (existing && !VersionUtil.isNewer(existing.version, version)) {
+      return { updated: false, previous: existing, current: existing };
+    }
+
+    const record = { userId, state, timestamp, metadata, version, source };
+    this.store.set(userId, record);
+    return { updated: true, previous: existing || null, current: record };
+  }
+
+  /**
+   * Mark user offline explicitly (used on logout / connection close)
+   */
+  markOffline(userId) {
+    const existing = this.store.get(userId);
+    const rec = { userId, state: PresenceState.OFFLINE, timestamp: Date.now(), version: (existing?.version || 0) + 1, source: "system" };
+    this.store.set(userId, rec);
+    return rec;
+  }
+
+  /**
+   * Utility to get many for fan-out batching
+   */
+  multiGet(userIds) {
+    return userIds.map(uid => this.get(uid));
+  }
+}
+
+module.exports = { PresenceStore };
+
+4) Shard Manager — decide which cluster handles a user
+// ShardManager.js
+/**
+ * Simple consistent sharding by modulo. In production use consistent hashing ring.
+ * Responsibilities:
+ *  - Map userId -> shardId
+ *  - Map shardId -> cluster endpoint / instance
+ */
+class ShardManager {
+  constructor({ shardCount = 4 } = {}) {
+    this.shardCount = shardCount;
+    this.shards = new Array(shardCount).fill(null).map((_, i) => ({ id: i, endpoint: `cluster-${i}` }));
+  }
+
+  // lightweight hash (string to int)
+  _hashToInt(key) {
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
+  getShardForUser(userId) {
+    const h = this._hashToInt(userId);
+    return this.shards[h % this.shardCount];
+  }
+
+  getAllShards() {
+    return this.shards;
+  }
+}
+
+module.exports = { ShardManager };
+
+5) Subscription Store — who listens to whom
+// SubscriptionStore.js
+/**
+ * Keeps map userId -> set of subscribers.
+ * Each subscriber is { subscriberId, connectionId, preference }.
+ *
+ * Production: Back this with Redis sets or a pub/sub topic per user to efficiently fan-out.
+ */
+class SubscriptionStore {
+  constructor() {
+    // userId -> Map(subscriberId -> SubscriberEntry)
+    this.subscriptions = new Map();
+  }
+
+  addSubscriber(userId, subscriberEntry) {
+    if (!this.subscriptions.has(userId)) this.subscriptions.set(userId, new Map());
+    this.subscriptions.get(userId).set(subscriberEntry.subscriberId, subscriberEntry);
+  }
+
+  removeSubscriber(userId, subscriberId) {
+    this.subscriptions.get(userId)?.delete(subscriberId);
+  }
+
+  getSubscribers(userId) {
+    const map = this.subscriptions.get(userId);
+    return map ? Array.from(map.values()) : [];
+  }
+
+  // batch get subscribers for many users
+  multiGet(users) {
+    return users.reduce((acc, u) => { acc[u] = this.getSubscribers(u); return acc; }, {});
+  }
+}
+
+module.exports = { SubscriptionStore };
+
+6) WebSocket Connection Manager — maintain connections & send messages
+// WebSocketManager.js
+/**
+ * Responsible for:
+ * - tracking connectionId -> socket (or endpoint)
+ * - sending push messages to a connection
+ *
+ * Production note: Use a dedicated WebSocket cluster (Nginx/SignalR/WS server) and a push gateway.
+ */
+class WebSocketManager {
+  constructor() {
+    this.connections = new Map(); // connectionId -> { send: fn }
+  }
+
+  registerConnection(connectionId, socket) {
+    this.connections.set(connectionId, socket);
+  }
+
+  unregisterConnection(connectionId) {
+    this.connections.delete(connectionId);
+  }
+
+  sendToConnection(connectionId, payload) {
+    const socket = this.connections.get(connectionId);
+    if (!socket) throw new Error("CONN_NOT_FOUND");
+    try {
+      socket.send(JSON.stringify(payload));
+      return true;
+    } catch (err) {
+      // connection broken; caller should handle removal and retry/backoff
+      this.unregisterConnection(connectionId);
+      return false;
+    }
+  }
+
+  // fan-out to many connectionIds with best-effort and collect failed ones
+  fanOut(connectionIds, payload) {
+    const failed = [];
+    for (const cid of connectionIds) {
+      try {
+        const ok = this.sendToConnection(cid, payload);
+        if (!ok) failed.push(cid);
+      } catch (e) {
+        failed.push(cid);
+      }
+    }
+    return failed;
+  }
+}
+
+module.exports = { WebSocketManager };
+
+7) PresenceService — orchestrator: process heartbeats, update store, fan-out
+// PresenceService.js
+const { PresenceStore } = require('./PresenceStore');
+const { SubscriptionStore } = require('./SubscriptionStore');
+const { WebSocketManager } = require('./WebSocketManager');
+const { ShardManager } = require('./ShardManager');
+const { PresenceMessage } = require('./PresenceMessage');
+
+/**
+ * High-level flow:
+ * - receive heartbeat or explicit presence change
+ * - validate and update PresenceStore (versioned)
+ * - lookup subscribers and fan-out change (via WebSocketManager)
+ * - if some subscribers on other shards, send cross-shard notifications (via pub/sub)
+ */
+class PresenceService {
+  constructor({ shardManager, websocketManager }) {
+    this.shardManager = shardManager || new ShardManager({ shardCount: 4 });
+    this.presenceStores = {};     // shardId -> PresenceStore instance
+    this.subStores = {};          // shardId -> SubscriptionStore instance
+    this.ws = websocketManager || new WebSocketManager();
+
+    // create per-shard stores (in prod these are separate processes)
+    this.shardManager.getAllShards().forEach(s => {
+      this.presenceStores[s.id] = new PresenceStore();
+      this.subStores[s.id] = new SubscriptionStore();
+    });
+  }
+
+  _getShardForUserId(userId) {
+    return this.shardManager.getShardForUser(userId).id;
+  }
+
+  /**
+   * processHeartbeat: incoming heartbeat from client
+   * @param {PresenceMessage} msg
+   */
+  processHeartbeat(msg) {
+    // assign a higher version (simple monotonic by timestamp)
+    msg.version = (msg.version || 0) + 1;
+    const shardId = this._getShardForUserId(msg.userId);
+    const result = this.presenceStores[shardId].update(msg);
+    if (result.updated) {
+      this._fanOutPresence(result.current);
+    }
+    return result;
+  }
+
+  processExplicitPresence(msg) {
+    // explicit state change (user clicked DND or joined call)
+    msg.version = (msg.version || 0) + 1;
+    const shardId = this._getShardForUserId(msg.userId);
+    const result = this.presenceStores[shardId].update(msg);
+    if (result.updated) this._fanOutPresence(result.current);
+    return result;
+  }
+
+  /**
+   * _fanOutPresence: send update to subscribers of the user
+   * This batches local sends and simulates cross-shard sends via stub.
+   */
+  _fanOutPresence(presenceRecord) {
+    const userId = presenceRecord.userId;
+    const shardId = this._getShardForUserId(userId);
+
+    // get local subscribers
+    const localSubs = this.subStores[shardId].getSubscribers(userId);
+
+    // send payload
+    const payload = {
+      type: "PRESENCE_UPDATE",
+      userId,
+      state: presenceRecord.state,
+      timestamp: presenceRecord.timestamp,
+      version: presenceRecord.version,
+      metadata: presenceRecord.metadata
+    };
+
+    const connectionIds = localSubs.map(s => s.connectionId).filter(Boolean);
+    const failed = this.ws.fanOut(connectionIds, payload);
+
+    // TODO: handle failed connectionIds (maybe queue and retry)
+    if (failed.length) {
+      console.log(`fanout: ${failed.length} deliveries failed for user ${userId}`);
+      // In prod: add failed notifications to retry queue / DLQ / metrics
+    }
+
+    // cross-shard subscribers: in a real system we'd publish to a pub/sub so remote shards can push
+    // For LLD: show intent
+    // this._publishToOtherShards(userId, payload)
+  }
+
+  // subscription management
+  addSubscription(targetUserId, subscriberEntry) {
+    const shardId = this._getShardForUserId(targetUserId);
+    this.subStores[shardId].addSubscriber(targetUserId, subscriberEntry);
+  }
+
+  removeSubscription(targetUserId, subscriberId) {
+    const shardId = this._getShardForUserId(targetUserId);
+    this.subStores[shardId].removeSubscriber(targetUserId, subscriberId);
+  }
+
+  // simulate cross-shard publish for different shards (stub)
+  _publishToOtherShards(userId, payload) {
+    // In production: use Kafka / Redis pubsub to send payload to other shard instances
+  }
+}
+
+module.exports = { PresenceService };
+
+8) Example usage & demo wiring
+// demo.js (wire the pieces together)
+const { PresenceService } = require('./PresenceService');
+const { WebSocketManager } = require('./WebSocketManager');
+const { ShardManager } = require('./ShardManager');
+const { PresenceMessage } = require('./PresenceMessage');
+const { SubscriberEntry } = require('./SubscriberEntry');
+
+const wsMgr = new WebSocketManager();
+const shardMgr = new ShardManager({ shardCount: 4 });
+const presenceSvc = new PresenceService({ shardManager: shardMgr, websocketManager: wsMgr });
+
+// simulate binding a connection (socket is a simple object with send method)
+wsMgr.registerConnection("conn-1", { send: (m) => console.log("conn-1 got:", m) });
+wsMgr.registerConnection("conn-2", { send: (m) => console.log("conn-2 got:", m) });
+
+// subscriber entries
+const subA = new SubscriberEntry("sub-user-A", "conn-1");
+const subB = new SubscriberEntry("sub-user-B", "conn-2");
+
+// add subscriptions: subA and subB want updates about userX
+presenceSvc.addSubscription("userX", subA);
+presenceSvc.addSubscription("userX", subB);
+
+// userX heartbeat -> online
+const msg = new PresenceMessage({ userId: "userX", state: "ONLINE", source: "desktop" });
+presenceSvc.processHeartbeat(msg);
+
+// later userX goes in a call
+const callMsg = new PresenceMessage({ userId: "userX", state: "IN_CALL", metadata: { callId: "call123" } });
+presenceSvc.processExplicitPresence(callMsg);
