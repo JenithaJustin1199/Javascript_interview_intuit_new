@@ -1,0 +1,687 @@
+A distributed cache provides fast, low-latency access to frequently read data and reduces load on origin data stores. Core ideas:
+--> Keep hot data in-memory across many nodes (RAM-first).
+--> Partition data to scale horizontally (sharding / consistent hashing).
+---> Replicate for availability and read scalability (replica sets, multi-region copies).
+---> Use eviction and TTL to bound memory use (LRU, LFU, TTL-based).
+--> Choose a caching strategy (cache-aside, read-through, write-through, write-back) based on consistency and write patterns.
+--> Serve reads from cache; updates either update cache and DB or invalidate cache.
+--> Use metrics, monitoring, and health checks to detect failures and repair data.
+
+-> Primary constraints & design goals
+Low latency: typical P99 latency in single-digit milliseconds.
+High throughput: millions of ops/sec depending on traffic (read-heavy usually).
+Scalability: horizontal scale-out for memory and throughput.
+High availability: survive node/zone failures with minimal impact.
+Consistency trade-offs: usually eventual, but some operations (counters) need stronger semantics.
+Cost: memory is expensive. Design for eviction and TTLs.
+Operational simplicity: easy to auto-scale and rebalance.
+
+--> Back of estimation
+For a 100M-item cache with 540 bytes per item, we need ~108GB total with replication.
+Using 64GB nodes at 75% utilization, that’s ~3–4 Redis nodes.
+At 200k total QPS, cache handles 180k QPS → ~60k QPS/node, which Redis can easily support.
+
+---> What is Partitioning / Sharding?
+Partitioning (Sharding) means:
+Breaking a huge cache into multiple smaller cache servers
+instead of putting everything on one machine.
+This helps us scale:
+
+More memory → store more data
+Adding more cache nodes horizontally increases total RAM capacity, allowing you to store a larger working set and reduce cache misses.
+
+⚡ More throughput → split QPS across nodes
+Sharding distributes incoming read/write requests across multiple cache nodes, so no single machine becomes a bottleneck and overall throughput increases.
+
+🔥 Avoid hotspot overload
+Popular keys get evenly spread across shards, preventing any single node from receiving disproportionate traffic and crashing.
+
+💪 Fault isolation
+If one shard/node fails, only the data in that shard is affected while the rest of the system continues to operate normally.
+
+⭐ Why Do We Need Sharding in a Distributed Cache?
+Single cache server problems:
+Limited RAM (64GB, 128GB max)
+Limited QPS per node
+A single machine failure = system down
+Data eviction increases when memory fills
+Network hotspots
+
+So we shard (split) the key space.
+| Method              | Balanced   | Scaling | Node Join/Leave        | Hotspots    | Used In                          |
+| ------------------- | ---------- | ------- | ---------------------- | ----------- | -------------------------------- |
+| Modulo (`hash % N`) | ⚠️ Depends | ❌ Bad   | ❌ All keys move        | ⚠️ Possible | Old memcached                    |
+| Consistent Hashing  | ✔ Good     | ✔ Good  | ✔ Only 1/N keys move   | ✔ Avoids    | Redis cluster, Cassandra, Dynamo |
+| Range Sharding      | ⚠️ Depends | ✔ Good  | ❌ Requires rebalancing | ❌ High      | Databases                        |
+
+--> Replication & Availability — Explained Like You're Designing It
+When you have a distributed cache cluster (sharded or non-sharded), you must ensure that:
+Data is not lost if one cache node dies, and
+Clients can still read/write even during failures.
+This is achieved through replication + failover.
+
+🧩 1. What is Replication in Distributed Cache?
+Replication = making copies of a cache node’s data to multiple nodes (replicas).
+Example:
+
+Shard-1:  Primary (Node A)
+Replica-1: Node B  
+Replica-2: Node C
+
+Every write goes to Node A, and then copies are sent to B and C.
+
+👉 Why replicate?
+If A crashes, clients can still read from B/C.
+No data loss (if synced).
+Higher read scalability: clients can read from replicas.
+
+🧩 2. Availability in Distributed Cache
+
+Availability means:
+"System should still serve requests even if some nodes die."
+
+How it works:
+If a primary cache node fails, a replica is promoted to primary.
+Requests automatically reroute to the new primary.
+Hash ring or routing adjusts only for that shard (local impact, not global).
+This prevents application downtime.
+
+🔁 3. Replication Strategies
+A. Synchronous Replication
+Primary waits until replicas confirm write.
+✔ High consistency
+✘ Lower write performance
+✘ Write latency increases
+✘ If replica is slow → client is blocked
+
+Not used often in ultra-fast in-memory stores like Redis (except optional).
+
+B. Asynchronous Replication (Most common)
+Primary writes immediately → sends updates to replicas later.
+
+✔ Fast writes
+✔ Cache latency preserved
+✘ Data loss risk if primary dies before replicas sync (small window)
+Redis uses asynchronous replication by default.
+
+
+-----> Consistence models and strategies
+1. Cache-Aside (Lazy Loading)
+Explanation:
+Application reads from cache first. If the key is missing, it loads from DB and writes to cache.
+Writes go to DB first, then cache is invalidated to avoid stale values.
+
+Stick Diagram — Read Path
+Client
+  |
+  v
++--------+
+| Cache  |
++--------+
+   |   \
+   |    \ MISS
+   |     \
+   |      v
+   |    +-------+
+   |    |  DB   |
+   |    +-------+
+   |        |
+   |        v
+   |   Cache SET(v)
+   |        |
+   +--------+
+        |
+        v
+    return v
+
+Stick Diagram — Write Path
+Client → DB (write)
+           |
+           v
+       Cache (invalidate key)
+Trade off:
+Race Condition Example (Cache-Aside)
+
+Explanation:
+Client A reads stale data, while Client B updates and invalidates cache.
+Client A writes back old data → inconsistency.
+
+Diagram
+Client A: Cache MISS → DB(v1) → Cache SET(v1)
+Client B: DB write(v2) → Cache INVALIDATE
+Client A: Writes stale v1 → DB updated to v3 unexpectedly
+
+✅ 2. Read-Through / Write-Through Cache
+
+Explanation:
+Cache becomes the authoritative interface to the DB.
+If cache misses, it automatically loads from DB.
+Writes update cache and DB synchronously.
+
+Stick Diagram — Read-Through
+Client
+  |
+  v
++--------+
+| Cache  |
++--------+
+   |   \
+   |    \ MISS
+   |     \
+   |      v
+   |    +-------+
+   |    |  DB   |
+   |    +-------+
+   |        |
+   |        v
+   |   Cache SET(v)
+   |
+   v
+return v
+
+Stick Diagram — Write-Through
+Client
+  |
+  v
++--------+
+| Cache  |
++--------+
+   |
+   v
++--------+
+|  DB    |
++--------+
+
+✅ 3. Write-Back (Write-Behind) Cache
+
+Explanation:
+Client writes only to cache. Cache asynchronously pushes changes to DB.
+Fastest write model but risk of data loss if cache crashes before flushing.
+
+Stick Diagram
+Client
+  |
+  v
++--------+
+| Cache  |
++--------+
+    |
+    | (async flush)
+    v
++--------+
+|  DB    |
++--------+
+
+----> Eviction policies
+1. LRU — Least Recently Used
+Explanation (simple):
+Evicts the key that has not been accessed for the longest time.
+Assumes “recently used data = likely to be used again”.
+
+
+Access Order (most recent → left)
+
+[ K5 ] ← [ K3 ] ← [ K1 ] ← [ K8 ] ← [ K2 ]
+  ^                                      ^
+  |                                      |
+MRU                                  LRU (evict this)
+
+Eviction:
+Remove K2 (least recently used)
+
+✅ 2. LFU — Least Frequently Used
+Explanation (simple):
+
+Evicts the key with the lowest access frequency.
+Assumes frequently used items should stay longer.
+
+LFU Stick Diagram
+Key : Access Count
+-------------------
+K1 : 12
+K7 : 10
+K3 : 3
+K9 : 1   ← LFU (evict this)
+
+Eviction:
+Remove K9 (least frequency)
+
+✅ 3. TTL-Based Eviction (Time-To-Live)
+Explanation (simple):
+
+Every key has a timeout. When TTL expires, the key is removed automatically.
+Good for data that becomes stale naturally (sessions, presence, feeds).
+
+TTL Stick Diagram
+Key      Value      TTL
+-------------------------
+K1       v1         10s
+K2       v2         5s (expires first)
+K3       v3         30s
+
+Timer tick → TTL 0 → Remove K2
+
+Flow:
+Time passes
+    |
+    v
+ TTL hits 0
+    |
+    v
+ Evict key
+
+✅ 4. Size-Based (Memory-Based) Eviction
+Explanation (simple):
+
+When the cache crosses memory limits, it evicts entries based on size impact — usually removing largest keys first to quickly free space.
+
+Size-Based Stick Diagram
+Cache Limit: 1 GB
+-----------------------
+
+Key   Size
+-------------
+K1    50 MB
+K2    200 MB
+K3    400 MB
+K4    300 MB ← largest; evict first
+
+Eviction:
+Remove K4 → free 300MB
+
+----> Cache warm-up & cold start
+What are Hot Keys?
+Hot keys = keys in the cache/database that are accessed very frequently.
+Think of them like:
+Instagram: “Top 10 trending reels”
+Swiggy/Zomato: “Top restaurants near you”
+Amazon: “Deal of the day”
+Netflix: “Continue watching” list
+
+These are accessed by millions of users repeatedly → they become HOT.
+
+Why important?
+If these hot keys miss the cache → backend gets overloaded → latency spikes → sometimes system crashes.
+
+❄️ Cold Start Problem
+When a cache server boots up (after crash / redeployment), the cache is empty.
+This is called cold cache → every request becomes a miss → hits database → BAD traffic spike.
+We must avoid this.
+
+🚀 Cache Warm-Up
+
+Warm-up means:
+“Load important keys into the cache before serving real traffic.”
+Purpose:
+Avoid cold-start misses
+Reduce DB load
+
+Make system ready before users hit it
+1️⃣ Pre-Warm Cache (Active Warm-Up)
+What: System loads hot keys into cache during startup.
+
+How:
+Pre-load top N trending products
+Load commonly used config
+Fetch last 1 hour's active sessions
+
+Why:
+Avoid stampede (DB spike)
+Users immediately get a warm cache
+
+Stick Diagram
+[Startup] → [Load Hot Keys] → [Cache Filled] → [Serve Traffic]
+
+Example
+Netflix loads:
+“Top 10 movies”
+“Your profile info”
+“Recommendations”
+
+before allowing you to use the app.
+2️⃣ Lazy Warm-Up (On-Demand)
+
+What: Cache loads keys when first requested.
+Why:
+Simple to implement, but risk:
+First few users face slow response
+Backend load spikes during traffic peaks
+Stick Diagram
+User Request
+      ↓
+ [Cache Miss] → [DB] → [Put Key into Cache]
+
+Real Example
+E-commerce product page:
+First user at 9 AM loads data from DB
+Cache stores it
+All next users get fast response
+
+3️⃣ Proactive Replication of Hot Keys
+What: System automatically pushes hot keys to multiple cache nodes or regions.
+Meaning:
+Identify hot keys using metrics
+Replicate them near users
+Reduce latency globally
+
+Why:
+Avoid hotspots (one node getting overloaded)
+Multi-region performance
+High availability
+
+Stick Diagram
+        [Primary Hot Key]
+              │
+     ┌────────┼────────┐
+     ▼        ▼        ▼
+[Cache A]  [Cache B] [Cache C]
+
+Real Example
+
+YouTube:
+Trending videos metadata replicated across all regions
+Reduces cross-region fetch latency
+Supports millions of concurrent views
+
+---> Why do we need a Cache Coordinator?
+
+In a distributed cache:
+Nodes may join (scale-out)
+Nodes may leave (crash)
+Keys must be redistributed
+Replicas must be created
+TTL, consistency, and eviction policies must be synchronized
+Without coordination → cluster becomes inconsistent.
+The coordinator ensures:
+✔ Node membership
+Tracks which nodes are alive or dead.
+✔ Key placement
+Decides which node stores which key (e.g., using consistent hashing).
+✔ Replication
+Ensures every key has required replicas.
+✔ Leader election (if needed)
+Some cache designs need a leader to make decisions.
+✔ Failover
+If a node fails, coordinator triggers rebalancing.
+                 +-------------------+
+                 |     Clients       |
+                 |  (App Servers)    |
+                 +---------+---------+
+                           |
+                           |  Cache Request (GET/SET)
+                           |
+                 +---------v---------+
+                 |   Cache Client    |
+                 | (has hash logic & |
+                 |  metadata map)    |
+                 +---------+---------+
+                           |
+                           | Ask for partition map
+                           v
+                 +--------------------+
+                 |   Cache Coordinator|
+                 | (metadata, hashing,|
+                 |  node health, repl)|
+                 +-->---+---<---------+
+                     ^  |
+  Heartbeats         |  | Partition Map
+  Node Join/Leave    |  |
+---------------------+  |-------------------------
+                        |
+         -----------------------------------------------------
+         |                     |                         |
+ +---------------+    +------------------+     +------------------+
+ | Cache Node A  |    | Cache Node B     |     | Cache Node C     |
+ | Primary + Rep |    | Primary + Rep    |     | Primary + Rep    |
+ | Partitions:   |    | Partitions:      |     | Partitions:       |
+ | P1  P4        |    | P2  P5           |     | P3  P6            |
+ +-------+-------+    +--------+---------+     +---------+---------+
+         |                     |                         |
+         | Miss / Write-back   | Miss / Write-through    |
+         |                     |                         |
+         v                     v                         v
+                  +----------------------------------+
+                  |             Database             |
+                  +----------------------------------+
+
+
+----------LLD-------
+DATA MODELS
+// Cache Entry
+class CacheEntry {
+  constructor(key, value, ttl = null) {
+    this.key = key;
+    this.value = value;
+    this.ttl = ttl;                    // seconds
+    this.expiresAt = ttl ? Date.now() + ttl * 1000 : null;
+    this.version = 1;
+    this.lastAccessed = Date.now();
+  }
+}
+
+// Node Metadata
+class CacheNode {
+  constructor(nodeId, host, port, vNodes = []) {
+    this.nodeId = nodeId;
+    this.host = host;
+    this.port = port;
+    this.vNodes = vNodes;              // virtual node hashes
+    this.status = "active";            // active | joining | leaving | down
+  }
+}
+
+// Cluster State
+class ClusterState {
+  constructor() {
+    this.nodes = [];                   // list<CacheNode>
+    this.ring = [];                    // [{ hash: number, nodeId: string }]
+    this.replicationFactor = 3;
+    this.updatedAt = Date.now();
+  }
+}
+
+// Replication Event
+class ReplicationEvent {
+  constructor(eventId, key, value, ttl, sourceNode) {
+    this.eventId = eventId;
+    this.key = key;
+    this.value = value;
+    this.ttl = ttl;
+    this.timestamp = Date.now();
+    this.sourceNode = sourceNode;
+  }
+}
+
+✅ API DEFINITIONS (clean, interview-ready, easy to copy)
+// Public API — Get value
+GET /cache/get?key={key}
+
+Response:
+{
+  value: string | object | null,
+  hit: boolean
+}
+
+// Public API — Set value
+POST /cache/set
+Body:
+{
+  key: string,
+  value: any,
+  ttl?: number
+}
+
+Response:
+{ status: "OK" }
+
+// Public API — Delete
+POST /cache/delete
+Body:
+{ key: string }
+
+Response:
+{ status: "OK" }
+
+// Public API — Multi-Get
+POST /cache/mget
+Body:
+{ keys: string[] }
+
+Response:
+{ values: { [key: string]: string | null } }
+
+// Public API — Stats
+GET /cache/stats
+
+Response:
+{
+  hits: number,
+  misses: number,
+  evictions: number,
+  memoryUsed: string,
+  keysCount: number
+}
+
+✅ Internal Cluster APIs
+POST /cluster/node/join
+Body:
+{
+  nodeId: string,
+  host: string,
+  port: number
+}
+
+POST /cluster/node/leave
+Body:
+{
+  nodeId: string
+}
+
+GET /cluster/ring
+Response:
+{
+  vNodes: Array<{ hash: number, nodeId: string }>
+}
+
+POST /cluster/replicate
+Body:
+{
+  key: string,
+  value: any,
+  ttl?: number
+}
+
+GET /cluster/health
+Response:
+{
+  status: "healthy" | "degraded",
+  nodeId: string
+}
+
+✅ CORE CLASSES FOR LLD
+Hash Ring (consistent hashing)
+class HashRing {
+  constructor() {
+    this.ring = [];  // array of { hash, nodeId }
+  }
+
+  addNode(nodeId, vNodeCount = 100) {
+    for (let i = 0; i < vNodeCount; i++) {
+      const hash = this.hash(nodeId + "#" + i);
+      this.ring.push({ hash, nodeId });
+    }
+    this.ring.sort((a, b) => a.hash - b.hash);
+  }
+
+  removeNode(nodeId) {
+    this.ring = this.ring.filter(v => v.nodeId !== nodeId);
+  }
+
+  getNodeForKey(key) {
+    const h = this.hash(key);
+    for (let vnode of this.ring) {
+      if (vnode.hash >= h) return vnode.nodeId;
+    }
+    return this.ring[0].nodeId; // wrap around
+  }
+
+  hash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++)
+      h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return h;
+  }
+}
+
+Distributed Cache Node
+class CacheServer {
+  constructor(nodeId) {
+    this.nodeId = nodeId;
+    this.storage = new Map();      // key -> CacheEntry
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  get(key) {
+    const entry = this.storage.get(key);
+    if (!entry) {
+      this.misses++;
+      return null;
+    }
+    if (entry.expiresAt && entry.expiresAt < Date.now()) {
+      this.storage.delete(key);
+      this.misses++;
+      return null;
+    }
+    entry.lastAccessed = Date.now();
+    this.hits++;
+    return entry.value;
+  }
+
+  set(key, value, ttl) {
+    const entry = new CacheEntry(key, value, ttl);
+    this.storage.set(key, entry);
+  }
+
+  delete(key) {
+    this.storage.delete(key);
+  }
+}
+
+Distributed Cache Coordinator
+class DistributedCache {
+  constructor() {
+    this.hashRing = new HashRing();
+    this.nodes = {};  // nodeId -> CacheServer
+  }
+
+  addNode(nodeId) {
+    this.nodes[nodeId] = new CacheServer(nodeId);
+    this.hashRing.addNode(nodeId);
+  }
+
+  removeNode(nodeId) {
+    delete this.nodes[nodeId];
+    this.hashRing.removeNode(nodeId);
+  }
+
+  getNode(key) {
+    const nodeId = this.hashRing.getNodeForKey(key);
+    return this.nodes[nodeId];
+  }
+
+  get(key) {
+    const node = this.getNode(key);
+    return node.get(key);
+  }
+
+  set(key, value, ttl) {
+    const node = this.getNode(key);
+    node.set(key, value, ttl);
+  }
+
+  delete(key) {
+    const node = this.getNode(key);
+    node.delete(key);
+  }
+}
