@@ -1,0 +1,577 @@
+Functional & Non-Functional Requirements
+--> Functional Requirements (FR)
+Given a user query prefix, return top k suggestions in real-time.
+Suggestions are ranked by:
+  Popularity (most clicked)
+  Recency
+  Personalization (optional)
+Support adding new search terms dynamically.
+Handle typo-tolerance (optional, advanced).
+
+--> Non-Functional Requirements (NFR)
+Latency: <50ms per autocomplete request.
+Throughput: ~10M DAU (daily active users) → estimate ~10k QPS assuming 1 request per user per minute in peak.
+Scalability: Handle growing query volume and suggestions dataset.
+Availability: Highly available, fault-tolerant system.
+
+2️⃣ Back-of-the-Envelope (BoE) Estimation
+
+Assumptions:
+DAU: 10M
+Avg searches per user per day: 10 → 100M searches/day
+Peak QPS (queries/sec): ~100M / 24h / 3600s ≈ 1,157 QPS, round up ~1.2k QPS for autocomplete.
+
+Data storage estimate:
+Avg query string length: 20 chars
+Avg frequency + metadata: 20 bytes
+Unique queries stored: 100M
+
+Storage: 100M × (20+20) bytes ≈ 4GB → fits in memory comfortably for a Trie.
+Memory-efficient techniques like compressed trie / radix tree can reduce this further.
+
+----->Major Five component
+1) Data Gathering service
+2) Query service
+3) Trie Data Strucyure
+4) Scale the storage
+5) Trie Operations
+
+1) Data Gathering service
+In an autocomplete/search suggestion system, 
+we want to learn from user behavior so that suggestions improve over time.
+Example:
+- User types "iph"
+- Clicks on "iPhone 15 Pro"
+- Another user types "iph" but clicks "iPhone 14"
+
+We need data gathering to know:
+- Which queries are typed most
+- Which suggestions are clicked most
+- Patterns over time
+
+This feedback loop helps generate better suggestions.
+
+1. Analytics Logs
+Every user interaction generates an event log:
+- Event type: query typed, suggestion clicked
+- User/session id
+- Timestamp
+- Context: device, region, app version
+
+**Example log entry:**
+```json
+{
+  "event": "click",
+  "query": "iph",
+  "suggestion": "iPhone 15 Pro",
+  "timestamp": "2025-12-10T08:10:00",
+  "userId": 12345
+}
+
+2. Aggregators
+Aggregators collect and process raw logs into summaries for easier use:
+
+* Count query frequencies
+* Count clicks per suggestion
+* Compute CTR (Click Through Rate)
+
+**Example aggregation:**
+
+Query: "iph"
+- Total typed: 5000
+- iPhone 15 Pro clicked: 3000
+- iPhone 14 clicked: 1500
+- iPhone SE clicked: 500
+
+
+**Stick diagram (Aggregator Layer):**
+
+```
+Analytics Logs (Raw Events)
+          |
+          v
+    +----------------+
+    | Aggregator     |
+    | - Count queries|
+    | - Count clicks |
+    | - Compute CTR  |
+    +----------------+
+          |
+          v
+  Aggregated Data Store
+```
+
+3. Aggregated Data
+
+**Definition:**
+The summarized metrics are stored in a fast-access store for autocomplete ranking.
+
+**Example:**
+
+```
+Query   Suggestion       Count   CTR
+iph     iPhone 15 Pro    3000    0.6
+iph     iPhone 14        1500    0.3
+iph     iPhone SE        500     0.1
+```
+
+Can be stored in Redis, Cassandra, or Elasticsearch for fast read by the autocomplete service.
+
+**Stick diagram (Aggregated Data Use):**
+
+```
+Aggregated Data Store
+        |
+        v
+Autocomplete Service
+        |
+        v
+User Suggestions (ranked by CTR/frequency)
+```
+
+## 4. End-to-End Data Gathering Flow (Complete Stick Diagram)
+
+```
+                 +----------------+
+                 |     Users      |
+                 +--------+-------+
+                          |
+          Queries typed & suggestions clicked
+                          |
+                          v
+                 +----------------+
+                 |   Frontend /   |
+                 | App Layer      |
+                 +--------+-------+
+                          |
+                          v
+                 +----------------+
+                 | Analytics Logs |
+                 |  (raw events)  |
+                 +--------+-------+
+                          |
+                          v
+                 +----------------+
+                 | Aggregator     |
+                 | - Count & CTR  |
+                 | - Aggregate    |
+                 +--------+-------+
+                          |
+                          v
+                 +----------------+
+                 | Aggregated Data|
+                 |  (DB / Redis)  |
+                 +--------+-------+
+                          |
+                          v
+                 +----------------+
+                 | Autocomplete   |
+                 | Service        |
+                 +----------------+
+                          |
+                          v
+                     Ranked Suggestions
+
+ 5. Key Points
+
+* **Analytics logs:** raw events, high-volume, append-only
+* **Aggregators:** process logs in batches or streaming (Spark, Flink, Kafka Streams)
+* **Aggregated Data:** metrics like frequency, CTR, recency
+* **Autocomplete Service:** reads aggregated data to rank suggestions in real-time
+
+---> Query Service <----
+What is the Query Service?
+The Query Service is the component that handles incoming user queries and returns autocomplete suggestions.
+
+Responsibilities:
+- Receive the typed query from the client.
+- Check cache for precomputed suggestions (fast path).
+- If not in cache (cache miss), query the aggregated data store.
+- Rank suggestions using frequency, CTR, and recency.
+- Return suggestions to the user.
+
+Optionally, log the query/click for analytics.
+
+🔹 2. Why Cache is Needed?
+
+Popular queries like "iph" or "ipho" are typed by many users repeatedly.
+Cache avoids repeated DB/aggregated store reads, reducing latency.
+Improves throughput for high QPS.
+
+Cache can be:
+Redis / Memcached (in-memory)
+TTL-based eviction
+Hot key replication for distributed queries
+
+🔹 3. Query Flow (Simple Stick Diagram)
+User Types Query
+        |
+        v
+   +------------+
+   | Query      |
+   | Service    |
+   +-----+------+
+         |
+         | Check cache (Redis / Memcached)
+         v
+     +-----------+          Cache Hit
+     | Cache     |------------------> Return Suggestions
+     +-----------+
+         |
+      Cache Miss
+         |
+         v
++----------------------+
+| Aggregated Data Store|
+| (frequency, CTR, etc)|
++----------+-----------+
+           |
+           v
+    Rank Suggestions
+           |
+           v
+      Update Cache (optional)
+           |
+           v
+      Return Suggestions
+
+🔹 4. Key Points
+Cache hit → response is very fast (~ms)
+Cache miss → query aggregated DB → compute ranking → populate cache
+
+Ranking can include:
+Frequency (most typed queries)
+Click-through rate (CTR)
+Recency (recent trends)
+TTL / eviction ensures cache stays fresh and avoids stale results
+
+----> Trie Data Structure <------
+What is a Trie?
+
+A Trie (Prefix Tree) is a tree-like data structure that stores strings character by character, with common prefixes shared among keys.
+Key Idea:
+Each node represents a character.
+Path from root → node forms a prefix.
+Leaf nodes can store a full word or additional metadata.
+Example words: "app", "apple", "ape"
+
+        root
+         |
+         a
+         |
+         p
+       /   \
+      p     e
+      |      
+      l
+      |
+      e
+
+
+"app" → root → a → p → p
+
+"apple" → root → a → p → p → l → e
+
+"ape" → root → a → p → e
+
+🔹 3. Why not HashMap?
+
+HashMaps are great for exact key lookup, but bad for prefix search:
+HashMap requires full key → cannot do partial search efficiently
+For prefix "ap", we’d need to scan all keys to find matches → O(n)
+Trie gives direct access to all words with a prefix → O(k)
+
+Stick diagram — Trie vs HashMap
+
+Trie:
+Prefix = "ap"
+  root
+   |
+   a
+   |
+   p → list of words under this node
+   |
+  / \
+ p   e
+app apple ape
+
+HashMap:
+Keys = ["app", "apple", "ape", "bat"]
+Search prefix "ap" → scan all keys
+  → Compare "app", "apple", "ape" → match
+Time = O(n)
+
+🔹 2. Why Trie for Autocomplete?
+Use case: Return suggestions for a typed prefix.
+Advantages:
+Efficient prefix search → O(k), where k = length of prefix
+Memory efficient for common prefixes
+Can store top queries per node for instant suggestions
+
+Example:
+Prefix = "ap"
+Trie lets us directly jump to the node representing "ap"
+Return all words below it: "app", "apple", "ape"
+
+
+
+🔹 4. Limit Maximum Prefix Length
+To optimize memory:
+Limit depth of Trie to max_prefix_length (say 5 chars)
+Store top search queries only at nodes within this limit
+
+Example: max_prefix_length = 3
+root → a → p → p
+       |
+       e
+
+
+Prefix "apple" → store suggestion only at "app" node
+Prefix "ape" → store at "ape" node
+Reduces memory usage drastically
+
+🔹 5. Store Top Queries at Each Node
+Each node can maintain a priority queue / sorted list of top-k popular queries
+Use metrics like frequency / CTR
+Stick diagram: storing top queries
+
+Node: "ap"
+Top Queries:
+1. "apple" (500 clicks)
+2. "app"   (300 clicks)
+3. "ape"   (100 clicks)
+
+Node structure:
+   char
+   children → map<char, node>
+   topQueries → priority queue of top-k
+
+
+During query time:
+Traverse prefix → reach node → return topQueries
+O(k) time, very fast
+
+-------> Scaling the storage <-----
+What is Storage in Autocomplete?
+
+In an autocomplete system, storage is used to store:
+Aggregated query data → frequency, CTR, recency
+Trie / prefix tree → in-memory or persistent
+User analytics / logs → for learning trends
+Top-K suggestions per prefix → often cached
+
+🔹 2. Why Do We Need Scaling?
+As the system grows:
+Millions of users type queries simultaneously → high QPS
+Vocabulary grows → many words/prefixes
+Logs and aggregated metrics grow → large storage footprint
+
+Without scaling:
+Memory limits → cache misses increase
+Disk limits → DB queries slow down
+Single node failure → data loss or outage
+
+🔹 3. Ways to Scale Storage
+1️⃣ Horizontal Scaling (Sharding)
+Split data across multiple nodes by prefix or hash
+Example: Trie nodes for prefixes "a-m" → Node A, "n-z" → Node B
+Each node stores a subset of keys
+Stick diagram: Sharded Storage
+
+           +-------------------+
+           |    Autocomplete   |
+           |      Service      |
+           +---------+---------+
+                     |
+     ----------------+----------------
+     |                               |
++-----------+                   +-----------+
+| Node A    |                   | Node B    |
+| Prefix a-m|                   | Prefix n-z|
++-----------+                   +-----------+
+
+2️⃣ Replication
+Keep copies of important data for availability and fault tolerance
+Hot prefixes → replicated to multiple nodes
+If one node fails → replica serves traffic
+Node A (primary)  ---> Node A replica
+
+3️⃣ Use In-Memory + Persistent Storage
+In-memory (Redis, Memcached, Trie in RAM) → very fast lookups
+Persistent DB (Cassandra, MySQL, ElasticSearch) → durability
+Frequently accessed prefixes stay in memory (hot keys)
+Less popular prefixes fetched from DB on demand
+
+4️⃣ Partition by Popularity
+Hot keys → stored in fast memory
+Cold keys → stored in disk / slower storage
+
+Reduces memory pressure
+
+[Memory Cache] -> Hot prefixes
+[Disk / DB] -> Cold prefixes
+
+5️⃣ Compress Data / Limit Prefix Depth
+Only store max prefix length (e.g., first 5 chars) in memory
+Keep top-k suggestions per node
+Saves storage while still serving most queries efficiently
+
+Trie Node "ap" → store top 3 suggestions
+Trie Node "app" → store top 3 suggestions
+(no need for "appl*" if depth limit = 3)
+
+🔹 4. Summary
+Strategy	Why	Example
+Horizontal Sharding	Split load across nodes	Prefix a-m → Node A, n-z → Node B
+Replication	Fault tolerance, high availability	Node A replica
+In-memory + DB	Fast lookups + durability	Redis + Cassandra
+Hot/cold partition	Save memory, prioritize popular queries	Hot prefixes in cache
+Limit prefix depth	Reduce memory usage	Store max 5-char prefixes in Trie
+
+
+-------> Multilingual support <----
+Handling Multilingual Queries
+
+Problem: Users may type queries in multiple languages, e.g., English, Hindi, Spanish. A single Trie or database may not efficiently support all languages due to character sets and encoding.
+
+Solutions:
+-> Unicode / UTF-8 Support
+Ensure all storage (Trie nodes, DB) supports Unicode characters.
+Each node in Trie can store Unicode characters, e.g., "नमस्ते" or "hello".
+
+-> Separate Tries per Language
+Maintain a Trie per language to reduce memory footprint and simplify ranking.
+
+Example: Trie_EN for English, Trie_HI for Hindi.
+
+-> Language Detection
+Detect query language at runtime using lightweight libraries or ML models.
+Route query to the correct Trie / language-specific data store.
+
+-> Multilingual Ranking
+Trending queries and CTR are tracked per language.
+
+-----> what if top serach queries are diffreent in different countries <-------
+Region-Specific Storage
+Maintain different top-K structures per region (or country).
+Trie nodes store regional top queries, e.g.,
+
+Node "ip":
+  US: ["iphone", "ipad"]
+  IN: ["iphone", "itel"]
+
+----> how can we support the trending queries <-----------
+Trending queries are queries that are rising in popularity recently.
+Approach:
+-> Streaming Aggregation
+Use streaming pipelines (Kafka + Spark/Flink) to aggregate query counts in real-time.
+Maintain a sliding window (e.g., last 1 hour, 24 hours) to track trends.
+
+-> Top-K Data Structures
+At each Trie node, maintain a heap / priority queue of top-K trending queries.
+Update continuously based on frequency / recency.
+
+-> Decay Old Trends
+Reduce the weight of older queries to favor recently trending queries.
+Formula: score = frequency * decay_factor^age.
+
+------- LLD ------
+class TrieNode {
+    constructor(char) {
+        this.char = char;                      // character at this node
+        this.children = new Map();             // next letters
+        this.isWord = false;                    // marks full word
+        this.frequency = 0;                     // used for ranking top queries
+        this.topQueries = [];                   // array of {word, frequency} sorted
+    }
+}
+class Trie {
+    constructor(maxTopK = 3) {
+        this.root = new TrieNode(null);
+        this.maxTopK = maxTopK; // max suggestions stored per node
+    }
+    insert(word) {
+        let node = this.root;
+
+        for (let char of word) {
+            if (!node.children.has(char)) {
+                node.children.set(char, new TrieNode(char));
+            }
+            node = node.children.get(char);
+
+            // update topQueries at this node
+            this._updateTopQueries(node, word);
+        }
+
+        node.isWord = true;
+        node.frequency += 1;
+    }
+
+    _updateTopQueries(node, word) {
+        // check if word already exists
+        let existing = node.topQueries.find(q => q.word === word);
+        if (existing) {
+            existing.frequency += 1;
+        } else {
+            node.topQueries.push({ word, frequency: 1 });
+        }
+
+        // sort by frequency descending
+        node.topQueries.sort((a, b) => b.frequency - a.frequency);
+
+        // keep only top-k
+        if (node.topQueries.length > this.maxTopK) {
+            node.topQueries = node.topQueries.slice(0, this.maxTopK);
+        }
+    }
+    getSuggestions(prefix) {
+        let node = this.root;
+        for (let char of prefix) {
+            if (!node.children.has(char)) return []; // prefix not found
+            node = node.children.get(char);
+        }
+        return node.topQueries.map(q => q.word);
+    }
+    delete(word) {
+        const _deleteHelper = (node, word, index) => {
+            if (index === word.length) {
+                if (!node.isWord) return false;
+                node.isWord = false;
+                node.frequency = 0;
+                return node.children.size === 0;
+            }
+
+            const char = word[index];
+            const childNode = node.children.get(char);
+            if (!childNode) return false;
+
+            const shouldDeleteChild = _deleteHelper(childNode, word, index + 1);
+
+            // remove from children map if empty
+            if (shouldDeleteChild) {
+                node.children.delete(char);
+            }
+
+            // update topQueries
+            node.topQueries = node.topQueries.filter(q => q.word !== word);
+
+            return node.children.size === 0 && !node.isWord;
+        };
+
+        _deleteHelper(this.root, word, 0);
+    }
+}
+const trie = new Trie(3);
+
+// Insert words
+trie.insert("apple");
+trie.insert("app");
+trie.insert("ape");
+trie.insert("apple"); // apple frequency increases
+
+console.log(trie.getSuggestions("ap")); // ["apple", "app", "ape"]
+
+// Delete a word
+trie.delete("app");
+console.log(trie.getSuggestions("ap")); // ["apple", "ape"]
+
