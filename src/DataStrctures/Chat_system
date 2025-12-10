@@ -1,0 +1,705 @@
+MUST-HAVE Functional Requirements
+
+(Core features without which chat cannot work)
+
+Send & receive messages (real-time).
+Message ordering inside a conversation.
+Message delivery status (sent/delivered).
+Store and sync chat history across devices.
+User authentication (login).
+Notifications for new messages.
+Basic presence (online/offline).
+
+Without these, it is not a usable chat system.
+
+✅ MUST-HAVE Non-Functional Requirements
+
+(Minimum engineering guarantees)
+Low latency messaging (<200 ms).
+High availability (no downtime).
+Durability — messages must never be lost.
+Scalability — handle growing number of users.
+Security — encrypted communication.
+Fault tolerance — system keeps working if servers fail.
+
+// Things to dicuss
+1. communication protocol - websockets
+2. stateless services -> Service Discovery, auth service, group managemnet, user profile
+3. stateful service -> chat service
+4. Scalability in chat system
+5. How to ensure message is delivered?
+6. storage (raed 10:1) more read (frequent chats/ non frequent chats)
+7. data Models
+8. Avoid data duplicacy (message id which is unique) genertate UUID
+
+These are essential to avoid message loss, lag, or outages.
+
+                ┌───────────────────────────────┐
+                │        API Gateway            │
+                │ (rate-limit, auth redirect)   │
+                └───────────────────────────────┘
+                           |
+        ┌──────────────────┼──────────────────┐
+        |                  |                  |
+┌──────────────┐   ┌──────────────┐   ┌────────────────┐
+│Auth Service  │   │User Profile  │   │Service Discovery│
+│(stateless)   │   │(stateless)   │   │(stateless)     │
+└──────────────┘   └──────────────┘   └────────────────┘
+        |
+        | WebSocket Upgrade
+        v
+┌──────────────────────────┐
+│   Chat Gateway Layer     │  <— Stateless WS termination
+│(WS connections, routing) │
+└──────────────────────────┘
+        |
+        v
+┌──────────────────────────┐
+│    Chat Service (Stateful)│ <— holds active user sessions
+│  - session store          │
+│  - message delivery       │
+│  - ordering               │
+└──────────────────────────┘
+        |
+        |  enqueue messages
+        v
+┌──────────────────────────┐
+│  Message Queue (Kafka)   │
+│ topics: chat.write,      │
+│ group.fanout, receipts   │
+└──────────────────────────┘
+        |
+        v
+┌──────────────────────────────┐
+│  Storage Layer               │
+│  - Message Store (Cassandra) │
+│  - Group Store               │
+│  - User State Store (Redis)  │
+└──────────────────────────────┘
+        |
+        v
+   ┌─────────────┐
+   │Push Service │ → APNS/Firebase
+   └─────────────┘
+
+-------What are WebSockets?--------
+
+WebSockets are a full-duplex, persistent connection between client and server.
+“Full-duplex” → both client and server can send messages anytime.
+“Persistent” → connection stays open (unlike HTTP which closes after each request).
+Think of it as: a phone call vs. sending letters.
+
+✅ Why WebSockets in a Chat System?
+1. Real-time messaging
+Chat apps must push messages instantly.
+HTTP polling is slow; WebSockets push messages immediately.
+WebSockets = instant message delivery.
+
+2. Low latency
+No need to create new HTTP connections repeatedly.
+Once connected, sending a message is extremely fast.
+
+3. Real-time presence updates
+Online/offline, typing indicators, read receipts — all need live updates.
+Presence servers use WebSockets to broadcast state.
+
+4. Efficient for high QPS
+Instead of thousands of HTTP requests (polling), 1 persistent connection handles everything.
+Less CPU usage.
+Less bandwidth.
+Better scalability.
+
+5. Server can push messages
+In HTTP, client must pull.
+In WebSockets, server can push when new message arrives.
+“Message arrives → server pushes → client displays instantly.”
+
+6. Used by all major chat systems
+WhatsApp, Messenger, Slack, Teams — all rely on WebSockets (or long-lived TCP connections).
+
+------- Stateless Service ---------
+A stateless service does NOT store any user/session data inside the server’s memory between requests.
+Every request is independent.
+Server does not “remember” anything about previous requests.
+All state is stored in DB / Cache / Token / External storage, not inside the app server.
+
+Example:
+
+If user X hits Server A now and Server B next, both must behave the same → no dependency on in-memory session.
+Stateless servers scale horizontally very easily.
+
+1)Authentication Service (Stateless)
+What:
+Handles login, token creation (JWT), session validation.
+
+Why stateless:
+Because JWT contains all user info.
+Auth server doesn’t need to keep session in memory.
+
+2) User Profile Service (Stateless)
+What:
+Stores user info (name, photo, status, settings).
+
+Why stateless:
+Profile data is in a DB (SQL/NoSQL).
+Service only fetches/updates records → no local state.
+
+How:
+Client requests /user/{id}
+Service retrieves from DB/Cache
+Returns profile
+
+3) Group Management Service (Stateless)
+What:
+Manages group creation, members, permissions.
+
+Why stateless:
+Groups + membership stored in DB.
+Service only processes “add user/remove user”.
+
+How:
+When user creates a group →
+Group service inserts a row into DB or updates member-list.
+Stateless → any instance can handle group operations.
+
+4) Service Discovery (Stateless)
+What:
+In a chat system, there are hundreds or thousands of Chat/WebSocket servers running.
+Clients need to know which server to connect to.
+Service Discovery makes this automatic:
+It tracks:
+Which chat server instances are alive
+Their IP/port
+Their load (connections, CPU, memory)
+Their region (India, US, EU…)
+Whether they are healthy
+
+Examples of service discovery systems:
+Zookeeper
+
+🌟 Why do we need this?
+Because chat systems have:
+Millions of concurrent WebSocket connections
+WebSocket is a long-lived connection
+Servers fail, restart, scale up/down frequently
+Clients can’t hardcode server addresses.
+Service Discovery provides dynamic, real-time routing.
+
+------> StateFul Server <---------
+-> Chat server
+Why Chat Servers MUST Be Stateful
+A chat server is the server that holds every user’s live WebSocket connection.
+When a user opens the app → the client establishes a WebSocket:
+Client  ↔  Chat Server
+
+This connection is not stateless like REST.
+The server must keep in memory:
+socket ID
+user ID
+
+which chat rooms the user is subscribed to
+delivery cursor (last delivered message for that socket)
+unread message counters (sometimes)
+heartbeat timestamp
+
+WebSocket event handlers
+→ These are all in-memory runtime data, not stored in DB.
+Therefore:
+✔ Chat servers are stateful per connection,
+
+---- Simple one chat flow ---------
+
+Step 1: User A Connected (State Stored on Server-1)
+User A ────── WebSocket ─────► Chat Server #1
+                                |
+                                | (state)
+                                | socket=A-s12
+                                | user=A
+                                | rooms=[roomX]
+
+🔹 Step 2: User B Connected (State Stored on Server-3)
+User B ────── WebSocket ─────► Chat Server #3
+                                |
+                                | (state)
+                                | socket=B-s99
+                                | user=B
+                                | rooms=[roomX]
+
+
+Each client is pinned to a different chat server.
+
+🔹 Step 3: User A Sends Message “Hi”
+User A
+   |
+   | send("Hi")
+   ▼
+Chat Server #1
+   |
+   | 1. Appends to message queue (Kafka)
+   | 2. Stores in DB
+   | 3. Finds which server User B is attached to
+   ▼
+Service Discovery (Redis)
+(user B → Chat Server #3)
+
+🔹 Step 4: Chat Server #1 → Chat Server #3 (Fanout)
+Chat Server #1
+     |
+     | push(B, "Hi")
+     ▼
+Chat Server #3
+     |
+     | deliver to B-s99 socket
+     ▼
+User B
+----> Scalability <---------
+A chat system is real-time.
+Millions of users → millions of WebSocket connections → millions of messages per second.
+A single server cannot hold:
+all user sockets
+all incoming messages
+all fan-out delivery
+
+So we scale by:
+
+✔ Many chat servers (stateful)
+✔ Message Queue for buffering, ordering, durability
+✔ Distributed storage (Cassandra / DynamoDB / MongoDB)
+✔ Redis for online presence + routing
+
+------>message queues<--------
+Where Do Message Queues Come Into the System?
+Message queues decouple message SEND from DELIVERY.
+When a user sends a message:
+Client A → Chat Server A
+Chat Server A → Kafka topic ("messages")
+
+Chat Server A does NOT directly deliver to User B, because:
+slow receivers will slow down the system
+cross-server communication gets messy
+messages must be durable (no loss)
+ordering must be preserved per chat room
+So Kafka (or any queue) becomes the source of truth for delivery.
+User A
+   |
+   v
+Chat Server #1
+   |
+   | 1. Writes message to Kafka (async)
+   v
++---------------+
+|   Kafka MQ    |
+| (partitioned) |
++---------------+
+   |
+   | 2. Chat Server #3 consumes (server B is attached here)
+   v
+Chat Server #3
+   |
+   | 3. Delivers over WebSocket
+   v
+User B
+
+
+------->How to Ensure Message Is Delivered--------------
+We use Delivery Guarantee Levels:
+
+1) At-least-once Delivery (most chat apps use this)
+Kafka stores message
+Chat server attempts delivery
+If client does not ACK → retry
+Could cause duplicates → handle via idempotency
+
+2) Exactly-once Delivery (rare; expensive)
+Requires message ID + deduplication + transactional log
+WhatsApp, Slack use dedupe tokens or msgId tables
+How Delivery Works (ACK flow)
+Chat Server #3  → sends message →  Client B
+Chat Server #3  ← receives ACK  ← Client B
+
+If server never receives ACK → it retries.
+
+-----> What If Client B Turns Off Network? <---------
+This is the most important real-world scenario.
+
+Client B disconnects (network killed)
+Chat Server #3 detects:
+WebSocket closed
+Heartbeat missing
+Mark user as offline
+
+What happens to messages?
+They go to "offline message store" (DB or Redis or Kafka offset).
+
+Message flow in this case:
+User A  → Chat Server #1 → Kafka → DB (stored)
+Client B offline → delivery pending
+
+
+When Client B reconnects:
+
+Client B → Chat Server #2 (may be different server)
+Chat Server #2 → read pending messages from DB/Kafka
+Chat Server #2 → deliver sequentially
+Client B → send ACKs
+
+
+This ensures:
+
+✔ Message never lost
+✔ Delivery resumes when the user returns
+✔ Ordering preserved (using Kafka topic partition per chat)
+
+------> Strage <---------
+How Storage Works in a Real-Time Chat System
+A chat system stores two kinds of data:
+A) Hot Data (recent messages)
+Stored in Redis / Memory Cache
+Fast reads for "recent 50–100 messages"
+Low latency (sub-millisecond)
+Used when a user opens a chat window
+
+Chat Server
+   |
+   v
+Redis (recent messages)
+
+B) Cold Data (old chat history)
+Stored in a distributed database:
+✔ Cassandra
+✔ DynamoDB
+✔ MongoDB
+✔ HBase
+
+Append-only model → perfect for chat
+Tuned for very high write throughput
+
+Chat Server
+   |
+   v
+Cassandra Cluster (long-term storage)
+
+⭐ 2. Why Two Layers? (Hot + Cold Storage)
+Because:
+Recent messages = most frequently read
+Old messages = very large volume & rarely read
+If you put all messages in Redis → memory explosion.
+If you put all messages in Cassandra → read latency too high.
+
+So we use:
+✔ Redis → fast reads for recent, small set
+✔ Cassandra → slow reads but infinite history capacity
+⭐ 3. Stick Diagram — Storage Flow
+User A sends message
+    |
+    v
+Chat Server
+    |
++-----------+              +----------------+
+|   Redis   |  <- recent   |   Cassandra    |
+| (cache)   |              | (full history) |
++-----------+              +----------------+
+
+Redis stores recent N messages per chat.
+Cassandra stores all messages forever.
+
+⭐ 4. Real-Time Write Flow
+When a new message arrives:
+Chat Server
+   |
+   ├── 1. Write to Kafka (durability)
+   |
+   ├── 2. Append to Cassandra (persistent storage)
+   |
+   └── 3. Write to Redis (recent cache)
+
+All three happen asynchronously to keep latency low.
+⭐ 5. Real-Time Read Flow
+When client opens the chat:
+Client → Chat Server → Redis (get recent 50–100 messages)
+If user scrolls up (fetch old messages):
+Redis miss → Fetch older pages from Cassandra
+
+⭐ 6. What Is the Read / Write Ratio in Chat Systems?
+Real-world ratio:
+Writes are low, reads are VERY high
+Example (WhatsApp, Facebook Messenger):
+1 write per message
+8–15 reads per message
+(sender sees it, receiver sees, app opens, reopens, syncs, backups, etc.)
+
+So:
+Read : Write ratio ≈ 10 : 1
+This is exactly why:
+
+Redis cache is critical
+Cassandra is optimized for fast writes but slower reads
+Messages must be query-efficient in a time-sorted way
+
+⭐ 7. How Horizontal Scaling Works in Storage
+A) Cassandra horizontal scaling
+Cassandra partitions data using:
+partitionKey = chatId
+
+Messages are stored in sorted order by timestamp.
+Add more nodes → Cassandra automatically rebalances.
+More nodes = more write throughput + more storage capacity
+
+Cassandra Cluster
+ ├── Node1: chatId 0–1000
+ ├── Node2: chatId 1001–2000
+ ├── Node3: chatId 2001–3000
+ └── ...
+B) Redis horizontal scaling (sharding)
+Shard1 → chatId % 3 = 0
+Shard2 → chatId % 3 = 1
+Shard3 → chatId % 3 = 2
+
+Add more shards → distribute keys → increase memory and throughput.
+
+⭐ 8. Why Do Users Only See Recent Messages Quickly?
+Because recent messages are served from:
+✔ Redis
+✔ Local memory cache (on Chat Server)
+✔ Kafka consumer offsets
+
+These guarantee sub-millisecond access.
+Older messages require a database lookup, which is slower.
+Real chat apps assume:
+95% of reads are for the recent conversation (last few minutes).
+So system is built around this usage pattern.
+
+⭐ 9. Combined Stick Diagram — Complete Storage Architecture
+              +-----------------------+
+Client A ---> |     Chat Server       |
+              +-----------------------+
+                   |       |
+                   |       v
+                   |   Redis Cache (hot)
+                   |
+                   v
+             Kafka (durable log)
+                   |
+                   v
+            Cassandra / DynamoDB (cold)
+
+-------> Data Models <------
+Below is a **clean, interview-ready** answer covering:
+
+✔ Data models for **1:1 chat**
+✔ Data models for **group chat**
+✔ How to **avoid duplicate messages**
+✔ How this is handled in real chat systems (WhatsApp, Slack, MS Teams)
+✔ Simple stick diagrams
+
+---
+
+# ⭐ 1. Data Model for **1:1 Chat** (Direct Messages)
+conversationId = hash(min(A,B) + "#" + max(A,B))
+
+## ✔ **1:1 Message Table**
+
+### **Table: DirectMessages**
+
+| Column         | Type          | Notes                   |
+| -------------- | ------------- | ----------------------- |
+| conversationId | string        | Partition key           |
+| messageId      | string (UUID) | Unique per message      |
+| senderId       | string        | Who sent                |
+| receiverId     | string        | Who receives            |
+| content        | text/json     | Message body            |
+| createdAt      | timestamp     | Sorted clustering key   |
+| status         | enum          | sent / delivered / read |
+
+### **Primary Key**
+
+```
+PRIMARY KEY (conversationId, createdAt)
+```
+
+Why?
+
+* All messages for a 1:1 chat go into a single partition.
+* Sorted by timestamp → perfect for chat scrolling.
+
+---
+
+# ⭐ Stick Diagram — 1:1 Chat Storage
+
+```
+ConversationId: hash(A#B)
+   |
+   v
++--------------------------------+
+|  DirectMessages (Partition)    |
++--------------------------------+
+| msg1 | A → B | "hi"   | t1     |
+| msg2 | B → A | "yo"   | t2     |
+| msg3 | A → B | "okay" | t3     |
++--------------------------------+
+```
+
+---
+
+# ⭐ 2. Data Model for **Group Chat**
+Group chats can have **10 → 10,000 members**, so design is different.
+### **A) Group Metadata Table**
+### Table: Groups
+
+| Column    | Type      |
+| --------- | --------- |
+| groupId   | string    |
+| name      | string    |
+| createdAt | timestamp |
+
+---
+
+### **B) Group Members Table**
+
+### Table: GroupMembers
+
+| Column   | Type           |
+| -------- | -------------- |
+| groupId  | string         |
+| userId   | string         |
+| role     | admin / member |
+| joinedAt | timestamp      |
+
+**Primary key:** (groupId, userId)
+
+---
+
+### **C) Group Messages Table**
+
+### Table: GroupMessages
+
+| Column    | Type                       |
+| --------- | -------------------------- |
+| groupId   | string (partition key)     |
+| messageId | string (UUID)              |
+| senderId  | string                     |
+| content   | text                       |
+| createdAt | timestamp (clustering key) |
+
+**Primary Key:**
+
+```
+PRIMARY KEY (groupId, createdAt, messageId)
+```
+
+---
+
+# ⭐ Stick Diagram — Group Chat Storage
+
+```
+GroupId: "cricket-fans"
+   |
+   v
++----------------------------+
+|      GroupMessages         |
++----------------------------+
+| msg1 | Bob | "hello" | t1  |
+| msg2 | Ana | "match?"| t2  |
+| msg3 | Raj | "yes!"  | t3  |
++----------------------------+
+```
+
+---
+
+# ⭐ 3. How Do We Avoid Sending Duplicate Messages?
+Duplicate messages can happen when:
+* Network retry
+* WebSocket reconnect
+* Client resends on failure
+* Server crashes mid-send
+* Queue consumer retries
+
+To prevent duplicates, chat systems use **idempotency**.
+
+---
+
+# ⭐ Duplicate Prevention Mechanisms
+1️⃣ Unique messageId (UUID) generated by client or server**
+
+Every message contains:
+messageId = "550e8400-e29b-41d4-a716-446655440000"
+
+
+When a chat server receives a message, it checks:
+
+Has messageId been stored before?
+
+If YES → ignore.
+If NO → process normally.
+
+### Table to track processed messages:
+
+```
+SeenMessages
+------------
+messageId | status
+```
+
+Or store messageId in Redis with TTL.
+
+---
+
+# ⭐ 2️⃣ Kafka Exactly-Once Partition Guarantee
+
+For writes:
+* Each user/chat is mapped to a **Kafka partition**.
+* Kafka guarantees **ordering** and **at-least-once** delivery.
+* Chat servers must deduplicate using messageId.
+
+---
+
+# ⭐ 3️⃣ Server-side Deduplication Logic
+
+
+Client → ChatServer → “process message”:
+    |
+    | Check Redis: is messageId seen?
+    |
+   Yes → DROP (duplicate)
+   No  → Store in Redis + Write to DB + fan-out
+```
+
+# ⭐ Stick Diagram — Duplicate Prevention
+
+```
+           +----------------------+
+Client --->| Chat Server          |
+           +----------------------+
+                     |
+                     | check messageId in Redis
+                     v
+           +----------------------+
+           | Redis: SeenMessages  |
+           +----------------------+
+                     |
+      duplicate? --->| yes → drop
+                     |
+                     v
+     No → Write to DB & push to Kafka
+```
+
+
+# ⭐ 4. Why We MUST Deduplicate
+
+Because:
+
+* WebSocket reconnect may cause **retries**
+* Mobile apps send last unsent message again
+* Kafka retries on consumer crash
+* Server restarts mid-write
+* Network dropping ACKs triggers resend
+
+Without dedupe → “Hi Hi Hi” problem.
+
+
+> Each message is assigned a global messageId (UUID).
+> Chat server checks Redis/DB to ensure the messageId hasn’t been processed.
+> This guarantees idempotency and prevents duplicates even under retries or failures.
+
+
+
