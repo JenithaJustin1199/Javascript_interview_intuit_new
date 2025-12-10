@@ -1,0 +1,500 @@
+Step 0️⃣ – Problem Clarification
+-> Notification Types: Push, Email, SMS
+-> Multi-tenant: Each tenant isolated (Teams, Outlook, Azure Alerts)
+-> Scale: Millions of messages/day, burst traffic
+-> Reliability: Delivery guaranteed, retry, idempotent
+-> Throughput: High, distributed system
+
+Key Expectations:
+
+Feature	Why
+Queues	----> Decouple producers from consumers, smooth traffic
+Retry	-----> Ensure delivery if transient failure occurs
+Idempotency -------> 	Prevent duplicate notifications on retry
+Dead Letter Queue (DLQ) ------>	Capture undeliverable messages for manual intervention
+Rate Limiting	----> Avoid spamming users, comply with external APIs
+Multi-tenant Isolation	------> Prevent tenant A’s traffic from affecting tenant B
+
+Step 1️⃣ – High-Level Architecture
+
+Stick Diagram – Overview
+
+             +----------------+
+             | Notification   |
+             | Producer/API   |
+             +--------+-------+
+                      |
+                      v
+             +--------+--------+
+             |  Queue Layer    |  (Azure Service Bus / Kafka)
+             |  Multi-tenant   |
+             +--------+--------+
+                      |
+       +--------------+--------------+
+       |                             |
+       v                             v
++------+-------+               +-----+------+
+| Email Worker |               | SMS Worker |
++--------------+               +------------+
+| Push Worker  |
++--------------+
+       |
+       v
++------+-------+
+| Delivery API |
+| (Email/SMS/Push)|
++----------------+
+       |
+       v
++------+-------+
+| External SMTP / SMS / Push Providers |
++--------------------------------------+
+
+
+Key Components:
+Producer/API: Generates notification requests from tenants
+Queue Layer: Buffer requests, support retries, DLQ, multi-tenant isolation
+Workers/Consumers: Pull messages, process delivery
+Delivery API / Provider: Sends actual notification
+Monitoring & Logging: Track failures, metrics, alerts
+
+1) Queue Layer in Notification Service
+A Notification Service is responsible for sending notifications (emails, SMS, push notifications).
+The Queue Layer is an intermediate buffer that sits between the API receiving requests and the workers sending notifications.
+It provides:
+-> Decoupling – Producers (API) don’t wait for consumers (workers)
+-> Reliability – Handles retries and failures
+-> Scalability – Smoothly handles spikes
+
+🔑 Core Features
+1️⃣ Buffer Requests
+Stores notification requests temporarily in queues
+Ensures that spikes in traffic don’t overwhelm workers
+Example: 10,000 SMS requests arrive, workers can process 1,000/sec → queue holds remaining requests
+
+2️⃣ Support Retries
+Sometimes delivery fails (network error, temporary downtime)
+Queue layer can retry sending the message after a delay
+Retry strategies:
+Strategy	----> Explanation
+Fixed delay ---->	Retry every X seconds
+Exponential backoff	 ----> Retry after 1s, 2s, 4s, 8s, etc.
+Max attempts	-----> Stop retrying after N failures
+
+3️⃣ DLQ (Dead Letter Queue)
+If a message fails delivery multiple times, it goes to a DLQ
+DLQ is a special queue for failed messages
+Useful for debugging, alerting, or manual intervention
+Example: Email address invalid → message moved to DLQ
+
+4️⃣ Multi-Tenant Isolation
+A notification service may serve multiple clients or applications (tenants)
+Multi-tenant isolation ensures:
+Each tenant has separate queue or isolated resources
+One noisy tenant doesn’t block or affect others
+Example: Tenant A sends 1 million notifications, Tenant B only sends 1,000 → Tenant B’s messages are still processed quickly
+
+2) Responsibilities of Workers / Consumers
+1️⃣ Pull messages from the queue
+Workers read messages from the queue layer
+Methods of assigning messages:
+a) Round-Robin:
+Messages are distributed evenly in order among workers
+Example: 3 workers, 6 messages → Worker1 gets msg1, Worker2 gets msg2, Worker3 gets msg3, then Worker1 gets msg4…
+
+b) Partition Assignment:
+If the queue is partitioned (like Kafka topics), each worker is assigned specific partitions
+Ensures message order per partition is preserved
+
+2️⃣ Process delivery to external provider
+Worker takes the message → sends to external system (SMS gateway, Email provider, Push API)
+Logs success/failure
+
+3️⃣ Retry failed messages with exponential backoff
+Some deliveries fail (network issue, provider down)
+Worker retries after increasing intervals:
+1st retry → wait 1s
+2nd retry → wait 2s
+3rd retry → wait 4s
+...
+Limits strain on external provider and prevents retry storms
+
+4️⃣ Move permanently failed messages to DLQ
+After max retries, the message is moved to Dead Letter Queue
+DLQ can be monitored to fix invalid addresses, blocked emails, or failed push tokens
+
+5️⃣ Ensure idempotency
+Workers must avoid sending duplicates if the same message is processed twice
+Each notification has a unique notificationId (UUID)
+Worker checks DB or Redis cache:
+if notificationId already processed:
+    skip delivery
+else:
+    deliver
+    mark notificationId as processed
+
+Critical because network retries or queue redeliveries may send the same message multiple times
+
+🖼️ Worker Diagram – Single Message Flow
+Queue  ->  Worker  -> Delivery API -> Provider
+             |
+             v
+          Retry Logic (exponential backoff)
+             |
+             v
+           DLQ (if permanent failure)
+
+--------------------------------------------------------------------------------------------------
+
+LLD:
+NotificationMessage Class
+
+Each message has:
+
+notificationId → unique UUID for idempotency
+
+tenantId → multi-tenant isolation
+
+type → "EMAIL", "SMS", "PUSH"
+
+payload → actual content
+
+retryCount → for exponential backoff
+
+createdAt → timestamp
+
+const { v4: uuidv4 } = require('uuid');
+
+class NotificationMessage {
+  /**
+   * @param {string} tenantId - tenant identifier
+   * @param {string} type - EMAIL | SMS | PUSH
+   * @param {object} payload - message content
+   */
+  constructor(tenantId, type, payload) {
+    this.notificationId = uuidv4();  // Unique ID for idempotency
+    this.tenantId = tenantId;        // Tenant isolation
+    this.type = type;                // Notification type
+    this.payload = payload;          // Content
+    this.retryCount = 0;             // Retry counter
+    this.createdAt = Date.now();     // Timestamp
+  }
+}
+
+
+Stick Diagram – Message Structure
+
+NotificationMessage
++----------------------+
+| notificationId (UUID)|
+| tenantId             |
+| type                 |
+| payload              |
+| retryCount           |
+| createdAt            |
++----------------------+
+
+2️⃣ Queue Layer LLD
+
+Responsibilities:
+
+Decouple producers from consumers
+
+Support multi-tenant isolation
+
+Retry failed messages
+
+Dead Letter Queue (DLQ)
+
+For simplicity, we simulate a queue with JS arrays / priority queues.
+
+class NotificationQueue {
+  constructor() {
+    this.queue = [];        // Main queue for messages
+    this.dlq = [];          // Dead Letter Queue for permanent failures
+    this.maxRetries = 5;    // Max retry before sending to DLQ
+  }
+
+  /**
+   * Enqueue a new message
+   * @param {NotificationMessage} message
+   */
+  enqueue(message) {
+    this.queue.push(message);
+  }
+
+  /**
+   * Dequeue the next message (FIFO)
+   */
+  dequeue() {
+    return this.queue.shift();
+  }
+
+  /**
+   * Handle message failure with retry/backoff
+   * @param {NotificationMessage} message
+   */
+  handleFailure(message) {
+    message.retryCount += 1;
+    if (message.retryCount > this.maxRetries) {
+      // Move to Dead Letter Queue
+      this.dlq.push(message);
+      console.log(`Message ${message.notificationId} moved to DLQ`);
+    } else {
+      // Exponential backoff
+      const delay = this.exponentialBackoff(message.retryCount);
+      console.log(`Retrying message ${message.notificationId} in ${delay}ms`);
+      setTimeout(() => {
+        this.enqueue(message);
+      }, delay);
+    }
+  }
+
+  /**
+   * Exponential backoff with jitter
+   * @param {number} retryCount
+   */
+  exponentialBackoff(retryCount, baseDelay = 1000, maxDelay = 60000) {
+    const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+    const jitter = Math.random() * 0.2 * delay; // ±20% jitter
+    return delay + jitter;
+  }
+}
+
+
+Stick Diagram – Queue & DLQ Flow
+
+Producer/API
+     |
+     v
++-------------+
+| Notification|
+| Queue       |
++-------------+
+     |
+     v
+Consumer/Worker
+     |
+    Fail? ---+--> Retry (exponential backoff)
+             |
+             +--> DLQ (after max retries)
+
+3️⃣ Multi-Tenant Isolation Concept
+
+Partition queue logically by tenantId
+
+Optional: separate queue per tenant if needed for strict isolation
+
+For example:
+
+class MultiTenantQueue {
+  constructor() {
+    this.queues = {}; // tenantId -> NotificationQueue
+  }
+
+  enqueue(message) {
+    if (!this.queues[message.tenantId]) {
+      this.queues[message.tenantId] = new NotificationQueue();
+    }
+    this.queues[message.tenantId].enqueue(message);
+  }
+
+  dequeue(tenantId) {
+    if (!this.queues[tenantId]) return null;
+    return this.queues[tenantId].dequeue();
+  }
+}
+
+
+Stick Diagram – Multi-Tenant Queue
+
+Tenant A Queue --> Worker
+Tenant B Queue --> Worker
+Tenant C Queue --> Worker
+
+
+Ensures no noisy neighbor problem (Tenant B can’t block Tenant A)
+
+Each worker can consume messages per tenant or globally.
+Idempotency Helper
+
+Ensures that duplicate delivery is avoided, especially with retries.
+
+Can be implemented with Redis or in-memory cache (for demo, we use Map).
+
+class IdempotencyStore {
+  constructor() {
+    this.store = new Map(); // notificationId -> boolean (processed)
+  }
+
+  /**
+   * Returns true if message was already processed
+   */
+  isProcessed(notificationId) {
+    return this.store.has(notificationId);
+  }
+
+  /**
+   * Mark message as processed
+   */
+  markProcessed(notificationId) {
+    this.store.set(notificationId, true);
+  }
+}
+
+2️⃣ Simple Tenant Rate Limiter
+
+We’ll use a token bucket per tenant
+
+Controls how many notifications a tenant can send per second
+
+class TenantRateLimiter {
+  constructor(tokensPerSecond = 5, capacity = 10) {
+    this.capacity = capacity;        // Max burst
+    this.tokensPerSecond = tokensPerSecond; 
+    this.tenants = {};               // tenantId -> {tokens, lastRefill}
+  }
+
+  allow(tenantId) {
+    const now = Date.now();
+    if (!this.tenants[tenantId]) {
+      this.tenants[tenantId] = { tokens: this.capacity, lastRefill: now };
+    }
+
+    const bucket = this.tenants[tenantId];
+    const elapsedSec = (now - bucket.lastRefill) / 1000;
+    bucket.tokens = Math.min(this.capacity, bucket.tokens + elapsedSec * this.tokensPerSecond);
+    bucket.lastRefill = now;
+
+    if (bucket.tokens >= 1) {
+      bucket.tokens -= 1;
+      return true;
+    }
+
+    return false; // rate limit reached
+  }
+}
+
+3️⃣ Worker / Consumer Class
+
+Pulls messages from multi-tenant queue
+
+Checks idempotency
+
+Checks rate limiting
+
+Calls Delivery API
+
+Handles retry / DLQ
+
+class NotificationWorker {
+  /**
+   * @param {MultiTenantQueue} queue
+   * @param {TenantRateLimiter} rateLimiter
+   * @param {IdempotencyStore} idempotencyStore
+   * @param {DeliveryAPI} deliveryAPI
+   */
+  constructor(queue, rateLimiter, idempotencyStore, deliveryAPI) {
+    this.queue = queue;
+    this.rateLimiter = rateLimiter;
+    this.idempotencyStore = idempotencyStore;
+    this.deliveryAPI = deliveryAPI;
+    this.isRunning = false;
+  }
+
+  start() {
+    this.isRunning = true;
+    this.poll();
+  }
+
+  stop() {
+    this.isRunning = false;
+  }
+
+  async poll() {
+    if (!this.isRunning) return;
+
+    // Loop through all tenant queues
+    for (const tenantId in this.queue.queues) {
+      const message = this.queue.dequeue(tenantId);
+      if (!message) continue;
+
+      // Idempotency check
+      if (this.idempotencyStore.isProcessed(message.notificationId)) {
+        console.log(`Skipping already processed message ${message.notificationId}`);
+        continue;
+      }
+
+      // Rate limiting check
+      if (!this.rateLimiter.allow(tenantId)) {
+        console.log(`Tenant ${tenantId} rate limit reached, retrying later`);
+        // Re-enqueue after small delay (simple backoff)
+        setTimeout(() => this.queue.enqueue(message), 1000);
+        continue;
+      }
+
+      // Process delivery
+      try {
+        await this.deliveryAPI.send(message);
+        this.idempotencyStore.markProcessed(message.notificationId);
+        console.log(`Message ${message.notificationId} delivered successfully`);
+      } catch (err) {
+        console.log(`Delivery failed for ${message.notificationId}, handling retry`);
+        this.queue.handleFailure(message);
+      }
+    }
+
+    // Poll every 100ms (adjustable)
+    setTimeout(() => this.poll(), 100);
+  }
+}
+
+4️⃣ Delivery API Stub
+
+Simulates actual sending of notifications
+
+In reality: calls SMTP, Twilio, FCM/APNs
+
+class DeliveryAPI {
+  async send(message) {
+    // Simulate random failures
+    if (Math.random() < 0.2) throw new Error("Temporary delivery failure");
+
+    // Simulate delay
+    await new Promise(res => setTimeout(res, 50));
+    console.log(`Delivered ${message.type} for tenant ${message.tenantId}`);
+  }
+}
+
+5️⃣ Stick Diagram – Worker Flow
+MultiTenantQueue
+   |
+   v
+NotificationWorker
+   |
+   +--> Check Idempotency -> skip if already processed
+   |
+   +--> Check Tenant Rate Limiter -> wait if limit reached
+   |
+   v
+Delivery API (Email/SMS/Push)
+   |
+   +--> Success -> mark as processed
+   |
+   +--> Fail -> Queue.handleFailure() -> Retry/Backoff -> DLQ if max retries
+
+6️⃣ Putting It Together – Demo Setup
+// Setup
+const multiTenantQueue = new MultiTenantQueue();
+const idempotencyStore = new IdempotencyStore();
+const rateLimiter = new TenantRateLimiter(2, 5); // 2 messages/sec, burst 5
+const deliveryAPI = new DeliveryAPI();
+const worker = new NotificationWorker(multiTenantQueue, rateLimiter, idempotencyStore, deliveryAPI);
+
+// Enqueue some test messages
+multiTenantQueue.enqueue(new NotificationMessage("TenantA", "EMAIL", { subject: "Hello A", body: "Test" }));
+multiTenantQueue.enqueue(new NotificationMessage("TenantA", "SMS", { body: "SMS Test" }));
+multiTenantQueue.enqueue(new NotificationMessage("TenantB", "PUSH", { title: "Push Test", body: "Test Push" }));
+
+// Start worker
+worker.start();
