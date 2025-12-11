@@ -1,0 +1,150 @@
+Below are **super-simple ASCII stick diagrams** for each concept.
+These are interview-friendly and easy to sketch on a whiteboard.
+
+---
+
+# ✅ **1. Row-Level Lock (DB)**
+
+```
+Table: Products
++----+----------+---------+
+| ID | Name     | Qty     |
++----+----------+---------+
+| 10 | iPhone   |   5     |  <-- Locked (User A)
+| 11 | Samsung  |   8     |
++----+----------+---------+
+
+User A ---- locks row 10 ---- updates
+User B ---- tries row 10 ---- waits
+User C ---- updates row 11 ---- allowed
+```
+
+---
+
+# ✅ **2. Pessimistic Lock**
+
+```
+User A starts editing Product #10
+     |
+     v
+ [LOCK ROW]
+
+User B
+  |
+  v
+[WAIT.............]
+```
+
+---
+
+# ✅ **3. Optimistic Lock (Version Check)**
+
+```
+Row: id=10, qty=5, version=3
+
+User A reads version 3
+User B reads version 3
+
+User A writes:
+   UPDATE ... WHERE version = 3
+   version → 4
+   (SUCCESS)
+
+User B writes:
+   UPDATE ... WHERE version = 3
+              ^ no longer 3
+   (FAIL → RETRY)
+```
+
+---
+
+# ✅ **4. Atomic Operation**
+
+```
+counter = 0
+
+Thread 1:  [ Atomic increment() ] ---> counter becomes 1
+Thread 2:  [ Atomic increment() ] ---> counter becomes 2
+Thread 3:  [ Atomic increment() ] ---> counter becomes 3
+
+No interleaving.
+No corruption.
+```
+
+---
+
+# ✅ **5. Transaction (ACID)**
+
+```
+BEGIN
+   Step 1: deduct money from A
+   Step 2: add money to B
+COMMIT
+
+If Step 2 fails:
+ROLLBACK (undo Step 1)
+```
+
+Timeline diagram:
+
+```
+A ----deduct----X  rollback -----> original state
+B ----add-------/
+```
+
+---
+
+# ✅ **6. Mutex (Mutual Exclusion)**
+
+```
+       +---------+
+       | MUTEX   |
+       |  LOCK   |
+       +---------+
+             |
+     ----------------
+     |              |
+Thread A        Thread B
+
+Thread A acquires lock
+Thread B waits
+
+A: [CRITICAL SECTION]
+        |
+        v
+     unlock
+
+B: enters next
+```
+
+---
+
+# ✅ **7. Semaphore (Counting Semaphore)**
+
+### Example: Connection Pool (max 3 users)
+
+```
+Semaphore count = 3
+
+       +-------------------+
+       | Available =   3   |
+       +-------------------+
+        /      |        \
+      /        |         \
+ Thread1   Thread2    Thread3  <--- all allowed
+ 
+ Thread4
+    |
+    v
+ [ WAIT ]   (no slot)
+
+When any thread releases:
+Available = 1
+Thread4 continues
+```
+
+---
+
+# ⭐ Want stick diagrams for message queues, chat system, or distributed locks?
+
+Just tell me **“stick diagrams for chat system”** or any topic, and I’ll draw them.
