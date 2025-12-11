@@ -1,0 +1,89 @@
+### File Storage Service Design (Like OneDrive/SharePoint Backend)
+
+#### What It Is
+A distributed cloud-based file storage system allowing users to upload, store, share, download, and sync files across devices. Supports large files (up to 10GB), versioning, and multi-user collaboration with conflict handling. Scalable for 10M DAU.
+
+#### Back-of-Envelope Estimation
+- **Daily Uploads**: Assume 10M DAU, avg 5 uploads/user/day, avg file 100MB → 5TB/day total data.
+- **Storage Needs**: 10GB max/file; retain 1 year → ~1.8PB/year (with replication factor 3 → 5.4PB).
+- **Bandwidth**: Upload/download peaks at 10Gbps/server; scale to 100 servers for 1Tbps aggregate.
+- **QPS**: 10M DAU → ~1K QPS peak for APIs (upload/download/get).
+- Assumptions: 20% active hourly; compression reduces storage by 20%.
+
+#### Key Features
+- **Chunking Large Files**: Split files >100MB into 4MB chunks for parallel uploads, resumability, and efficient storage.
+- **Metadata vs Blob Separation**: Metadata (file name, owner, versions, permissions) in fast DB; blobs (actual data) in object storage (e.g., S3) for scalability.
+- **Multi-Region Replication**: Async geo-replication to 3+ regions for DR/availability; use CRDTs for metadata sync.
+- **Versioning**: Auto-version on edits; store deltas for space efficiency; retain N versions (e.g., 30 days).
+- **Conflict Resolution**: Detect via vector clocks/ETags; resolve with user prompts (keep both, merge, or latest wins).
+- **Upload Session/Resumable Uploads**: Session IDs for partial uploads; resume from failed chunks using offsets.
+
+#### APIs
+- **Upload**: POST /upload?file_id&session_id; multipart for chunks.
+- **Download**: GET /download?file_id&version; range requests for partial.
+- **Get File**: GET /files/{id}; returns metadata (name, size, versions).
+
+#### Distributed System Aspects
+- **Multiple Servers**: Horizontal scaling with load balancers; sharding by user_id/file_id.
+- **File Storage**: Use S3-like object store for blobs (durable, infinite scale); cold storage (e.g., Glacier) for infrequently accessed files (auto-tier after 90 days inactivity).
+- **Sync Conflicts**: Occur on concurrent edits (e.g., offline sync from multiple devices). Overcome: Use optimistic locking (ETags), last-write-wins, or merge tools; notify users via service.
+- **Data Sync**: Bi-directional; use change feeds (e.g., Kafka) for real-time propagation.
+- **Compression**: Client-side (gzip) before chunking; server verifies/decompresses.
+- **High Consistency Requirements**: Strong for metadata (CP in CAP); eventual for blobs (AP). Trade-off: Prioritize availability; use quorums for writes.
+
+#### Architecture Overview
+Stack Diagram (ASCII):
+
+```
+[User/Client] (App/Web) --> [CDN] (For downloads/caching)
+    |
+    v
+[Load Balancer] --> [API Servers (Scaled, Stateless)]
+    |
+    +--> [Auth & Rate Limiting]
+    |
+    v
+[Metadata Service] <--> [Metadata DB (e.g., DynamoDB/Cassandra, Sharded by user_id)]
+                   <--> [Metadata Cache (Redis Cluster)] (For hot metadata)
+    |
+    v
+[Block Servers (Scaled)] --> [Cloud Storage (S3-like Object Store)] (Hot blobs)
+                            --> [Cold Storage (Glacier-like)] (Archived blobs)
+    |
+    +--> [Message Queue (Kafka)] --> [Notification Service] (Push updates/conflicts)
+                                   --> [Offline Backup Queue] (Async backups/replication)
+    |
+    v
+[Multi-Region Replication] (Async across regions via queues)
+```
+
+- **Cloud Storage**: Refers to scalable object stores (e.g., AWS S3) for blobs; handles durability (99.999% availability), replication.
+- **Cold Storage**: Lower-cost tier for old files; slower access (hours retrieval).
+- **Notification Service**: WebSockets/Push for real-time updates (e.g., file changed).
+- **Offline Backup Queue**: Handles async tasks like versioning backups or conflict queues.
+
+#### Block Servers: Why Needed?
+Dedicated servers for handling file chunks: 
+- Isolate I/O-intensive ops from API servers (prevents bottlenecks).
+- Manage chunk assembly/validation/compression.
+- Enable parallel processing (e.g., encrypt/deduplicate chunks).
+- Scale independently for high-throughput uploads/downloads.
+
+#### Upload Flow in Detail
+1. Client requests upload session: POST /upload/init?file_name&size → API Server creates session_id, stores metadata in DB/Cache.
+2. Client chunks file (e.g., 4MB each), compresses.
+3. For each chunk: POST /upload/chunk?session_id&offset&chunk_id → API routes to Block Server.
+4. Block Server: Validates (hash check), stores chunk in temp S3 bucket, updates metadata (chunk status).
+5. On all chunks uploaded: Client calls /upload/complete?session_id → Block Server assembles (merges chunks), moves to permanent S3, versions old file if exists.
+6. If conflict (concurrent upload): Detect via metadata lock/ETag; queue for resolution.
+7. Notification Service alerts subscribers; replicate to other regions async.
+8. Resumable: If interrupted, client queries /upload/status?session_id → resumes missing chunks.
+
+#### Download Flow in Detail
+1. Client requests: GET /download?file_id&version → API Server checks auth/metadata from Cache/DB.
+2. If cached/CDN hit: Serve directly (via signed URL).
+3. Else: API generates presigned S3 URL → Client fetches blobs directly from S3/CDN.
+4. For large files: Support range requests (e.g., bytes=0-4MB) for partial/resumable.
+5. If cold storage: Trigger retrieval (async notify when ready).
+6. On sync: If device offline, queue for later push.
+7. Conflict: If versions differ, serve latest; notify if merge needed.
