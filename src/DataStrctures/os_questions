@@ -1,0 +1,426 @@
+Nice — I’ll walk through each item with clear definitions, diagrams where useful, small code/pseudocode examples, and concrete explanations of trade-offs or how to reason about correctness. I’ll keep it practical so you can use these in interviews.
+
+# Process vs Thread
+
+**Process**
+
+* An instance of a running program with its own memory space (address space), file descriptors, and resources.
+* Processes are isolated: one process cannot directly read another process’s memory.
+* Process creation is heavier (fork/spawn), involves copying or setting up page tables.
+
+**Thread**
+
+* A lightweight unit of execution within a process sharing the same address space and resources (heap, globals, file descriptors).
+* Each thread has its own program counter, registers, and stack.
+* Thread creation/switching is cheaper than process creation.
+
+**Example / consequence**
+
+* Two threads can share a global variable without IPC. Two processes need IPC (pipes, shared memory).
+* Crash of one thread can corrupt process memory; crash of a process typically doesn’t affect another process.
+
+---
+
+# How context switching works (high-level)
+
+A context switch switches the CPU from running one thread/process to another.
+
+Steps (simplified):
+
+1. **Save state** of current (process or thread): CPU registers, program counter, stack pointer, processor flags.
+2. **Update OS bookkeeping**: mark current as ready/waiting; add to ready queue.
+3. **Choose next** runnable thread/process (scheduler picks).
+4. **Restore state** of chosen context: load registers, PC, stack pointer.
+5. **Switch address space** (for processes): update MMU page table base register (CR3 on x86) so memory references map to new process. For threads in same process this step is skipped.
+
+Cost factors:
+
+* Saving/restoring registers and kernel structures (cheap).
+* Flushing TLB or switching page tables (expensive).
+* Cache effects: new context may cause cache misses (cold caches).
+
+**Micro example** (pseudocode):
+
+```text
+current_context = CPU.context
+save_registers(current_context.regs)
+current_context.state = READY
+next = scheduler.pick_ready()
+load_registers(next.regs)
+if next.process != current.process:
+    load_page_table(next.process.page_table)  // costly
+switch_to_user_mode_and_jump(next.pc)
+```
+
+---
+
+# Kernel thread vs User thread
+
+**Kernel threads**
+
+* Managed by the OS kernel (scheduler knows about them).
+* Blocking system call blocks only that thread (kernel schedules another).
+* Example: Linux `pthread` uses kernel threads (1:1).
+
+**User threads (green threads)**
+
+* Managed in user space by a runtime (user-level scheduler).
+* Kernel schedules the process, not the individual user threads.
+* If one user thread makes a blocking system call, the whole process may block (unless runtime uses non-blocking syscalls / kernel support).
+* Fast to create/schedule (no syscalls), but poor at leveraging multi-core unless mapped to kernel threads.
+
+**Trade-off example**
+
+* Erlang/Go use user-space scheduling (lightweight concurrency) but map to kernel threads or multiplex efficiently to avoid blocking.
+
+---
+
+# Deadlock
+
+**Definition:** A set of processes is deadlocked if each process in the set waits for an event (resource release) that only another process in the set can cause.
+
+**4 Coffman conditions (all must hold)**
+
+1. **Mutual exclusion** — some resources are non-sharable.
+2. **Hold and wait** — processes hold resources while waiting for others.
+3. **No preemption** — resources cannot be forcibly taken away.
+4. **Circular wait** — circular chain of processes, each waiting for a resource held by next.
+
+**How to prevent / detect / recover**
+
+Prevention (break one Coffman condition):
+
+* **Mutual exclusion:** Not possible for non-sharable resources like printers.
+* **Hold-and-wait:** Require processes to request all needed resources at once (can cause low utilization).
+* **No preemption:** Allow preemption — OS can force release (e.g., checkpoint + rollback) — complex.
+* **Circular wait:** Impose resource ordering and require processes to request resources in increasing order.
+
+Detection:
+
+* Build a resource allocation graph; run a cycle detection (for single-instance resources a cycle implies deadlock).
+* In general, run the Banker's algorithm (for avoidance) or deadlock detection periodically and kill/rollback processes in cycle.
+
+Recovery:
+
+* **Abort process(es)** until deadlock resolved (pick victim by cost).
+* **Preempt resources** (force release) — may need rollback or restart.
+* **Rollback/Checkpoint**: restart processes from a checkpoint.
+
+**Example** (resource ordering to prevent):
+
+* Assign resources IDs: R1 < R2 < R3. Always request lower ID first. This prevents cycles.
+
+---
+
+# Virtual Memory: Paging, Page Table, TLB, Page fault handling
+
+**Paging**
+
+* Physical memory divided into fixed-size frames; virtual memory divided into pages of same size.
+* Virtual address: page number + offset.
+* Page table maps virtual page numbers → physical frame numbers (or “not present” + disk location).
+
+**Page Table**
+
+* A data structure in memory storing the mapping for each virtual page.
+* Large address spaces use multi-level page tables (e.g., two-level, four-level) to avoid huge contiguous allocations.
+
+**TLB (Translation Lookaside Buffer)**
+
+* A small, fast cache that stores recent virtual→physical page translations.
+* If TLB hit → fast translation. If TLB miss → walk page table (costly), then insert mapping into TLB.
+* Context switch often flushes or tags TLB entries (expensive).
+
+**Page fault handling (high level)**
+
+1. CPU references virtual address → MMU checks TLB. If TLB miss, consult page table.
+2. If page table entry says page not present → page fault trap to OS.
+3. OS checks if access valid.
+
+   * If invalid → segmentation fault.
+   * If valid but swapped out → choose a free frame (maybe evict victim page), read page from disk (swap-in), update page table, invalidate caches/TLB as necessary.
+4. Resume instruction.
+
+**Example timeline numbers (illustrative)**
+
+* TLB hit: ~10 cycles
+* TLB miss but page in memory: ~100 cycles (page table walk)
+* Page fault (disk fetch): ~10^6 cycles (~ms) — orders of magnitude larger.
+
+---
+
+# Scheduling Algorithms (definitions + trade-offs)
+
+1. **FCFS (First Come First Serve)**
+
+   * Queue order of arrival.
+   * Simple, non-preemptive.
+   * **Trade-offs**: Can cause long average waiting time especially with long jobs (convoy effect).
+
+2. **SJF (Shortest Job First) / SRTF (Shortest Remaining Time First)**
+
+   * Schedule job with smallest execution time. SJF non-preemptive; SRTF preemptive.
+   * **Trade-offs**: Optimal average waiting time if durations are known. Hard in practice because job lengths unknown; can cause starvation of long jobs.
+
+3. **Round Robin**
+
+   * Time quantum q; run each task for q in a cyclic order.
+   * **Trade-offs**: Good for fairness and interactive systems. If q too small → lots of context switches. If q too large → behaves like FCFS.
+
+4. **Priority Scheduling**
+
+   * Each job has a priority; scheduler picks highest priority. Can be preemptive or non-preemptive.
+   * **Trade-offs**: Can implement aging to prevent starvation of low-priority tasks.
+
+**Short example**: If tasks A(10), B(1), C(1) arrive at time 0:
+
+* FCFS (A,B,C): waiting times = A:0, B:10, C:11 average=7
+* SJF (B,C,A): waiting = B:0, C:1, A:2 average≈1
+  SJF wins when you know durations.
+
+---
+
+# Synchronization primitives
+
+## Mutex vs Semaphore
+
+**Mutex**
+
+* Binary lock (0 or 1), used for mutual exclusion.
+* Ownership semantics: a thread that locks must unlock.
+* Use: protect critical sections.
+
+**Semaphore**
+
+* Counter + queue semantics.
+* **Counting semaphore** initialized to n signals number of available resources.
+* **Binary semaphore** can behave like a mutex but without strict ownership semantics.
+* `P()`/`wait()` decrements (and may block if 0); `V()`/`signal()` increments.
+
+**Example**
+
+* Mutex around a shared `balance` variable.
+* Semaphore for a pool of 5 identical printers (semaphore initialized to 5).
+
+Pseudocode:
+
+```text
+// Mutex
+lock(mutex)
+shared += 1
+unlock(mutex)
+
+// Counting semaphore (n printers)
+wait(sem)     // blocks if sem == 0
+use_printer()
+signal(sem)
+```
+
+## Spinlocks
+
+* Busy-wait lock: thread repeatedly loops checking a flag until it acquires lock.
+* Good for very short critical sections where blocking/sleep is more expensive than spinning.
+* Bad for long waits or many cores contending — wastes CPU.
+
+Simple spinlock (pseudo-atomic test-and-set):
+
+```c
+while (atomic_test_and_set(&lock)) {
+    // spin
+}
+// critical section
+atomic_clear(&lock);
+```
+
+Use on multiprocessors when hold time is expected to be extremely short, or in kernel contexts where sleeping isn't allowed.
+
+## Readers–writers problem
+
+* Allow multiple readers simultaneously, but writers need exclusive access.
+* Variants: **Readers priority**, **Writers priority**, **Fair**.
+
+Basic readers-writers with reader count:
+
+```text
+// Reader
+wait(mutex)         // protect read_count
+read_count += 1
+if read_count == 1: wait(resource)  // first reader locks resource
+signal(mutex)
+read()
+wait(mutex)
+read_count -= 1
+if read_count == 0: signal(resource) // last reader releases resource
+signal(mutex)
+
+// Writer
+wait(resource)
+write()
+signal(resource)
+```
+
+**Trade-offs**: Reader-priority can starve writers; writer-priority can starve readers. Fair solutions require queueing.
+
+---
+
+# CPU Caches: L1/L2/L3, locality, false sharing
+
+**Cache levels**
+
+* **L1**: smallest & fastest, split I-cache and D-cache on many CPUs (per core).
+* **L2**: larger, slower than L1, often per-core.
+* **L3**: largest, slower, often shared between cores.
+
+**Cache lines**
+
+* Memory fetched in blocks called cache lines (e.g., 64 bytes).
+
+**Locality**
+
+* **Temporal locality**: reuse same data soon (stay in cache).
+* **Spatial locality**: use data located near recently used data (same cache line).
+
+Example: Iterating sequential array has strong spatial locality; accessing random indices has poor locality.
+
+**False sharing**
+
+* Two threads modify different variables that reside on the same cache line → cache coherence protocol causes invalidations and poor performance even though variables are independent.
+
+Example:
+
+```c
+struct { int a; int pad[15]; } A;
+struct { int b; int pad[15]; } B;
+// Good: a and b on different cache lines
+```
+
+Bad example (false sharing):
+
+```c
+struct { int a; int b; } S; // a and b likely same cache line
+// Thread1 updates a; Thread2 updates b -> cache ping-pong
+```
+
+**Mitigation**
+
+* Pad variables so frequently written variables used by different threads are on different cache lines.
+* Align data structures to cache line boundaries.
+
+---
+
+# Memory Models & Concurrency
+
+## Happens-before
+
+* A relation used in memory models (Java Memory Model, C++ memory model) to reason about visibility and ordering of operations.
+* If `A` happens-before `B`, then effects of `A` are visible to `B`.
+* Examples of happens-before edges:
+
+  * Program order within a thread (earlier operations happen-before later ones).
+  * Unlock happens-before subsequent lock of same mutex.
+  * A write to a `volatile` (Java) happens-before subsequent reads of that volatile.
+  * Sends and receives in message-passing systems when synchronized.
+
+**Interview example**
+
+* Thread1: `x = 1; flag = true;`
+  Thread2: `if (flag) print(x);`
+  If there is no happens-before edge from writes to reads, Thread2 may see `flag == true` but still see stale `x` unless `flag` write establishes happens-before (depends on memory model & use of atomic/volatile).
+
+## Atomic operations
+
+* Single CPU instruction that completes indivisibly: e.g., test-and-set, compare-and-swap (CAS), fetch-and-add.
+* Used to implement lock-free data structures.
+
+**CAS example (pseudocode)**:
+
+```c
+// atomic_compare_and_swap(addr, expected, new) returns true if swapped
+do {
+    old = *addr
+} while (!CAS(addr, old, old+1));
+```
+
+Atomic primitives avoid locks but require careful design to avoid ABA problem (use versioning/tagging).
+
+## Race conditions
+
+* When two threads access the same memory location concurrently and at least one operation is a write, and there is no ordering (synchronization), results are unpredictable.
+
+**Example in C-like pseudocode (NOT synchronized)**:
+
+```c
+int counter = 0;
+
+// Thread A
+temp = counter
+temp = temp + 1
+counter = temp
+
+// Thread B (concurrent)
+temp = counter
+temp = temp + 1
+counter = temp
+```
+
+Possible outcome: counter becomes 1 instead of 2 due to interleaving.
+
+**Fix using atomic**:
+
+```c
+atomic_fetch_add(&counter, 1)
+```
+
+or mutex:
+
+```c
+lock(mutex)
+counter += 1
+unlock(mutex)
+```
+
+---
+
+# Quick concrete code examples (to demonstrate race and atomic)
+
+Race example (C-like interleaving):
+
+* Start: `counter=0`
+* Thread A reads 0 into `tempA`
+* Thread B reads 0 into `tempB`
+* Thread A writes `tempA+1 = 1` → counter becomes 1
+* Thread B writes `tempB+1 = 1` → counter stays 1 (lost update)
+
+Atomic fix using CAS (pseudo):
+
+```c
+void increment(int *addr) {
+  int old;
+  do {
+    old = *addr;
+  } while (!CAS(addr, old, old+1));
+}
+```
+
+---
+
+# Interview-style summary / mental checklist
+
+* When asked about processes vs threads: emphasize isolation, resources, cost of context switch, and crash domains.
+* For context switching: mention register save/restore, TLB/page-table switches, cache effects.
+* For deadlock: recite 4 Coffman conditions, give prevention/detection/recovery techniques and a small example of resource ordering.
+* For virtual memory: explain paging→TLB→page fault; stress the cost difference between TLB hit and page fault.
+* For scheduling: pick an algorithm and justify trade-offs with an example (convoy effect, starvation, context-switch cost).
+* For synchronization: explain mutex vs semaphore with examples, spinlocks use-case, readers-writers code, and starvation solutions.
+* For caches: explain cache lines, spatial/temporal locality and false sharing with memory layout example.
+* For memory model: explain happens-before, give visibility example, and show how atomics/CAS fix races.
+
+---
+
+If you want, I can:
+
+* Convert this into a 1-page quick reference PDF.
+* Give 10 short interview questions (with one-line answers) covering all these topics.
+* Provide runnable code examples (C/Java) demonstrating race vs atomic fixes with a dry run showing register/variable values step-by-step.
+
+Which of those should I do next?
