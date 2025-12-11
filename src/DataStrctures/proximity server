@@ -1,0 +1,116 @@
+### Proximity Server Design
+
+#### What It Is
+A proximity server is a distributed system that enables efficient querying of nearby entities (e.g., users, points of interest like restaurants) based on geographic coordinates (lat/long). Used in apps like ride-sharing (find drivers), social (nearby friends), or delivery (nearby stores). Handles location updates and radius-based searches.
+
+#### Requirements (FAANG Focus: Clarify Ambiguities)
+- **Functional**:
+  - Update location: POST /update?user_id&lat&lon&timestamp (real-time or periodic).
+  - Query nearby: GET /nearby?lat&lon&radius_km&max_results (return sorted by distance/relevance).
+  - Support filters (e.g., category for POIs).
+- **Non-Functional**:
+  - Latency: <100ms for queries.
+  - Throughput: 10K QPS peak.
+  - Availability: 99.99% (multi-region).
+  - Scalability: Handle 100M users, 1B locations.
+  - Accuracy: Approximate (trade precision for speed).
+  - Privacy: Anonymize locations if needed.
+- **Assumptions**: Dynamic locations (e.g., mobile users); static for POIs. Radius up to 10km typical.
+
+#### Back-of-Envelope Estimation (FAANG Focus: Scale Justification)
+- **Users/DAU**: 100M users, 10M DAU (10% active).
+- **Updates**: 5 updates/user/day → 50M/day (~600 QPS avg, 6K peak).
+- **Queries**: 10 queries/user/day → 100M/day (~1.2K QPS avg, 12K peak).
+- **Storage**: Per location: 100 bytes (user_id:8B, lat/lon:16B, timestamp:8B, metadata:68B) → 100M users * 10 historical → 1TB (with indexing).
+- **Bandwidth**: Query response: 1KB (10 results) → 120MB/s peak.
+- **Compute**: Query cost: O(log N) with indexing → Scale to 100 servers.
+
+#### CAP Theorem Trade-offs in Proximity Server
+- **Overview**: CAP states a distributed system can provide at most two of Consistency (C: all nodes see same data), Availability (A: every request gets response), Partition Tolerance (P: handles network splits). In proximity server, prioritize AP (eventual consistency) due to geo-distributed nature and high availability needs.
+- **Trade-offs**:
+  - **Consistency vs. Availability**: Sacrifice strong C for A; 
+  use eventual C (e.g., async replication) to ensure queries respond even if data stale (trade-off: Possible outdated nearby results during partitions).
+  - **Consistency vs. Partition Tolerance**: P is non-negotiable in distributed geo-systems; 
+  compromise C (e.g., read from local replica during split, accept stale data).
+  - **Availability vs. Partition Tolerance**: Rarely compromised; 
+  A prioritized over perfect P handling (e.g., quorum writes ensure progress in minor partitions).
+- **What Can Be Compromised?**: Consistency is most often compromised 
+(e.g., allow brief inconsistencies in location updates for uninterrupted service). Use techniques like CRDTs or vector clocks to mitigate, 
+but full ACID not feasible at scale.
+
+#### Data Model (FAANG Focus: Efficient Indexing)
+- **Location Entity**: user_id (PK, string), lat (float), lon (float), timestamp (int), geohash (string, indexed), s2_cell_id (string, optional index), metadata (JSON: e.g., category).
+- **Storage**: NoSQL like Cassandra (for high writes) or Postgres with PostGIS extension (for spatial queries). Shard by geohash prefix.
+- **Indexing**: Use geohash or S2 for spatial partitioning; B-tree on timestamp for freshness.
+
+#### What is GeoHashing? (FAANG Focus: Spatial Indexing Basics)
+GeoHashing encodes lat/long into a base-32 string (e.g., "9q8y" for SF area). **How**: Interleave lat/lon bits, convert to base-32. Prefix length determines precision (e.g., 5 chars ~1km). **Why**: Enables proximity via prefix matching (e.g., query "9q8" covers nearby cells). Pros: Simple, hierarchical. Cons: Edge cases at boundaries (query multiple prefixes). Used in Redis GEO.
+
+#### What is Google S2? (FAANG Focus: Advanced Spatial)
+Google S2 is a library for spherical geometry, dividing Earth into hierarchical cells using Hilbert space-filling curve. **How**: Maps lat/long to 64-bit cell IDs; levels 0-30 (level 10 ~1km). **Why**: Preserves proximity better than geohash (no boundary issues due to curve); supports unions/intersections. Pros: Efficient range scans, covers poles/edges. Cons: Complex implementation. Used in BigQuery, Uber's H3 variant.
+
+#### High-Level Design (FAANG Focus: Components, Data Flow, Trade-offs)
+- **Approach**: Hybrid indexing (geohash for fast filtering + Haversine for exact distance). Fanout updates to indexes. Query: Fetch candidates from index, filter/rank.
+- **Scalability**: Horizontal sharding (by geohash prefix or user_id). Replication for HA. Auto-scale brokers/consumers. CAP: AP prioritized (eventual consistency for locations).
+- **Trade-offs**: GeoHash vs S2: GeoHash simpler/faster for small radii; S2 better for large/uneven areas. SQL vs NoSQL: NoSQL for scale, SQL for complex joins.
+- **Edge Cases**: High-density areas (e.g., cities): Shard finer. Moving users: TTL on old locations. Privacy: Jitter lat/long. Failures: Retry updates, cache queries.
+- **Monitoring**: Metrics (latency, QPS, error rate); alerts on shard imbalance. Logging for audits.
+
+#### Block Diagram (High-Level Architecture)
+ASCII Diagram:
+
+```
+[Client (App)] --> [CDN] (Static maps/images)
+    |
+    v
+[Load Balancer] --> [API Servers (Scaled, Stateless)]
+    |               |
+    |               +--> [Auth & Rate Limiting]
+    |
+    +--> Update Flow: [Message Queue (Kafka)] --> [Index Workers (Scaled)]
+    |                                           |
+    |                                           +--> [Geo Index DB (Cassandra/Redis GEO, Sharded by Geohash/S2)]
+    |
+    +--> Query Flow: [Cache (Redis Cluster)] <--> [Query Service]
+                        |                           |
+                        |                           +--> [Fetch Candidates] --> [Rank by Distance (Haversine)]
+                        |                           |
+                        +--> Miss? --> [Geo Index DB Query (Prefix/S2 Cover)]
+    |
+    v
+[Multi-Region Replication] (Async for DR)
+    |
+    +--> [Cold Storage] (Archives old locations)
+    |
+    +--> [Monitoring (Prometheus)] & [Logging (ELK)]
+```
+
+- **Components & Why Needed**:
+  - **Client**: Sends updates/queries (mobile/web).
+  - **CDN**: Caches static assets (low latency).
+  - **Load Balancer**: Distributes traffic (scalability).
+  - **API Servers**: Handle requests (stateless, auto-scale).
+  - **Message Queue**: Decouples updates (async, buffering bursts).
+  - **Index Workers**: Compute geohash/S2, insert to DB (parallel processing).
+  - **Geo Index DB**: Stores indexed locations (fast range queries; sharded for scale).
+  - **Cache**: Hot queries (reduce DB load; TTL 1min).
+  - **Query Service**: Filters/ranks results (compute-intensive; GPU for ML ranking if needed).
+  - **Replication**: Fault tolerance (availability).
+  - **Cold Storage**: Cost savings for historical data.
+  - **Monitoring/Logging**: Observability (detect issues).
+
+#### Deep Dive: Update Flow
+1. Client sends update → API validates → Queue event.
+2. Worker pulls, computes geohash/S2 → Inserts to sharded DB (idempotent).
+3. Replicate async.
+
+#### Deep Dive: Query Flow
+1. API receives query → Check cache.
+2. Miss: Compute query geohash prefixes/S2 covering cells (e.g., 9 cells for radius).
+3. Scan DB for matches → Fetch ~10x candidates.
+4. Exact distance filter (Haversine formula) → Sort/top K.
+5. Cache result → Return.
+
+#### FAANG Wrap-Up: Alternatives & Optimizations
+- Alternatives: Quad trees (simpler but less scalable), R-trees (in DBs like Mongo).
+- Optimizations: ML for relevance (beyond distance). Batch updates. Read replicas for queries.
