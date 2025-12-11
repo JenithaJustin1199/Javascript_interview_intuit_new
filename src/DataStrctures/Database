@@ -1,0 +1,473 @@
+Absolutely — here is a **clean and deep SDE-2 level explanation** of all the important DB fundamentals asked in Google, Meta, Amazon, Netflix.
+
+I’ll cover each topic with:
+**Definition → Why it matters → Example → Trade-offs (what interviewer wants to hear).**
+
+---
+
+# ✅ **1. Indexing**
+
+## **B+ Tree Index**
+
+Most relational DBs (MySQL, Postgres) use **B+ Trees** for indexes.
+
+### **Why B+ Tree?**
+
+* Balanced (height is very small, usually 3–4)
+* Disk friendly
+
+  * Nodes match disk-page sizes (4 KB)
+  * Minimize I/O operations
+* Range queries are extremely fast (`BETWEEN`, `<`, `>`)
+
+### **Structure**
+
+* Internal nodes = keys only.
+* Leaf nodes = **keys + full row pointer** (or primary key).
+* Leaf nodes form a linked list (great for range scan).
+
+### **Example**
+
+Table: `users(id, name, age)`
+Index on `age`
+
+Query:
+
+```sql
+SELECT * FROM users WHERE age BETWEEN 25 AND 30;
+```
+
+DB goes to first leaf with 25, then scans leaf nodes linearly until 30.
+
+### **Big benefit**
+
+O(log n) to find starting point + linear scan → **very efficient**.
+
+---
+
+# ✅ **2. Clustered vs Non-Clustered Index**
+
+### **Clustered Index**
+
+* Table **data itself is stored ordered** by this index.
+* Only *one* per table.
+* Usually the **primary key**.
+* Leaf node of index = **actual row data**.
+
+Example (InnoDB):
+`PRIMARY KEY(id)` → rows physically ordered by `id`.
+
+**Use-cases:**
+Range queries: `id between 100 and 200`
+
+---
+
+### **Non-Clustered Index**
+
+* Separate index structure.
+* Leaf nodes store **pointer to row** (PK or physical addr).
+* You can have many non-clustered indexes.
+
+Example:
+Index on `email`
+Search finds email → then jumps to PK → then fetches full row.
+
+**Use-cases:**
+Equality lookup on non-PK column.
+
+---
+
+# Why Indexes Speed Up Reads but Slow Down Writes?
+
+### Speed up reads:
+
+* Lookup becomes O(log n) instead of O(n) full scan.
+* Range queries become super fast on B+Tree.
+
+### Slow down writes:
+
+When you insert/update/delete a row:
+
+1. Modify actual table row
+2. Modify all indexes built on that table
+
+   * Must update B+ Tree structure
+   * Node splits, rebalancing
+   * Disk writes
+
+**If table has 7 indexes → one INSERT causes 8 writes.**
+
+---
+
+# ✅ **3. Transactions — ACID**
+
+### **A → Atomicity**
+
+All operations succeed or none.
+
+Example:
+
+```sql
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+```
+
+If second fails → rollback both → no money lost.
+
+---
+
+### **C → Consistency**
+
+Transaction moves DB from one valid state to another.
+
+Example:
+
+* You cannot break foreign key constraints.
+* You cannot withdraw more than balance if rules forbid it.
+
+---
+
+### **I → Isolation**
+
+Concurrent transactions should not interfere.
+
+---
+
+### **D → Durability**
+
+Once committed → data is persisted (WAL, log buffer flushed to disk).
+
+---
+
+# Isolation Levels (Most important for FAANG)
+
+| Level            | Problems prevented                    |
+| ---------------- | ------------------------------------- |
+| Read Uncommitted | —                                     |
+| Read Committed   | Prevents dirty reads                  |
+| Repeatable Read  | Prevents dirty + non-repeatable reads |
+| Serializable     | Prevents all including phantom reads  |
+
+---
+
+### Phantom Reads
+
+Your query finds *more rows* the second time, even within same transaction.
+
+Example:
+
+T1:
+
+```sql
+SELECT * FROM orders WHERE price > 100;
+-- returns 3 rows
+```
+
+T2 inserts a new row:
+
+```sql
+INSERT INTO orders(price) VALUES(150);
+```
+
+T1 again:
+
+```sql
+SELECT * FROM orders WHERE price > 100;
+-- returns 4 rows (phantom)
+```
+
+---
+
+### Repeatable Read vs Phantom
+
+* **Repeatable Read** ensures same row **values** each time
+  (no modification by others)
+* But **new rows** may appear → phantom.
+
+---
+
+# Deadlocks in DB
+
+### Example scenario
+
+T1:
+
+```sql
+UPDATE accounts SET balance = balance + 100 WHERE id = 1;
+```
+
+T2:
+
+```sql
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+```
+
+Then they lock each other’s rows in reverse order.
+
+### How DB Detects Deadlock?
+
+* Every transaction holds locks.
+* DB builds a **wait-for graph**.
+* If graph has a **cycle** → deadlock detected automatically.
+
+### Resolution
+
+DB:
+
+* Aborts one transaction (“victim”)
+* Returns an error `Deadlock found; try resetting transaction`
+* The other transaction continues.
+
+---
+
+# Sharding
+
+## Horizontal Sharding (“shard by rows”)
+
+Split table by rows based on key (user_id, country, hash).
+
+Example:
+
+```
+Shard 1 → user_id 1–1M
+Shard 2 → user_id 1M–2M
+Shard 3 → user_id 2M–3M
+```
+
+Benefits:
+
+* Horizontal scalability
+* Each shard smaller → fast queries
+* Independent scaling
+
+---
+
+## Vertical Sharding (“shard by columns”)
+
+Split table into different column groups.
+
+Example:
+
+```
+users_basic(user_id, name, email)
+users_profile(user_id, bio, address, age)
+```
+
+Benefits:
+
+* Reduce row size for frequent access
+* Move heavy columns to another server
+
+---
+
+## Consistent Hashing
+
+Used for distributed systems (Redis Cluster, DynamoDB).
+
+Instead of:
+
+```
+shard = key % N   (bad if N changes)
+```
+
+Consistent hashing:
+
+* All shards placed on a ring
+* Key hashes to a point on ring
+* Goes to next clockwise shard
+
+### Advantage:
+
+If a shard is added/removed:
+
+* Only **few keys** need to be moved (not all).
+
+---
+
+## Rebalancing Shards
+
+When a shard becomes too large:
+
+1. Split shard into two
+2. Move some ranges/hashes to a new shard
+3. Update metadata/routers
+4. Ensure replication before switching traffic
+
+Tools:
+MySQL Fabric, Vitess, Dynamo partition manager.
+
+---
+
+# Replication
+
+## **1. Leader–Follower**
+
+* Leader handles all writes
+* Followers replicate log asynchronously
+
+Benefit:
+
+* Read scalability
+* Easy failover
+
+Issue:
+
+* Replication lag (eventual consistency)
+
+---
+
+## **2. Read Replicas**
+
+Followers serve only reads:
+
+```
+SELECT ... FROM followers
+UPDATE ... ON primary
+```
+
+Example:
+
+* MySQL read replicas behind a load balancer.
+
+---
+
+## **3. Multi-Leader Replication**
+
+Multiple leaders can accept writes.
+
+Used in:
+
+* DynamoDB
+* Cassandra
+* Conflict resolution needed (timestamps, vector clocks)
+
+Benefit:
+
+* High availability
+* Geo-distributed writes
+
+Issue:
+
+* Conflicts (last-write-wins or CRDTs used)
+
+---
+
+# SQL Joins — How They Work Internally
+
+## **Hash Join (used when no index)**
+
+Steps:
+
+1. Hash smaller table into hash table in memory
+2. Scan larger table
+3. For each row → probe hash table
+
+Example:
+
+```sql
+SELECT * FROM users u
+JOIN orders o ON u.id = o.user_id;
+```
+
+Used for:
+
+* Equality joins
+* Large tables
+* No indexes
+
+---
+
+## **Merge Join (needs sorted data)**
+
+Steps:
+
+1. Both tables must be sorted on join key
+2. Walk through both lists like merge in merge sort
+3. Match equal keys
+
+Used for:
+
+* Range joins
+* When sorted index exists
+* Very fast when pre-sorted
+
+Example:
+
+```sql
+SELECT ... FROM A JOIN B ON A.id = B.id;
+```
+
+If both have primary key index → extremely fast.
+
+---
+
+# OLTP vs OLAP
+
+## **OLTP — Online Transaction Processing**
+
+Focus:
+
+* Many small fast transactions
+* Read/write mix
+* Real-time user interactions
+
+Examples:
+
+* Banking system
+* E-commerce checkout
+* Ride app (Uber trips table)
+
+Characteristics:
+
+* Normalized schema
+* Lots of indexes
+* ACID guaranteed
+* Small queries (SELECT 1 row)
+
+---
+
+## **OLAP — Online Analytical Processing**
+
+Focus:
+
+* Complex analytical queries
+* Aggregations, reporting
+* Historical data
+
+Examples:
+
+* Analytics dashboards
+* BI reports
+* Monthly sales trends
+
+Characteristics:
+
+* Denormalized tables (Star schema)
+* Columnar storage (Redshift, BigQuery)
+* Reads only (rare writes)
+* Multi-GB scans
+
+---
+
+# Quick Real-World Example
+
+## Uber:
+
+* **OLTP** = assign driver to ride
+* **OLAP** = number of rides per city per month
+
+## Amazon:
+
+* **OLTP** = place order
+* **OLAP** = what categories sold best on Black Friday?
+
+---
+
+# If you want, I can also provide:
+
+✅ 30 DB interview questions with ideal SDE-2 answers
+✅ DB cheat-sheet PDF
+✅ Example queries showing phantom reads, deadlocks, index usage
+✅ Diagrams of B+ Trees, hash join, merge join
+
+Tell me what you want next!
