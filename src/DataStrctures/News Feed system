@@ -1,0 +1,124 @@
+### Scalable News Feed System Design
+
+#### Key Blocks Involved
+- **User Service**: Handles user profiles, friendships/follows.
+- **Feed Service**: Generates and retrieves personalized feeds.
+- **Post Service**: Manages post creation, storage.
+- **Fanout Service**: Distributes new posts to followers' feeds (push model).
+- **Timeline Service**: Pulls and merges feeds on-demand (pull model for hybrids).
+- **Storage Layer**: Databases (e.g., Cassandra for timelines, MySQL for metadata).
+- **Cache Layer**: Redis/Memcached for hot data.
+- **Message Queue**: Kafka/RabbitMQ for async publishing.
+- **CDN**: For media delivery (images/videos in posts).
+
+#### CDN Role
+- Integrates in media handling: Posts store media_urls pointing to CDN (e.g., AWS CloudFront).
+- Publishing: Upload media to storage (S3) → CDN caches/distributes.
+- Retrieval: Clients fetch media directly from CDN edges for low latency/global scalability; reduces origin server load.
+
+#### Data Models
+- **User**: ID (PK), name, followers/list (as sets or graphs).
+- **Post**: ID (PK), user_id (FK), content, timestamp, media_urls.
+- **Timeline**: User_id (PK), post_ids (sorted set by timestamp, sharded).
+- **Friendship**: User_id (PK), follower_id (set).
+- Use NoSQL (e.g., Cassandra) for timelines due to high writes/reads; relational DB for users/posts.
+
+#### CAP Theorem Trade-offs
+- **Consistency vs. Availability**: Prioritize availability (AP) over strong consistency; use eventual consistency for feeds (stale reads ok for social feeds).
+- **Partition Tolerance**: Assumed in distributed systems; handle via sharding (user_id hashing).
+- Trade-off: Sacrifice immediate consistency for scalability (e.g., delayed fanout in outages).
+
+#### Edge Cases in Distributed Systems & Scalability Handling
+- **High Fanout for Celebrities**: Limit push to top N followers; fallback to pull for others. Scale: Shard timelines by user_id.
+- **Thundering Herd**: Cache invalidation storms; handle with lease-based caches or staggered expirations.
+- **Network Partitions**: Use quorum reads/writes; fallback to local replicas.
+- **Hot Shards**: Rebalance shards dynamically (e.g., via consistent hashing).
+- **Data Skew**: Monitor and migrate high-traffic users to dedicated shards.
+- Scalability: Horizontal scaling (add nodes), microservices, auto-scaling groups; aim for O(1) ops via indexing.
+
+Client (App/Web)
+    |
+    v
+[CDN] (Media Delivery)
+    |
+    +--> [Static Assets/Images/Videos]
+    |
+    v
+[Load Balancer] (Distributes Traffic)
+    |
+    +--> [API Servers (Multiple Instances)]
+           |
+           v
+       [API Gateway]
+           |
+           +--> [Auth & Rate Limiting]
+           |
+           v
+[Services Layer] (Microservices, Scaled Horizontally)
+    |
+    +--> [User Service] <--> [DB (MySQL/Sharded)]
+    |
+    +--> [Post Service] <--> [DB (Cassandra)]
+           |
+           v
+       [Message Queue (Kafka)] --> [Fanout Workers (Scaled)]
+                                       |
+                                       v
+                                   [Timeline DB (Cassandra, Sharded by User ID)]
+    |
+    +--> [Feed Service] <--> [Cache (Redis Cluster)]
+           |
+           +--> [Timeline Query/Merge/Rank]
+           |
+           v
+       [Response Back to Client]
+    |
+    +--> Monitoring/Logging (e.g., Prometheus/ELK)
+
+#### Feed Publishing Deep Dive (Push Model)
+Stack Diagram (ASCII):
+
+```
+[User] --> [API Gateway] --> [Post Service]
+                           |
+                           v
+                     [Message Queue (Kafka)]
+                           |
+                           v
+                     [Fanout Workers] --> [Timeline DB (Cassandra)]
+                                           |
+                                           v
+                                     [User Timelines] (sharded by user_id)
+```
+
+- Process: User posts → Queue event → Workers fetch followers → Append post_id to each follower's timeline (async, batched).
+- Deep Dive: Batch fanouts (e.g., 500/follower group) to reduce writes; use write-ahead logs for durability; handle failures with retries/idempotency.
+
+#### Feed Retrieval Architecture (Hybrid Push-Pull)
+Stick Diagram (ASCII):
+
+```
+[User Request] --> [API Gateway] --> [Feed Service]
+                                      |
+                                      v
+                                [Cache Check (Redis)]
+                                      |
+                          Hit? --> [Return Feed]
+                                      |
+                          Miss? --> [Timeline DB Query]
+                                      |
+                                      +--> [Pull from Followees if needed]
+                                      |
+                                      v
+                                [Merge & Rank] --> [Cache Backfill]
+```
+
+- Process: Query user's timeline (top K posts); if incomplete (e.g., cold start), pull recent posts from followees and merge by timestamp/rank.
+- Ranking: Simple (timestamp) or ML-based (engagement scores).
+
+#### Cache Architecture
+- **Levels**: L1 (in-memory per node), L2 (distributed Redis cluster).
+- **Strategy**: Cache timelines as serialized lists (TTL: 5-10 min); invalidate on publish.
+- **Eviction**: LRU for hot users; warm-up caches via prefetch.
+- **Consistency**: Read-through/write-through; use pub-sub for invalidations.
+
