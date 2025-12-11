@@ -1,0 +1,153 @@
+### Step 1: Clarify Requirements
+
+In a FAANG system design interview, start by clarifying the scope to align with the interviewer. For designing Google Maps, I'd ask questions like:
+- Focus: Core features (e.g., search, directions, maps rendering) or full ecosystem (e.g., including Street View, real-time collaboration)?
+- User base: Global scale, assuming billions of users?
+- Constraints: Mobile/web, real-time traffic, offline support?
+
+Assuming a core version similar to Google Maps:
+
+#### Functional Requirements (FRs)
+- **Search**: Users search for locations, places (e.g., restaurants), or addresses. Support autocomplete, fuzzy matching.
+- **Map Rendering**: Display interactive maps with zoom, pan, satellite/terrain views.
+- **Directions and Navigation**: Provide routes for driving, walking, transit, biking. Include ETA, alternatives, real-time updates.
+- **Traffic and Real-Time Data**: Show live traffic, incidents, ETA adjustments.
+- **User Features**: Save favorites, share locations, user reviews/ratings.
+- **Offline Support**: Basic map download and navigation without internet.
+
+#### Non-Functional Requirements (NFRs)
+- **Scalability**: Handle 1B+ monthly active users (MAUs), peak QPS in millions.
+- **Latency**: <200ms for search/directions, <1s for map tiles.
+- **Availability**: 99.99% uptime (global distribution).
+- **Data Freshness**: Real-time traffic updates every 1-5 minutes.
+- **Storage**: Petabytes for map data (roads, POIs, imagery).
+- **Security/Privacy**: GDPR compliance, anonymized location data.
+- **Cost Efficiency**: Optimize for compute/storage costs at scale.
+
+Edge cases: High-traffic events (e.g., disasters), poor connectivity, accessibility (e.g., voice navigation).
+
+### Step 2: Back-of-Envelope Estimations
+
+Estimate scale to inform design decisions. Assumptions based on public data (Google Maps has ~1B MAUs).
+
+- **Users**: 1B MAUs → ~100M daily active users (DAUs, 10% daily usage).
+- **QPS (Queries Per Second)**:
+  - Search: 20% of users search daily → 20M searches/day → ~230 QPS average, peak 5x = 1,150 QPS.
+  - Directions: 10% request routes → 10M/day → ~115 QPS, peak 575 QPS.
+  - Map Tiles: Each session loads 100 tiles → 100M sessions/day * 100 = 10B tiles/day → ~115K QPS, peak 500K+ QPS (most bursty).
+  - Traffic Updates: 50M active navigation sessions/day, updates every 60s → ~800 QPS.
+  - Total Peak QPS: ~1M (dominated by tiles).
+
+- **Data Size**:
+  - Map Data: Global roads ~100M km, POIs ~200M. Each road segment: 100 bytes (coords, metadata) → ~10GB compressed. Tiles: 256x256 pixels, millions of zoom levels → petabytes (e.g., 10PB total imagery/tiles).
+  - User Data: 1B users * 1KB (favorites, history) → 1TB.
+  - Traffic Data: Real-time for major cities, ~1M sensors/probes → 100GB/day raw, retained 1 week → 700GB.
+  - Total Storage: 10-50PB, sharded across regions.
+
+- **Bandwidth**:
+  - Tile Downloads: 10B tiles/day * 10KB/tile → 100TB/day → ~1GB/s average, peak 5GB/s.
+  - Uploads: User location probes for traffic (opt-in) → 50M users * 1KB/update every 10s → massive, but aggregated.
+
+- **Compute**:
+  - Routing: Dijkstra/A* per request, graph with 1B nodes/edges → 10ms CPU/request → need ~10K cores for peak.
+  - Cost: At AWS rates, storage ~$0.02/GB/month → $200K/month for 10PB. Compute: Scale with autoscaling groups.
+
+These estimates highlight needs for caching (tiles), sharding (data), and edge computing (low latency).
+
+### Step 3: Data Model
+
+Design a flexible, scalable model. Use a combination of relational, NoSQL, and graph databases.
+
+- **Core Entities**:
+  - **Locations/POIs**: ID, name, lat/long, category, ratings, reviews. Stored in NoSQL (e.g., DynamoDB) for fast reads.
+  - **Road Network**: Graph model – Nodes (intersections: lat/long, ID), Edges (segments: length, speed limit, traffic weight). Use graph DB like Neo4j or custom in-memory for routing.
+  - **Tiles**: Pre-rendered images/metadata at zoom levels (e.g., quadtree indexing). Stored in blob storage (S3) with CDN.
+  - **Users**: ID, preferences, saved locations, history. Relational DB (e.g., MySQL) for ACID transactions, sharded by user ID.
+  - **Traffic Data**: Time-series – Segment ID, timestamp, speed, incidents. Use Cassandra/TimeSeries DB for high-write throughput.
+  - **Routes**: Transient, computed on-the-fly; cache popular ones.
+
+- **Schema Example (Simplified)**:
+  - POI Table (NoSQL): { poi_id: string, name: string, coords: {lat: float, long: float}, metadata: json }
+  - Graph Edge: { from_node: id, to_node: id, weight: float (distance/time), type: enum }
+  - Traffic: { segment_id: string, timestamp: datetime, avg_speed: float, volume: int }
+
+- **Indexing**: Spatial indexes (e.g., R-trees in PostGIS) for geo-queries. Full-text search (Elasticsearch) for autocomplete.
+
+Trade-offs: Graph for routing efficiency vs. relational for user data consistency.
+
+### Step 4: High-Level Design
+
+Decompose into microservices for modularity. Focus on scalability, fault tolerance.
+
+#### Key Components
+- **Frontend**: Mobile/web apps. Use React Native/WebGL for rendering. Offline: Service workers cache tiles/routes.
+- **API Gateway**: Handles auth, rate-limiting (e.g., API keys). Routes to services.
+- **Search Service**: Autocomplete via trie/Elasticsearch. Geo-search with bounding boxes.
+- **Routing Service**: Computes paths using A*/Contraction Hierarchies on sharded graph. Real-time: Adjust weights via traffic data.
+- **Tile Service**: Serves pre-generated tiles from CDN (e.g., CloudFront). Dynamic overlays (traffic) via vector tiles.
+- **Traffic Service**: Aggregates probe data (from users/devices), ML for predictions. Pub/sub for real-time updates (Kafka).
+- **User Service**: Manages profiles, personalization.
+- **Data Ingestion**: ETL pipelines for map updates (from OpenStreetMap-like sources, satellite imagery).
+- **Monitoring**: Prometheus/Grafana for metrics, alerting.
+
+#### Block Diagram Description
+Imagine a layered architecture (text-based representation):
+
+```
+[Users (Mobile/Web)] <-> [CDN (Tiles, Static Assets)]
+                          |
+[API Gateway (Auth, Load Balancer)] <-> [Frontend Cache (Redis)]
+                          |
+                +-----------------+
+                |                 |
+[Search Service] [Routing Service] [Traffic Service] [User Service]
+(Elasticsearch)  (Graph Servers)   (ML Models, Kafka) (MySQL Shards)
+                |                 |
+          [Spatial DB (PostGIS)]  [Time-Series DB (Cassandra)]
+                          |
+                   [Blob Storage (S3) for Tiles/Imagery]
+                          |
+               [Data Pipelines (Airflow) for Updates]
+```
+
+- **Flow Example**: User searches "coffee near me" → API Gateway → Search Service (geo-query DB) → Returns POIs → Frontend renders on map.
+- **Scalability Features**: Horizontal scaling (Kubernetes pods), auto-scaling based on QPS. Sharding: By geo-region (e.g., NA, EU servers). Replication: Multi-AZ for HA.
+- **Caching**: Redis for hot tiles/routes (TTL 5min). Edge caching at CDN.
+- **Offline**: App downloads tile packs, local routing graph subset.
+
+### Step 5: Scalability and Reliability
+
+- **Horizontal Scaling**: Stateless services (search/routing) via load balancers. Stateful (graphs) via consistent hashing.
+- **Sharding**: Geo-based (e.g., by continent) to reduce latency/cross-region traffic.
+- **Replication**: Master-slave DBs, eventual consistency for non-critical data.
+- **Fault Tolerance**: Circuit breakers (Hystrix), retries, graceful degradation (e.g., fallback to static routes).
+- **Bottlenecks**: Routing compute – mitigate with pre-computed hierarchies. Storage – use compression, tiered (hot/cold).
+
+### Step 6: CAP Theorem and Trade-offs
+
+CAP Theorem: In distributed systems, choose 2 of Consistency (all nodes see same data), Availability (every request gets response), Partition Tolerance (system works despite network partitions).
+
+- **For Google Maps**:
+  - **Prioritize AP (Availability + Partition Tolerance)**: Maps must work globally; partitions common in distributed setups. Trade-off: Eventual Consistency (e.g., traffic data might lag slightly in partitions, but service remains up).
+  - **Trade-offs**:
+    - Strong Consistency (CP): For user data (e.g., favorites sync) – use Paxos/Raft, but higher latency.
+    - Availability over Consistency: For tiles/POIs – stale data OK temporarily vs. downtime.
+    - Examples: Traffic uses eventual consistency (Kafka for propagation); Routing prefers low latency over perfect real-time (cache approximations).
+  - Overall: Hybrid – Critical paths (e.g., auth) CP; Read-heavy (maps) AP.
+
+Other Trade-offs:
+- Latency vs. Accuracy: Real-time ML for traffic increases compute cost.
+- Cost vs. Performance: More replicas = higher availability but $$.
+- Privacy vs. Features: Anonymize probes but lose personalization.
+
+### Step 7: Speculated Follow-Up Questions
+
+In a FAANG interview, interviewers probe deeper:
+- How would you handle real-time collaboration (e.g., shared live location)?
+- Design the routing algorithm in detail (e.g., handling multi-modal transport).
+- How to update map data without downtime (e.g., blue-green deployments)?
+- ML integration: How to predict traffic using historical data?
+- Security: Prevent DDoS on API, handle location spoofing?
+- Offline navigation: How to sync changes upon reconnection?
+- Cost optimization: How to reduce storage for tiles?
+- Global consistency: How to handle cross-region data sync?
