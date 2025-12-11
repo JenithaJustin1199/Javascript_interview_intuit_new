@@ -1,0 +1,220 @@
+### Step 1: What and Why?
+
+#### What is a Video Streaming Platform?
+A video streaming platform is a distributed system that allows users to upload, process, store, and stream video content on demand or live. Examples include YouTube (user-generated content), Netflix (professional content), or Twitch (live streaming). Core functionalities include video upload, transcoding (converting videos to multiple formats/resolutions for compatibility and adaptive bitrate streaming), storage, metadata management, search/recommendations, and delivery via Content Delivery Networks (CDNs) for low-latency playback. It handles diverse clients (mobile, web, smart TVs) and supports features like comments, likes, subscriptions, and monetization.
+
+#### Why Design It?
+- **Scale and Demand**: Video streaming accounts for ~80% of global internet traffic. Platforms like YouTube handle 500+ hours of uploads per minute and billions of views daily, requiring designs that scale to petabytes of data and millions of concurrent users.
+- **Challenges**: Videos are large (GBs), processing-intensive (transcoding can take hours), and demand low latency (<2s start time) with high availability (99.99%). Poor design leads to high costs, buffering, or downtime.
+- **Business Value**: Enables content creation, entertainment, education, and revenue via ads/subscriptions. In a FAANG interview, this tests your ability to handle big data, distributed systems, real-time processing, and trade-offs in scalability, cost, and reliability.
+- **Relevance**: With rising 4K/8K, VR, and live events, efficient designs are critical for edge computing, ML-driven recommendations, and global distribution.
+
+Now, let's dive into the design, mirroring a FAANG interview structure.
+
+### Step 2: Clarify Requirements
+
+In a FAANG interview, always start by asking clarifying questions to scope the system.
+
+- **Scope**: Focus on VOD (Video on Demand) like YouTube, or include live streaming? (Assuming VOD with basic live extensions.)
+- **Key Features**: Upload, transcoding, streaming, search, user interactions (likes, comments), recommendations.
+- **User Base**: Global, 1B+ MAUs like YouTube.
+- **Constraints**: Support various formats (MP4, AVI), resolutions (480p to 4K), devices. Handle peaks (e.g., viral videos).
+- **Non-Functional**: Latency (<2s for start, <100ms seek), Availability (99.99%), Scalability (handle 1M+ concurrent streams), Cost (optimize storage/processing).
+
+#### Functional Requirements (FRs)
+- **Upload**: Users upload videos (chunked for large files).
+- **Processing**: Transcode to adaptive formats (HLS/DASH), generate thumbnails.
+- **Storage & Delivery**: Store originals/transcoded versions; stream via CDN.
+- **Metadata & Search**: Title, description, tags; support search/autocomplete.
+- **User Features**: Profiles, playlists, comments, analytics.
+- **Admin**: Moderation for safety (e.g., detect inappropriate content).
+
+#### Non-Functional Requirements (NFRs)
+- **Scalability**: Horizontal for uploads/streams; handle 100K uploads/day.
+- **Performance**: Transcoding in <10x video length; streaming with adaptive bitrate.
+- **Reliability**: Fault-tolerant (e.g., retries on failures).
+- **Security/Privacy**: Encryption, access controls, GDPR compliance.
+- **Cost**: Minimize storage (e.g., tiered hot/cold) and compute.
+
+Edge Cases: Slow networks, interrupted uploads, copyrighted content detection.
+
+### Step 3: Back-of-Envelope Estimations
+
+Estimations guide design choices like sharding and caching. Assumptions: 1B MAUs, 100M DAUs (10% daily active), inspired by YouTube stats.
+
+- **Users & Traffic**:
+  - Uploads: 1% of DAUs upload daily → 1M uploads/day. Average video: 10min, 500MB → 500PB/day raw data (but chunked uploads).
+  - Views: 5B views/day (YouTube-like) → ~58K QPS average, peak 5x = 290K QPS.
+  - Streams: 10% concurrent → 10M concurrent streams, each ~1Mbps average → 10Tbps bandwidth peak.
+
+- **QPS**:
+  - API Calls (search/metadata): 10% of views → 500M/day → ~5.8K QPS, peak 29K.
+  - Upload Starts: 1M/day → ~12 QPS.
+  - Transcoding Jobs: 1M/day, each spawning tasks.
+
+- **Data Size**:
+  - Videos: 1M uploads/day * 500MB original + 2GB transcoded (multiple resolutions) → 2.5PB/day new data. Retained 1 year → ~900PB total.
+  - Metadata: 1B videos * 1KB (title/tags) → 1TB.
+  - User Data: 1B users * 10KB (playlists/history) → 10TB.
+  - Logs/Analytics: 100GB/day.
+
+- **Bandwidth**:
+  - Uploads: 500PB/day → ~5.8GB/s average.
+  - Streaming: 5B views * 100MB/view (average) → 500PB/day → ~5.8GB/s, but via CDN (edge caching reduces origin traffic by 90%).
+
+- **Compute**:
+  - Transcoding: Each video ~10 CPU-hours (parallelizable). 1M/day → 10M CPU-hours/day → Need ~400K cores (assuming 1-hour turnaround, but scaled).
+  - Cost: Storage ~$0.02/GB/month → $18M/month for 900PB. Bandwidth ~$0.05/GB → $25M/month for 500PB. Compute: Autoscaling on spot instances.
+
+These highlight needs for distributed storage (e.g., S3), queuing (for jobs), and CDNs (e.g., Akamai) to offload bandwidth.
+
+### Step 4: Data Model
+
+Use a mix of databases for scalability.
+
+- **Core Entities**:
+  - **Video**: ID, uploader_id, title, description, tags, duration, upload_time, views_count. Transcoded versions: list of {resolution, URL}.
+  - **User**: ID, username, email, subscriptions, playlists (array of video_ids).
+  - **Metadata**: Comments (threaded: comment_id, video_id, user_id, text, timestamp), Likes (user_id, video_id).
+  - **Transcoding Jobs**: Job_id, video_id, status (pending/processing/done), tasks (DAG nodes).
+
+- **Schema Example (Simplified)**:
+  - Video Table (NoSQL like DynamoDB): { video_id: string (UUID), metadata: json, original_url: string, transcoded_urls: array<json> }
+  - User Table (Relational like MySQL): { user_id: int, username: string, ... } – Sharded by user_id.
+  - Graph for Recommendations: Nodes (videos/users), Edges (views/subscriptions) – Use Neo4j.
+  - Time-Series for Analytics: Views/logs in Cassandra.
+
+- **Indexing**: Full-text search (Elasticsearch) for titles/tags. Spatial if location-based (e.g., geo-tags).
+
+Trade-offs: NoSQL for flexible metadata (eventual consistency) vs. Relational for user transactions (ACID).
+
+### Step 5: High-Level Design
+
+Microservices architecture for modularity. Focus on upload, transcoding, storage, and streaming flows.
+
+#### Key Components
+- **API Servers**: Handle user requests (upload, search, stream). Load-balanced, stateless.
+- **Upload Service**: Chunked uploads to temp storage.
+- **Original Storage**: Blob store (S3) for raw uploads.
+- **Transcoding Servers**: Worker nodes (e.g., Kubernetes pods) using FFmpeg for encoding.
+- **Transcoding Completion Queue**: Message queue (Kafka/RabbitMQ) for job status.
+- **Completion Handler**: Listens to queue, updates metadata/DB.
+- **Transcoded Storage**: Separate blob store for encoded versions.
+- **Metadata Cache**: Redis for hot metadata (TTL 1h).
+- **DB**: As above (MySQL/DynamoDB).
+- **CDN**: Edges for caching/streaming (e.g., CloudFront).
+- **Other**: Recommendation Service (ML-based), Moderation (ML for safety).
+
+#### Block Diagram: Overall Architecture
+```
+[Users (Mobile/Web)] <-> [CDN (Streaming, Thumbnails)]
+                          |
+[API Gateway (Auth, Rate Limit)] <-> [API Servers] <-> [Metadata Cache (Redis)]
+                          |
+                +-----------------+-----------------+
+                |                 |                 |
+[Upload Service] [Transcoding Orch] [Search/Rec Service]
+(Temp Storage)   (Queue: Kafka)     (Elasticsearch/ML)
+                |                 |
+       [Original Storage (S3)]   [Transcoding Servers (Workers)]
+                                 |
+                        [Transcoded Storage (S3)]
+                                 |
+                         [Completion Handler] --> [DB (MySQL/Dynamo)]
+```
+
+#### Video Upload Flow
+1. User → API Server: Request upload URL (pre-signed S3).
+2. User → Original Storage: Chunked upload (multipart for resumability).
+3. Upload Service: Validates (size/format), enqueues transcoding job.
+4. Update Metadata: API Server → DB: Insert video entry with "processing" status.
+
+Block Diagram: Upload Flow
+```
+User --> [API Server] --> Generate Pre-signed URL
+         |
+User --> [Original Storage (S3)] --> Upload Chunks
+         |
+[Upload Service] --> Validate --> Enqueue Job (Kafka) --> [DB: Update Status]
+```
+
+#### Video Transcoding: What It Is and Architecture
+- **What is Transcoding?**: Converting uploaded video to multiple formats/resolutions (e.g., 360p, 720p, 4K) and protocols (HLS for Apple, DASH for others) for adaptive bitrate streaming (ABR) – adjusts quality based on bandwidth to reduce buffering.
+- **What is DAG?**: Directed Acyclic Graph – Models transcoding as a workflow: Nodes (tasks like segmenting, encoding audio/video separately), Edges (dependencies). E.g., Preprocess → Encode Resolutions → Package HLS → Generate Thumbnails. Allows parallel execution.
+
+Architecture Components:
+- **Preprocessor**: Analyzes video (duration, codec), segments into chunks.
+- **Resource Manager**: Schedules tasks on workers (e.g., via Kubernetes, based on CPU/GPU availability).
+- **Temp Storage**: Holds intermediate chunks during processing.
+- **Encoded Video**: Final outputs moved to Transcoded Storage.
+
+Block Diagram: Transcoding Architecture
+```
+[Job Queue (Kafka)] --> [Preprocessor] --> Segment Video --> [Temp Storage]
+                       |
+[Resource Manager] --> Schedule DAG Tasks --> [Transcoding Servers (FFmpeg Workers)]
+                                              |
+                                      [Encoded Video] --> [Transcoded Storage]
+                                              |
+                                      [Completion Queue] --> [Completion Handler]
+```
+
+Flow: Job enqueued → Preprocessor runs → DAG executed (parallel: audio/video encode) → Outputs stored → Queue notifies handler → DB updated (status "ready", URLs added).
+
+#### Video Streaming Flow
+1. User → API Server: Request video metadata (from Cache/DB).
+2. API → User: Returns manifest URL (HLS/DASH).
+3. User → CDN: Fetch manifest, then segments. CDN pulls from Transcoded Storage if miss.
+4. Adaptive: Client switches resolutions based on bandwidth.
+
+Block Diagram: Streaming Flow
+```
+User --> [API Server] --> [Metadata Cache/DB] --> Return Manifest URL
+         |
+User --> [CDN] --> Cache Hit? --> Stream Segments
+                  |
+               Miss --> [Transcoded Storage] --> Pull & Cache
+```
+
+#### Scalability and Reliability
+- **Horizontal Scaling**: API/Transcoding servers via autoscaling. Sharding: Videos by ID (consistent hashing), geo-regions for low latency.
+- **Replication**: DB multi-master, storage geo-replicated.
+- **Fault Tolerance**: Retries on queues, idempotent jobs.
+
+#### CAP Theorem and Trade-offs
+CAP: Choose 2 of Consistency, Availability, Partition Tolerance.
+
+- **For Video Platform**:
+  - **Prioritize AP**: Global system; partitions inevitable (e.g., network splits). Eventual Consistency for metadata (e.g., view counts lag OK) ensures availability.
+  - **Trade-offs**:
+    - CP for User Data: Subscriptions/likes use strong consistency (Raft in DB) – higher latency but no duplicates.
+    - AP for Streaming: CDN caches eventual consistent; stale manifest OK vs. downtime.
+    - Examples: Transcoding queues eventual (lost messages retried); DB for metadata CP.
+  - Overall Hybrid: Critical (auth) CP; Read-heavy (streams) AP.
+
+Other Trade-offs:
+- Latency vs. Quality: More resolutions = better ABR but higher storage cost.
+- Cost vs. Speed: GPUs for transcoding faster but expensive; spot instances for savings.
+- Safety vs. Speed: Add ML moderation post-upload delays availability.
+
+#### System Optimizations
+- **Speed Optimization**:
+  - **Parallel Video Processing**: DAG allows concurrent tasks (e.g., encode resolutions in parallel on multiple workers). Chunk video into segments, process independently → 5-10x speedup.
+  - **Upload Center to User**: Use edge upload endpoints (e.g., regional S3) to reduce latency; resumable uploads.
+
+- **Safety Optimization**: Pre-upload checks (client-side hash for duplicates); post-transcode ML scan (e.g., for violence) before publishing. Trade-off: Delays vs. compliance.
+
+- **Cost Saving Optimization**: Tiered storage (hot for popular videos, cold for old); delete originals post-transcode; cache hot content in CDN (90% hit rate). Compress with AV1 codec.
+
+- **Error Handling**: Upload: Retries on chunks. Transcoding: Dead-letter queues for failed jobs, notify admins. Streaming: Fallback to lower resolution. Monitoring: Sentry for errors, alerts.
+
+### Step 6: Speculated Follow-Up Questions
+FAANG interviewers often probe specifics:
+- How to handle live streaming (e.g., RTMP ingest, low-latency HLS)?
+- Design recommendations system (e.g., collaborative filtering ML)?
+- How to detect and handle copyrighted content (e.g., fingerprinting)?
+- Cost breakdown: How to optimize for 4K videos?
+- Security: Prevent DDoS on uploads, encrypt streams?
+- Global distribution: How to handle geo-restrictions or latency in remote areas?
+- Metrics: What KPIs to monitor (e.g., buffer ratio, transcode queue depth)?
+- Extensions: Add social features like live comments or multi-user editing?
