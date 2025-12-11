@@ -1,0 +1,105 @@
+### Distributed Queue System Design (Like SQS/Azure Queue)
+
+#### Definition
+A distributed queue system is a messaging middleware that enables decoupled communication between producers (senders) and consumers (receivers) in distributed applications. **Why?** To handle asynchronous processing, buffering bursts, and fault-tolerant message delivery without direct coupling. **What for?** Microservices integration, task queuing, event streaming (e.g., logs, orders).
+
+#### Requirements
+- **Functional**:
+  - Enqueue/dequeue messages.
+  - Support at-least-once delivery: Messages delivered ≥1 time; duplicates possible (why: Ensures no loss in failures; what for: Reliable processing).
+  - Idempotent consumers: Process duplicates without side effects (why: Handles at-least-once; what for: Safe retries).
+  - Visibility timeout: Hide message post-dequeue for T seconds (why: Prevents multiple consumers processing same message during handling; what for: Long-running tasks).
+  - Partitioning: Split queues/topics into shards (why: Decoupling producers/consumers, improved scalability (parallelism), increased availability (fault isolation), better performance (load distribution); what for: High throughput).
+  - Messaging models: Point-to-point (queue: one consumer), pub-sub (topics: multiple subscribers).
+  - Topics: Logical channels for messages (why: Group related messages; what for: Pub-sub).
+  - Partitions: Subdivisions of topics (why: Parallelism; what for: Ordering within partition).
+  - Brokers: Servers handling storage/routing (why: Distribution; what for: Scalability).
+  - Consumer groups: Logical grouping for load balancing (why: Parallel consumption; what for: Scalability).
+  - Replication: Copies across brokers (why: Durability/availability; what for: Fault tolerance).
+  - In-sync replicas (ISR): Up-to-date replicas (why: Ensure quorum; what for: High consistency).
+  - Batching: Group messages (why: Efficiency; what for: Reduced overhead).
+  - Message data structure: Key (for partitioning), value (payload), timestamp, headers.
+  - Data delivery semantics: At-most-once (no retries), at-least-once (retries), exactly-once (idempotency + offsets).
+  - Advanced: Message filtering (client-side), delayed/scheduled messages (via separate queues), protocol (e.g., AMQP), historical archive (to cold storage).
+
+- **Non-Functional**:
+  - Throughput: 1M msgs/sec.
+  - Latency: <100ms.
+  - Durability: 99.99% (replication).
+  - Availability: 99.999% (multi-broker).
+  - Scalability: Horizontal (add brokers/partitions).
+
+#### Considerations
+- CAP: Prioritize AP (availability/partition tolerance) over strong C; eventual consistency for messages.
+- Disk performance: Use sequential writes (why: Faster than random; what for: High throughput); SSDs for low latency.
+- Data storage: Log-structured (append-only) on disk (why: Immutable, fast; what for: Replay/history).
+- State/metadata storage: Zookeeper (or etcd) for coordination (why: Consensus; what for: Leader election, configs).
+- Decrease partitions: Rare, via re-partitioning tools (why: Over-partitioning wastes resources; what for: Optimization).
+- Sync conflicts: Handled by offsets/ids (why: Prevent duplicates; what for: Exactly-once).
+
+#### High-Level Architecture
+Stack Diagram (ASCII):
+
+```
+[Producers] --> [Load Balancer] --> [API Servers (Scaled)] --> [Brokers (Cluster, Scaled)]
+    |                                           |
+    +--> [Message (Key, Value, Headers)]         +--> [Zookeeper (Metadata: Topics, Partitions, Leaders)]
+                                                    |
+                                                    +--> [Partitions (Sharded by Key Hash)] <--> [Replication (Leader + Followers, ISR)]
+                                                    |     |
+                                                    |     +--> [Data Storage: Append-Only Logs on Disk]
+                                                    |
+[Consumers/Groups] <-- [Pull/Push] <-- [Consumer Rebalancing] <-- [Offsets in State Storage (e.g., Kafka Topics)]
+    |
+    +--> [Notification Service] (For pub-sub)
+    |
+    +--> [Historical Archive] --> [Cold Storage (S3-like)]
+```
+
+- **Why Each Block?**
+  - Producers: Send messages (decoupled from consumers).
+  - Load Balancer: Distributes traffic (scalability).
+  - API Servers: Handle requests (stateless, scale horizontally).
+  - Brokers: Store/route messages (core distribution; fault isolation).
+  - Zookeeper: Manages metadata (consensus for availability).
+  - Partitions: Enable parallelism (performance; ordering per partition).
+  - Replication/ISR: Durability (no loss; quorum writes).
+  - Data Storage: Persistent logs (replayable; high throughput via seq writes).
+  - Consumers/Groups: Receive/process (load balancing via groups).
+  - State Storage: Track offsets (resumability; exactly-once).
+  - Notification Service: Pub-sub alerts (real-time).
+  - Historical Archive: Offload old data (cost savings; compliance).
+
+#### Producer Flow
+1. Producer batches messages (why: Amortize network; what for: Efficiency).
+2. Hash key → Select partition/leader broker.
+3. Send to broker (with acks: all ISR for durability).
+4. Broker appends to log (sequential write), replicates to followers.
+5. Ack to producer (retry on fail for at-least-once).
+
+#### Consumer Flow
+1. Consumer joins group; rebalancing assigns partitions (why: Even load; what for: Scalability).
+2. Pull from assigned partitions (offset-based).
+3. Process message; visibility timeout starts (hide from others).
+4. Commit offset on success (to state storage).
+5. If timeout expires without delete/commit, message reappears (at-least-once).
+6. Idempotent logic: Use message ID to skip duplicates.
+
+#### Consumer Rebalancing
+Triggered on add/remove consumers (why: Redistribute; what for: Balance). Leader coordinates via Zookeeper; pauses consumption briefly.
+
+#### Scalability
+- **Producers**: Add more clients; batching/compression.
+- **Consumers**: Scale groups horizontally; add partitions.
+- **Brokers**: Add nodes; rebalance partitions (consistent hashing).
+
+#### Data Delivery Semantics
+- **At-Most-Once**: Send without acks/retries (why: Low latency; what for: Non-critical msgs; risk of loss).
+- **At-Least-Once**: With retries/acks (why: No loss; what for: Reliability; duplicates possible).
+- **Exactly-Once**: At-least-once + idempotency/offsets (why: No duplicates/loss; what for: Transactions).
+
+#### Advanced Features
+- **Message Filtering**: Consumer-side (why: Reduce data; what for: Relevance; e.g., key-based).
+- **Delayed/Scheduled Messages**: Use priority queues or timed partitions (why: Timing control; what for: Reminders; handle via dead-letter on fail).
+- **Message Queuing Protocol**: AMQP/ custom (why: Standardization; what for: Interop).
+- **Historical Data Archive**: Compact logs periodically, move to S3 (why: Retention; what for: Audits; access via replay).
