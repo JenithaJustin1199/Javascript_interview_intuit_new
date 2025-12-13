@@ -1,0 +1,223 @@
+Great question 👍
+A **custom event limiter** is a very common **frontend performance + system design** interview problem.
+
+Below I’ll explain:
+
+1. **What an event limiter is**
+2. **Types of event limiting**
+3. **Custom implementation (fully commented, line-by-line)**
+4. **Edge cases & trade-offs**
+5. **Interview talking points**
+
+---
+
+# 1️⃣ What is an Event Limiter?
+
+An **event limiter** controls **how frequently an event handler is allowed to run**, even if the event fires many times.
+
+Example problems:
+
+* Scroll firing 100s of times per second
+* Resize events
+* Mousemove
+* Keypress auto-repeat
+
+---
+
+# 2️⃣ Common Event Limiting Strategies
+
+| Strategy            | Meaning                             |
+| ------------------- | ----------------------------------- |
+| Throttle            | Run handler at most once every X ms |
+| Debounce            | Run handler only after events stop  |
+| Rate limiter        | Allow N events per time window      |
+| Concurrency limiter | Allow only N parallel executions    |
+
+We’ll implement a **custom rate-based event limiter** (most general).
+
+---
+
+# 3️⃣ Custom Event Limiter (Fully Commented)
+
+### 🎯 Goal
+
+Allow the handler to run **at most once every `limitMs` milliseconds**, ignoring extra events.
+
+---
+
+## ✅ Implementation
+
+```js
+function createEventLimiter(handler, limitMs) {
+  // Track the timestamp of the last allowed execution
+  let lastExecutionTime = 0;
+
+  // Return a wrapped version of the handler
+  return function (...args) {
+    // Current timestamp in milliseconds
+    const now = Date.now();
+
+    // Check if enough time has passed since last execution
+    if (now - lastExecutionTime >= limitMs) {
+      // Update last execution time
+      lastExecutionTime = now;
+
+      // Execute the original handler with correct context
+      handler.apply(this, args);
+    }
+    // Else: event is ignored (limited)
+  };
+}
+```
+
+---
+
+## 🧪 Usage Example
+
+```js
+function onScroll() {
+  console.log("Scroll handled at", new Date().toISOString());
+}
+
+// Create a limited handler (1 call per 500ms)
+const limitedScrollHandler = createEventLimiter(onScroll, 500);
+
+// Attach to scroll event
+window.addEventListener("scroll", limitedScrollHandler);
+```
+
+---
+
+# 4️⃣ Enhanced Version (Trailing Execution)
+
+Sometimes you want:
+
+* First event immediately
+* Last event after cooldown
+
+---
+
+## ✅ Throttle with Trailing Call (Advanced)
+
+```js
+function throttleWithTrailing(handler, limitMs) {
+  let lastTime = 0;           // Last execution timestamp
+  let timeoutId = null;       // Timeout for trailing call
+
+  return function (...args) {
+    const now = Date.now();
+    const remaining = limitMs - (now - lastTime);
+
+    if (remaining <= 0) {
+      // Clear any pending trailing execution
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
+      // Execute immediately
+      lastTime = now;
+      handler.apply(this, args);
+    } else if (!timeoutId) {
+      // Schedule trailing execution
+      timeoutId = setTimeout(() => {
+        lastTime = Date.now();
+        timeoutId = null;
+        handler.apply(this, args);
+      }, remaining);
+    }
+  };
+}
+```
+
+---
+
+# 5️⃣ Rate-Limiter (N Events Per Window)
+
+### 🎯 Example
+
+Allow **3 events per 1 second**
+
+---
+
+## ✅ Implementation
+
+```js
+function rateLimiter(handler, maxCalls, windowMs) {
+  let calls = []; // Store timestamps of allowed calls
+
+  return function (...args) {
+    const now = Date.now();
+
+    // Remove timestamps older than window
+    calls = calls.filter(time => now - time < windowMs);
+
+    // If under limit, allow execution
+    if (calls.length < maxCalls) {
+      calls.push(now);
+      handler.apply(this, args);
+    }
+    // Else: event is dropped
+  };
+}
+```
+
+---
+
+# 6️⃣ Edge Cases (Interview Gold)
+
+| Edge Case          | Handling              |
+| ------------------ | --------------------- |
+| Rapid bursts       | Dropped or delayed    |
+| Context (`this`)   | Preserved via `apply` |
+| Arguments          | Forwarded             |
+| Memory leaks       | Clear timeouts        |
+| Trailing execution | Optional              |
+
+---
+
+# 7️⃣ Performance Considerations
+
+* Avoid heavy logic inside event handlers
+* Prefer `requestAnimationFrame` for UI updates
+* Use **passive listeners** for scroll
+* Limit DOM reads/writes
+
+---
+
+# 8️⃣ When to Use What?
+
+| Scenario        | Solution              |
+| --------------- | --------------------- |
+| Scroll / Resize | Throttle              |
+| Search input    | Debounce              |
+| API abuse       | Rate limiter          |
+| Animations      | requestAnimationFrame |
+
+---
+
+# 9️⃣ Interview One-Liner
+
+> “An event limiter wraps a handler and controls its execution frequency using timestamps and timers. Depending on UX needs, it can be throttled, debounced, or rate-limited.”
+
+---
+
+# 🔁 Follow-Up Questions Interviewers Ask
+
+1. Difference between throttle & debounce?
+2. How to cancel a limiter?
+3. How to make it async-safe?
+4. How browser handles scroll events?
+5. How React handles event batching?
+
+---
+
+If you want next:
+
+* Debounce with comments
+* Async event limiter
+* requestAnimationFrame-based limiter
+* React hook (`useThrottle`)
+* Real interview problem
+
+Just say 🚀
