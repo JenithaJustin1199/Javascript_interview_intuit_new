@@ -325,3 +325,165 @@ game.makeMove(6);
 game.makeMove(3); 
 console.log(game.getGameStatus()); // { isGameOver: true, winner: 'X' }
 */
+
+------------> HTML <-----------
+<div id="game-container">
+    <h2>Tic-Tac-Toe: Player <span id="current-player">X</span>'s Turn</h2>
+    <div id="board" class="tic-tac-toe-board">
+        </div>
+    <div id="status-message"></div>
+    <button id="reset-button">Start New Game</button>
+</div>
+
+----------> CSS <--------------
+/* General Layout */
+#game-container {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+/* The Board Container */
+.tic-tac-toe-board {
+    /* Use JavaScript to set the grid columns dynamically */
+    display: grid; 
+    width: fit-content;
+    margin: 20px auto;
+    border: 3px solid #333;
+}
+
+/* Individual Cell Styling */
+.cell {
+    width: 80px;  /* Example size */
+    height: 80px; /* Example size */
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 48px;
+    font-weight: bold;
+    cursor: pointer; /* Indicates interactivity */
+    user-select: none;
+}
+
+/* Highlight the winner */
+.winner-cell {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+/* Disable interaction when game is over */
+.game-over .cell {
+    cursor: default;
+}
+
+/* Status message style */
+#status-message {
+    margin-top: 15px;
+    font-size: 1.2em;
+    min-height: 20px;
+}
+-------> JS <-------
+// Assume the TicTacToeGameN class is defined above this code.
+
+const N = 4; // Example N x N board size
+const game = new TicTacToeGameN(N); // Initialize the Game Logic
+
+// --- DOM Element References ---
+const boardElement = document.getElementById('board');
+const statusMessageElement = document.getElementById('status-message');
+const currentPlayerElement = document.getElementById('current-player');
+const resetButton = document.getElementById('reset-button');
+
+/**
+ * 1. RENDER INITIAL BOARD (O(N^2))
+ * Creates all cell elements based on the board size N.
+ */
+function initializeBoard() {
+    // Set the dynamic grid columns using CSS Grid property.
+    boardElement.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+    
+    // Clear any previous cells.
+    boardElement.innerHTML = '';
+    
+    // Create N*N cells.
+    for (let i = 0; i < N * N; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        // IMPORTANT: Store the 1D index as a data attribute for retrieval in the click handler.
+        cell.dataset.index = i; 
+        boardElement.appendChild(cell);
+    }
+    
+    // Initial UI update.
+    updateUI();
+}
+
+/**
+ * 2. UPDATE UI (O(N^2))
+ * Syncs the visual state of the board and status messages with the Game Logic state.
+ */
+function updateUI() {
+    const boardState = game.getBoard();
+    const status = game.getGameStatus();
+
+    // Update Player Turn display
+    currentPlayerElement.textContent = game.getCurrentPlayer();
+    
+    // Update Cell Contents
+    const cells = boardElement.querySelectorAll('.cell');
+    cells.forEach((cell, index) => {
+        // Render 'X' or 'O' or nothing.
+        cell.textContent = boardState[index] || ''; 
+        // Remove old winner highlights
+        cell.classList.remove('winner-cell');
+    });
+
+    // Update Status Message and Game Over State
+    if (status.isGameOver) {
+        boardElement.classList.add('game-over');
+        if (status.winner === 'Draw') {
+            statusMessageElement.textContent = 'Game Over! It\'s a Draw!';
+        } else {
+            statusMessageElement.textContent = `Game Over! Player ${status.winner} Wins!`;
+            // Optional: You could add logic here to highlight the winning line.
+        }
+    } else {
+        boardElement.classList.remove('game-over');
+        statusMessageElement.textContent = ''; // Clear message during play.
+    }
+}
+
+/**
+ * 3. INTERACTION (Event Delegation)
+ * Single handler for all cell clicks.
+ */
+boardElement.addEventListener('click', (event) => {
+    // 1. Ensure the click target is a cell element.
+    const target = event.target;
+    if (!target.classList.contains('cell')) {
+        return; // Ignore clicks on the board container itself or other elements.
+    }
+
+    // 2. Get the index from the data attribute.
+    const index = parseInt(target.dataset.index);
+    
+    // 3. Pass the move to the pure Game Logic class.
+    const moveSuccessful = game.makeMove(index);
+
+    // 4. If the move was valid, update the UI.
+    if (moveSuccessful) {
+        updateUI();
+    }
+});
+
+/**
+ * 4. RESET BUTTON HANDLER
+ */
+resetButton.addEventListener('click', () => {
+    game.resetGame(); // Reset the state
+    initializeBoard(); // Re-render the fresh board
+});
+
+
+// --- Initialization ---
+initializeBoard(); // Start the game when the script loads.
