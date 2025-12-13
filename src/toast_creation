@@ -1,0 +1,216 @@
+Toast / Notification Queue System
+🔹 What is the problem?
+We need to design and implement a system that can:
+-> Show temporary notification messages (“toasts”) to users
+-> Automatically remove them after a certain time
+-> Prevent the UI from rendering too many notifications at once
+-> Handle multiple notifications fired rapidly
+
+This system must be:
+--> Performant
+--> Predictable
+--> Easy to extend
+--> Memory-safe
+| Concern       | Decision                   |
+| ------------- | -------------------------- |
+| Central state | JS module (not DOM-driven) |
+| Timers        | Owned by manager, not UI   |
+| Rendering     | Only active toasts         |
+| Limit         | Enforced before rendering  |
+| Cleanup       | Clear timeouts on remove   |
+
+<!-- 
+  Single root container for all toast notifications.
+  JS will dynamically create/remove toast elements inside this.
+-->
+<div id="toast-root"></div>
+
+-------------------------><---------------------------
+/* 
+  Root container for all toasts 
+  Positioned fixed so it floats over the app
+*/
+#toast-root {
+  position: fixed;             /* Keeps toasts fixed relative to viewport */
+  top: 16px;                   /* Distance from top of screen */
+  right: 16px;                 /* Distance from right of screen */
+
+  display: flex;               /* Stack toasts vertically */
+  flex-direction: column;      /* Top → bottom order */
+  gap: 8px;                    /* Space between toasts */
+
+  pointer-events: none;        /* Allows clicks to pass through container */
+}
+
+/* 
+  Individual toast message 
+*/
+.toast {
+  background: #333;            /* Dark background for contrast */
+  color: white;                /* White text for readability */
+  padding: 12px 16px;          /* Inner spacing */
+  border-radius: 6px;          /* Rounded corners */
+  min-width: 200px;            /* Prevent very small toasts */
+
+  opacity: 0;                  /* Initially invisible */
+  transform: translateY(-10px);/* Slight upward offset for animation */
+
+  /* 
+    CSS transitions:
+    - opacity for fade-in
+    - transform for smooth slide
+    These are GPU-accelerated → good performance
+  */
+  transition: opacity 0.2s ease, transform 0.2s ease;
+
+  pointer-events: auto;        /* Toast itself can receive clicks */
+}
+
+/* 
+  When toast becomes visible 
+*/
+.toast.show {
+  opacity: 1;                  /* Fade in */
+  transform: translateY(0);    /* Move to original position */
+}
+------------------------->JS<----------------------
+// Create a ToastManager using an IIFE (module pattern)
+const ToastManager = (() => {
+
+  // Queue to hold pending toasts (not yet visible)
+  const queue = [];
+
+  // Map to track currently visible toasts
+  // Key: toastId → Value: { el, timeoutId }
+  const activeToasts = new Map();
+
+  // Maximum number of toasts allowed in DOM at once
+  const MAX_VISIBLE = 3;
+
+  // Root DOM element where toasts are rendered
+  const root = document.getElementById("toast-root");
+
+  // Counter to generate unique toast IDs
+  let idCounter = 0;
+
+  /*
+    Public API to show a toast
+    message → text to display
+    duration → how long toast stays visible
+  */
+  function show(message, duration = 3000) {
+
+    // Create toast object (pure state, no DOM)
+    const toast = {
+      id: ++idCounter,          // Unique identifier
+      message,                  // Toast text
+      duration                  // Auto-dismiss time
+    };
+
+    // Push toast into queue
+    queue.push(toast);
+
+    // Try to render if space is available
+    processQueue();
+  }
+
+  /*
+    Processes the queue:
+    - Only renders if visible slots are free
+  */
+  function processQueue() {
+
+    // If max visible toasts reached, stop
+    if (activeToasts.size >= MAX_VISIBLE) return;
+
+    // Take next toast from queue (FIFO)
+    const nextToast = queue.shift();
+
+    // If no pending toast, stop
+    if (!nextToast) return;
+
+    // Render toast into DOM
+    renderToast(nextToast);
+  }
+
+  /*
+    Creates DOM node for toast
+    Starts auto-expiration timer
+  */
+  function renderToast(toast) {
+
+    // Create a new div element
+    const el = document.createElement("div");
+
+    // Apply toast base styles
+    el.className = "toast";
+
+    // Set text content
+    el.textContent = toast.message;
+
+    // Add toast to DOM
+    root.appendChild(el);
+
+    /*
+      requestAnimationFrame ensures:
+      - Browser has painted initial state (opacity 0)
+      - Then we add .show → transition runs
+    */
+    requestAnimationFrame(() => {
+      el.classList.add("show");
+    });
+
+    // Start auto-dismiss timer
+    const timeoutId = setTimeout(() => {
+      removeToast(toast.id);
+    }, toast.duration);
+
+    // Track active toast
+    activeToasts.set(toast.id, {
+      el,                        // DOM element
+      timeoutId                 // Timer reference
+    });
+  }
+
+  /*
+    Removes toast:
+    - Clears timer
+    - Runs exit animation
+    - Frees slot for next toast
+  */
+  function removeToast(id) {
+
+    // Get active toast entry
+    const entry = activeToasts.get(id);
+
+    // If toast already removed, exit
+    if (!entry) return;
+
+    // Clear auto-dismiss timer (important!)
+    clearTimeout(entry.timeoutId);
+
+    // Start exit animation
+    entry.el.classList.remove("show");
+
+    /*
+      Wait for CSS transition to finish
+      Then remove element from DOM
+    */
+    entry.el.addEventListener("transitionend", () => {
+      entry.el.remove();
+    }, { once: true }); // Ensures listener runs only once
+
+    // Remove from active map
+    activeToasts.delete(id);
+
+    // Try to show next toast in queue
+    processQueue();
+  }
+
+  // Expose public methods
+  return {
+    show,                       // Add new toast
+    dismiss: removeToast        // Manual removal
+  };
+
+})();
