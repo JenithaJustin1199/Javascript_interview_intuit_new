@@ -1,0 +1,399 @@
+------- Functional Requirements ----------
+Our calculator should support:
+-> Basic operations: +, -, *, /
+-> Multi-step chained operations
+Example: 5 + 3 * 2 - 1
+-> Support decimals
+Example: 2.5 + 3.7
+-> Error handling:
+    Divide by zero
+    Invalid inputs
+    Multiple decimals in a number
+    Dangling operators ("5 + " shouldn't crash)
+-> Clear operation (C)
+-> Reset (AC)
+-> Undo last action (UNDO)
+    Undo entering digit
+    Undo operator
+    Undo result
+
+    NOTE-. very important, undo depth:
+    UNDO depth is unlimited as long as we keep storing snapshots in the history stack.
+The limit is based on:
+    memory constraints,
+    UX expectations, and
+    ow many past states we want to maintain.
+
+    historyStack.push(snapshot)
+
+    if (this.historyStack.length > MAX_HISTORY) {
+    this.historyStack.shift(); // drop oldest snapshot}
+------------------------------------><---------------------------
+Impl:
+class Calculator {
+    constructor() {
+        this.currentInput = "";          // Digits user is typing
+        this.previousValue = null;       // Value before operator
+        this.operator = null;            // Current operator (+ - * /)
+        this.lastResult = null;          // Last computed result
+        this.historyStack = [];          // Stack for undo operations
+    }
+
+    // Save a snapshot for UNDO
+    saveState() {
+        this.historyStack.push({
+            currentInput: this.currentInput,
+            previousValue: this.previousValue,
+            operator: this.operator,
+            lastResult: this.lastResult
+        });
+    }
+
+    // Restore last snapshot
+    undo() {
+        if (this.historyStack.length === 0) {
+            return; // nothing to undo
+        }
+
+        const prev = this.historyStack.pop();
+        this.currentInput = prev.currentInput;
+        this.previousValue = prev.previousValue;
+        this.operator = prev.operator;
+        this.lastResult = prev.lastResult;
+    }
+
+    // Handle digit input
+    inputDigit(d) {
+        this.saveState();
+        
+        // Prevent leading zero like "0005"
+        if (this.currentInput === "0" && d === "0") return;
+
+        this.currentInput += d;
+    }
+
+    // Handle decimal point
+    inputDecimal() {
+        this.saveState();
+
+        if (this.currentInput.includes(".")) return;  // prevent 1.2.3
+        if (this.currentInput === "") this.currentInput = "0";
+        this.currentInput += ".";
+    }
+
+    // Set + - * /
+    setOperator(op) {
+        this.saveState();
+
+        // If operator pressed twice, ignore second
+        if (!this.currentInput && this.previousValue !== null) {
+            this.operator = op;
+            return;
+        }
+
+        // Move current input into previousValue if available
+        if (this.currentInput !== "") {
+            this.previousValue = parseFloat(this.currentInput);
+            this.currentInput = "";
+        }
+
+        this.operator = op;
+    }
+
+    // Execute the operation
+    calculate() {
+        this.saveState();
+
+        if (this.previousValue === null || this.currentInput === "" || !this.operator) {
+            return; // Not enough values to compute
+        }
+
+        const current = parseFloat(this.currentInput);
+        let result;
+
+        switch (this.operator) {
+            case "+":
+                result = this.previousValue + current;
+                break;
+            case "-":
+                result = this.previousValue - current;
+                break;
+            case "*":
+                result = this.previousValue * current;
+                break;
+            case "/":
+                if (current === 0) {
+                    throw new Error("Cannot divide by zero");
+                }
+                result = this.previousValue / current;
+                break;
+            default:
+                return;
+        }
+
+        // update state
+        this.lastResult = result;
+        this.currentInput = String(result);
+        this.previousValue = null;
+        this.operator = null;
+
+        return result;
+    }
+
+    // Clear only current typing
+    clearEntry() {
+        this.saveState();
+        this.currentInput = "";
+    }
+
+    // Reset whole calculator
+    reset() {
+        this.saveState();
+        this.currentInput = "";
+        this.previousValue = null;
+        this.operator = null;
+        this.lastResult = null;
+    }
+
+    // For UI rendering
+    getDisplay() {
+        return this.currentInput || this.previousValue || "0";
+    }
+}
+
+// Example Execution:
+const calc = new Calculator();
+// User presses: 1 2 +
+calc.inputDigit("1");
+calc.inputDigit("2");
+calc.setOperator("+");
+// User presses: 3 5 =
+calc.inputDigit("3");
+calc.inputDigit("5");
+const result1 = calc.calculate();  // 47
+console.log(result1);  
+// Output: 47
+// User presses undo (undo calculation)
+calc.undo();
+console.log(calc.getDisplay());    
+// Output: "35"  (the last typed number is restored)
+// Undo again (undo digits)
+calc.undo();
+console.log(calc.getDisplay());
+// Output: "3"
+// Now user decides to do new operation: 3 * 10
+calc.setOperator("*");
+calc.inputDigit("1");
+calc.inputDigit("0");
+
+const result2 = calc.calculate();  // 30
+console.log(result2);
+// Output: 30
+// User presses CE (clear only current input)
+calc.clearEntry();
+console.log(calc.getDisplay());  // shows last result or blank
+// Reset everything
+calc.reset();
+console.log(calc.getDisplay());  // Output: 0
+
+
+---------------------------------------
+. Class Design (LLD Style)
+Main Class: Calculator
+
+State variables:
+
+Variable	Purpose
+currentInput	Current number being typed, e.g., "123"
+previousValue	Value stored before operator
+operator	+ - * /
+historyStack	For UNDO operations
+lastResult	Last computed result
+
+Methods -> 
+inputDigit(digit) -> Adds a digit to the current number being typed and saves previous state for undo.
+Prevents invalid inputs like repeated leading zeros.
+inputDecimal() -> Appends a decimal point to the current number while preventing multiple decimals.
+If the number is empty, it safely starts with "0.".
+setOperator(op) -> Stores the selected operator and moves the current input to previousValue if needed.
+Handles cases where operators are pressed repeatedly without breaking the flow.
+calculate() -> Performs the arithmetic operation using previousValue, the operator, and current input.
+Returns result while resetting operator and updating the display-friendly state.
+clearEntry() → clears currentInput
+reset() → wipes everything
+undo() → restores last state snapshot
+saveState() → push snapshot to history
+
+--------------- Designing a calculator FE UI Design -------------------
+UI Requirements
+-> Component Layout (Grid System)
+-> DOM-Wiring Strategy (Event Delegation)
+-> State Flow Between UI and Calculator Class
+-> Edge-case Handling in UI
+-> Keyboard Support Strategy
+-> Undo/Redo UI integration
+-> Performance & DOM best practices
+
+-----------------------------------------
+UI Requirements
+Functional UI Requirements
+-> Display screen for current input/result.
+Buttons:
+    Digits: 0-9
+    Operators: + - * /
+    Special: ., =, CE, AC, UNDO
+Buttons visually respond to click.
+-> Clean layout using CSS grid.
+-> Keyboard support (optional but nice).
+-> Should map button press → calculator class method cleanly.
+
+Non-Functional Requirements
+-> Minimal DOM manipulation → only update display text.
+-> Event delegation for all button clicks.
+-> No inline JS in HTML.
+-> Clear UX for disabled operations (optional).
+
+--------------------------------
+Component Layout (CSS Grid)
+UI Structure
+----------------
+|   DISPLAY    |
+----------------
+| 7 | 8 | 9 | / |
+----------------
+| 6 | 5 | 4 | * |
+----------------
+| 3 | 2 | 1 | - |
+----------------
+| 0 | . | = | + |
+----------------
+| CE | AC | UNDO |
+----------------
+
+Why Grid?
+Perfect fit for calculator rows/columns.
+Clean responsive layout.
+Minimal CSS complexity.
+
+------------------------------------
+
+DOM Wiring (Event Delegation Only)
+We attach ONE event listener to the container, not 20 listeners (one per button).
+
+document.querySelector('.buttons')
+    .addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const type = btn.dataset.type;
+        const value = btn.dataset.value;
+
+        // Connect to Calculator class
+    });
+
+Why event delegation?
+Fewer listeners → faster performance.
+Supports dynamically added buttons (if needed).
+Cleaner code.
+
+✅ 4. State Flow (UI → Calculator → UI)
+Flow:
+Button Press
+↓
+Parse button type (digit/operator/etc.)
+↓
+Call appropriate Calculator method
+↓
+Update .display text by calling calc.getDisplay()
+
+Example:
+
+case "digit":
+    calculator.inputDigit(value);
+    break;
+
+case "operator":
+    calculator.setOperator(value);
+    break;
+
+case "equal":
+    calculator.calculate();
+    break;
+
+case "undo":
+    calculator.undo();
+    break;
+
+
+Then update UI:
+display.textContent = calculator.getDisplay(); 
+
+-----------------------------------------------
+Edge-case handling in UI layer
+UI Should Handle:
+
+✔ Prevent double-clicking = multiple times (optional)
+✔ Show error message (e.g., divide by zero)
+✔ Clear error state automatically when user starts typing again
+✔ Disable "UNDO" when history empty (optional UI)
+
+Example:
+
+try {
+    calculator.calculate();
+} catch (err) {
+    display.textContent = err.message;   // "Cannot divide by zero"
+    calculator.reset();
+    return;
+}
+
+-------------------------------------------------
+Keyboard Support Strategy
+
+Mapping keyboard → UI actions:
+
+Key	UI Action
+digits	inputDigit()
+.	inputDecimal()
++ - * /	setOperator()
+Enter	calculate()
+Backspace	undo()
+Escape	reset()
+
+Implementation:
+
+document.addEventListener("keydown", (e) => {
+    if (!isNaN(e.key)) calculator.inputDigit(e.key);
+    else if (["+", "-", "*", "/"].includes(e.key)) calculator.setOperator(e.key);
+    else if (e.key === "Enter") calculator.calculate();
+    else if (e.key === ".") calculator.inputDecimal();
+    else if (e.key === "Backspace") calculator.undo();
+});
+
+------------------------------------------------
+ UI + UNDO Design
+Undo button should:
+Visually exist as a button
+Trigger calc.undo()
+Update display
+Should revert:
+Digit entry
+Operator selection
+Completed calculation
+CE
+AC (if we decide)
+
+------------------------------
+Optional enhancement:
+Disable undo button when stack is empty:
+
+undoButton.disabled = calculator.historyStack.length === 0;
+
+----------------------------
+ Performance Considerations
+Problem	Solution
+Frequent DOM writes	----- Only update .display once per action
+Many listeners	------- Event delegation
+Redraw lag	---------- CSS :active for button animations
+Floating precision ------	Let calculator class handle formatting
+
