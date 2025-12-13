@@ -1,0 +1,231 @@
+Problem Understanding (Interview Framing)
+-> We need to design the Snake & Ladder game engine such that:
+-> Multiple players take turns
+-> Dice rolls move players forward
+-> Snakes move players down
+-> Ladders move players up
+-> Game ends when someone reaches the final cell
+
+Key constraints:
+-> Board is typically 1–100
+-> Dice gives 1–6
+-> Movement must respect board boundaries
+
+🚧 Movement Rules
+❌ Roll causes position > 100 → don’t move
+
+✔ Exact roll needed to finish
+🐍 Snake + Ladder Conflicts
+
+Snake head should never be at ladder start
+
+Validate input at board creation
+
+| Entity | Responsibility              |
+| ------ | --------------------------- |
+| Game   | Orchestrates everything     |
+| Board  | Knows size, snakes, ladders |
+| Player | Holds current position      |
+| Dice   | Generates random roll       |
+| Snake  | Moves player down           |
+| Ladder | Moves player up             |
+
+Entity Models (Data Structures)
+🧩 Board
+{
+  size: 100,
+  snakes: Map<start, end>,
+  ladders: Map<start, end>
+}
+🧑 Player
+{
+  id: string,
+  name: string,
+  position: number
+}
+🎲 Dice
+{
+  min: 1,
+  max: 6
+}
+🐍 Snake
+{
+  head: number,
+  tail: number
+}
+
+🪜 Ladder
+{
+  start: number,
+  end: number
+}
+
+4️⃣ Game Flow (State Machine)
+START
+ ↓
+Roll Dice
+ ↓
+Move Player
+ ↓
+Check Snake / Ladder
+ ↓
+Check Win
+ ↓
+Next Player
+
+// Dice class represents a standard dice
+class Dice {
+
+  // Roll the dice and return a number between 1 and 6
+  roll() {
+    // Math.random() → [0, 1)
+    // Multiply by 6 → [0, 6)
+    // Floor → [0, 5]
+    // +1 → [1, 6]
+    return Math.floor(Math.random() * 6) + 1;
+  }
+}
+
+
+// Board class holds game configuration
+class Board {
+  constructor(size, snakes, ladders) {
+    this.size = size;          // Total number of cells (usually 100)
+    this.snakes = snakes;      // Map: snake head → tail
+    this.ladders = ladders;    // Map: ladder start → end
+  }
+
+  // Given a position, check if snake or ladder exists
+  getNextPosition(position) {
+
+    // If position is a snake head, move player down
+    if (this.snakes.has(position)) {
+      return this.snakes.get(position);
+    }
+
+    // If position is a ladder start, move player up
+    if (this.ladders.has(position)) {
+      return this.ladders.get(position);
+    }
+
+    // Otherwise, stay at same position
+    return position;
+  }
+}
+
+
+// Player represents a game participant
+class Player {
+  constructor(name) {
+    this.name = name;          // Player name
+    this.position = 0;         // All players start at position 0
+  }
+
+  // Move player by dice roll
+  move(steps, board) {
+
+    // Calculate tentative new position
+    const tentativePosition = this.position + steps;
+
+    // Edge case: player must land exactly on board end
+    if (tentativePosition > board.size) {
+      // Do not move if overshooting board
+      return this.position;
+    }
+
+    // Update position to tentative
+    this.position = tentativePosition;
+
+    // Apply snake or ladder if present
+    this.position = board.getNextPosition(this.position);
+
+    // Return updated position
+    return this.position;
+  }
+}
+
+// Game class controls turn order and game flow
+class Game {
+  constructor(players, board) {
+    this.players = players;        // Array of Player objects
+    this.board = board;            // Board instance
+    this.dice = new Dice();         // Dice instance
+    this.currentTurn = 0;           // Index of current player
+    this.isGameOver = false;        // Game completion flag
+  }
+
+  // Play a single turn
+  playTurn() {
+
+    // If game is already over, stop execution
+    if (this.isGameOver) return;
+
+    // Get the current player
+    const player = this.players[this.currentTurn];
+
+    // Roll the dice
+    const roll = this.dice.roll();
+
+    // Log dice result
+    console.log(`${player.name} rolled a ${roll}`);
+
+    // Move player and get new position
+    const newPosition = player.move(roll, this.board);
+
+    // Log movement
+    console.log(`${player.name} moved to ${newPosition}`);
+
+    // Check win condition
+    if (newPosition === this.board.size) {
+      console.log(`🎉 ${player.name} wins the game!`);
+      this.isGameOver = true;       // Mark game as finished
+      return;
+    }
+
+    // Move turn to next player (round-robin)
+    this.currentTurn =
+      (this.currentTurn + 1) % this.players.length;
+  }
+}
+
+Follow up:
+How to Add Undo / Replay?
+💡 Core Idea
+
+You must store history of game states or actions.
+
+Option A: Store Full Game State (Simple, Memory Heavy)
+history.push({
+  players: deepClone(players),
+  currentTurn,
+});
+
+Undo
+const prevState = history.pop();
+restore(prevState);
+
+Pros
+
+Easy
+
+Fast undo
+
+Cons
+
+High memory usage
+
+Option B: Command Pattern (Best Practice)
+
+Store actions, not state.
+
+{
+  playerId,
+  diceRoll,
+  from,
+  to
+}
+
+Undo = reverse the move
+player.position = action.from;
+
+Replay = re-execute commands
