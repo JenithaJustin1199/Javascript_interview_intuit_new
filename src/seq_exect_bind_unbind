@@ -1,0 +1,83 @@
+“Implement sequential bind and unbind of click handlers”
+“Only one click handler should be active at a time, and it should change after each click”
+“On every click, a different function should run in sequence”
+
+-----------> Bad approach <--------
+Bind / Unbind Sequentially (Explicit)
+Concept
+-> Bind first handler
+On click:
+  Run handler
+  Unbind it
+  Bind next handler
+<button id="btn">Click Me</button>
+// Get reference to the button element
+const button = document.getElementById("btn");
+
+// Define individual click handler functions
+function step1() {
+  console.log("Step 1");               // Action for first click
+
+  // Remove THIS handler after it runs once
+  button.removeEventListener("click", step1);
+
+  // Attach the next handler
+  button.addEventListener("click", step2);
+}
+
+function step2() {
+  console.log("Step 2");               // Action for second click
+
+  // Remove current handler
+  button.removeEventListener("click", step2);
+
+  // Attach the next handler
+  button.addEventListener("click", step3);
+}
+
+function step3() {
+  console.log("Step 3");               // Action for third click
+
+  // Remove current handler
+  button.removeEventListener("click", step3);
+
+  // Optionally reset or stop here
+  // button.addEventListener("click", step1);
+}
+
+// Initial binding: only step1 is active
+button.addEventListener("click", step1);
+
+
+----------------------> Second Approach <----------------
+
+Single Handler + Internal State (Preferred)
+Concept
+Attach only one click listener
+Internally track which function to run next
+
+// Get reference to the button
+const button = document.getElementById("btn");
+
+// Array of step functions in order
+const steps = [
+  () => console.log("Step 1"),          // First click behavior
+  () => console.log("Step 2"),          // Second click behavior
+  () => console.log("Step 3")           // Third click behavior
+];
+
+// Index to track which step is active
+let currentStep = 0;
+
+// Attach ONE click listener
+button.addEventListener("click", () => {
+
+  // If all steps are done, do nothing (or reset)
+  if (currentStep >= steps.length) return;
+
+  // Execute the current step function
+  steps[currentStep]();
+
+  // Move to the next step for future clicks
+  currentStep++;
+});
