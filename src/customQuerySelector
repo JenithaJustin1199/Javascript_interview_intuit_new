@@ -1,0 +1,51 @@
+Support:
+-> Tag selector (div)
+-> Class selector (.card)
+-> ID selector (#app)
+
+function customQuerySelector(selector, root = document.body) {
+
+  // Helper function to check if a node matches the selector
+  function matches(node) {
+
+    // ID selector (e.g. #app)
+    if (selector[0] === "#") {
+      return node.id === selector.slice(1);
+    }
+
+    // Class selector (e.g. .card)
+    if (selector[0] === ".") {
+      return node.classList.contains(selector.slice(1));
+    }
+
+    // Tag selector (e.g. div)
+    return node.tagName.toLowerCase() === selector.toLowerCase();
+  }
+
+  // Recursive DFS traversal
+  function traverse(node) {
+
+    // Only check element nodes
+    if (node.nodeType === Node.ELEMENT_NODE) {
+
+      // If node matches selector, return it immediately
+      // querySelector returns FIRST match only
+      if (matches(node)) {
+        return node;
+      }
+
+      // Recursively search children
+      for (let child of node.children) {
+        const found = traverse(child);
+        if (found) return found; // Early exit once found
+      }
+    }
+
+    return null; // No match in this subtree
+  }
+
+  // Start searching from root
+  return traverse(root);
+}
+const firstCard = customQuerySelector(".card");
+console.log(firstCard);
