@@ -1,0 +1,31 @@
+function customGetElementsByClassName(className, root = document.body) {
+  // Array to store all matching elements
+  const result = [];
+
+  // Helper function to recursively traverse the DOM tree
+  function traverse(node) {
+
+    // Only process element nodes (ignore text, comment nodes)
+    if (node.nodeType === Node.ELEMENT_NODE) {
+
+      // Check if the current element has the required class
+      // classList.contains is safer than string matching
+      if (node.classList.contains(className)) {
+        result.push(node); // Add matching element to result array
+      }
+
+      // Recursively traverse all child elements
+      for (let child of node.children) {
+        traverse(child);
+      }
+    }
+  }
+
+  // Start traversal from the given root node
+  traverse(root);
+
+  // Return array of matching elements
+  return result;
+}
+const cards = customGetElementsByClassName("card");
+console.log(cards);
