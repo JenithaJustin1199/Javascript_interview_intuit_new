@@ -1,0 +1,327 @@
+/**
+ * Entities (Internal State):
+ * - board: Array representing the 3x3 grid.
+ * - currentPlayer: String ('X' or 'O').
+ * - isGameOver: Boolean flag.
+ * - winner: String ('X', 'O', 'Draw', or null).
+ */
+class TicTacToeGame {
+    constructor() {
+        // Initialize the game state upon creation.
+        this.board = Array(9).fill(null); 
+        // 'X' is traditionally the starting player.
+        this.currentPlayer = 'X'; 
+        // Flag to prevent further moves after win/draw.
+        this.isGameOver = false; 
+        // Stores the winner ('X', 'O', or 'Draw').
+        this.winner = null; 
+        // Tracks the number of moves made (for draw detection).
+        this.movesMade = 0; 
+        // Define all 8 winning combinations (rows, columns, diagonals).
+        // This is a static constant crucial for the checkWin logic.
+        this.winningLines = [
+            // Rows
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], 
+            // Columns
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+            // Diagonals
+            [0, 4, 8], [2, 4, 6]            
+        ];
+    }
+
+    /**
+     * Models (Public Getters): Provide read-only access to the state.
+     */
+    getBoard() {
+        // Returns a copy of the board to prevent external modification.
+        return [...this.board]; 
+    }
+
+    getCurrentPlayer() {
+        // Returns the current player's symbol ('X' or 'O').
+        return this.currentPlayer; 
+    }
+
+    getGameStatus() {
+        // Returns an object containing the current game status.
+        return { isGameOver: this.isGameOver, winner: this.winner }; 
+    }
+
+    /**
+     * Methods (Core Logic): Handle state manipulation and game flow.
+     */
+
+    makeMove(index) {
+        // 1. Validate index bounds and game status.
+        if (index < 0 || index >= 9 || this.isGameOver) {
+            // Return false if the move is invalid or the game is over.
+            return false; 
+        }
+
+        // 2. Validate move availability.
+        if (this.board[index] !== null) {
+            // Return false if the cell is already occupied.
+            return false; 
+        }
+
+        // --- Execute Valid Move ---
+        // Record the move with the current player's symbol.
+        this.board[index] = this.currentPlayer; 
+        // Increment the total move count.
+        this.movesMade++; 
+
+        // 3. Check for Win or Draw immediately after the move.
+        if (this.checkWin(index)) {
+            // If checkWin returns true, set the winner and game status.
+            this.isGameOver = true; 
+            // The current player is the winner.
+            this.winner = this.currentPlayer; 
+        } else if (this.movesMade === 9) {
+            // If board is full and no winner, it's a draw.
+            this.isGameOver = true; 
+            this.winner = 'Draw'; 
+        } else {
+            // 4. Switch player only if the game is not over.
+            this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X'; 
+        }
+
+        // Return true to indicate a successful move.
+        return true; 
+    }
+
+    /**
+     * Core Algorithm: Efficiently checks for a win condition.
+     * @param {number} lastMoveIndex - The index (0-8) of the cell just played.
+     * MUST NOT iterate over the whole board; only check relevant lines.
+     * @returns {boolean} True if the current player has won, false otherwise.
+     */
+    checkWin(lastMoveIndex) {
+        // Get the symbol of the player who just moved.
+        const symbol = this.board[lastMoveIndex]; 
+
+        // Iterate through all defined winning lines.
+        for (const line of this.winningLines) {
+            // Check if the current winning line includes the last moved index.
+            // This is slightly less efficient than pre-filtering, but very clear.
+            if (line.includes(lastMoveIndex)) { 
+                // Check if all three cells in this line match the symbol.
+                // This is the O(1) part for a 3x3 board.
+                if (
+                    this.board[line[0]] === symbol &&
+                    this.board[line[1]] === symbol &&
+                    this.board[line[2]] === symbol
+                ) {
+                    // Found a winning line.
+                    return true; 
+                }
+            }
+        }
+
+        // No winning line found for the player who just moved.
+        return false; 
+    }
+
+    resetGame() {
+        // Reset all internal state variables to start a new game.
+        this.board.fill(null); 
+        this.currentPlayer = 'X'; 
+        this.isGameOver = false; 
+        this.winner = null; 
+        this.movesMade = 0; 
+    }
+}
+
+// --- Example Usage (Not part of the class, just for demonstration) ---
+// const game = new TicTacToeGame();
+// console.log(game.getBoard()); // [null, null, ...]
+// game.makeMove(0); // X plays top-left
+// game.makeMove(4); // O plays center
+// game.makeMove(1); // X plays top-center
+// game.makeMove(8); // O plays bottom-right
+// console.log(game.makeMove(2)); // X wins! Returns true
+// console.log(game.getGameStatus()); // { isGameOver: true, winner: 'X' }
+
+
+
+--------------------------> N X N <---------------------------------
+
+/**
+ * Class representing the pure Game Logic for an N x N Tic-Tac-Toe game.
+ * It uses incremental tracking for O(1) win checking.
+ */
+class TicTacToeGameN {
+    /**
+     * Constructor initializes the game state and N-sized counter arrays.
+     * @param {number} N - The dimension of the square board (e.g., 3 for 3x3).
+     */
+    constructor(N) {
+        this.N = N; // Store the board dimension N.
+        this.board = Array(N * N).fill(null); // 1D array representing the N*N grid.
+        this.currentPlayer = 'X'; // Start with player 'X'.
+        this.isGameOver = false; // Initial game state.
+        this.winner = null; // Stores 'X', 'O', 'Draw', or null.
+        this.movesMade = 0; // Tracks total moves for draw condition.
+
+        // --- O(1) Win Check Counters ---
+        // Initialize N-sized arrays to track progress in each row and column.
+        this.rowCounts = Array(N).fill(0); 
+        this.colCounts = Array(N).fill(0);
+        
+        // Diagonals: [0] for Main (r=c), [1] for Anti (r+c = N-1).
+        this.diagCounts = [0, 0];
+    }
+
+    /**
+     * Public getter for the board state (returns a copy).
+     */
+    getBoard() {
+        return [...this.board];
+    }
+
+    /**
+     * Public getter for the current player.
+     */
+    getCurrentPlayer() {
+        return this.currentPlayer;
+    }
+
+    /**
+     * Public getter for the game status.
+     */
+    getGameStatus() {
+        return { isGameOver: this.isGameOver, winner: this.winner };
+    }
+
+    /**
+     * Attempts to place the current player's mark at the given index.
+     * @param {number} index - The 1D index (0 to N*N - 1) of the cell.
+     * @returns {boolean} True if the move was successful, false otherwise.
+     */
+    makeMove(index) {
+        // 1. Basic Validation: Check if game is over or index is out of bounds.
+        if (this.isGameOver || index < 0 || index >= this.N * this.N) {
+            return false;
+        }
+
+        // 2. Availability Validation: Check if the cell is already occupied.
+        if (this.board[index] !== null) {
+            return false;
+        }
+
+        // --- Move Execution ---
+        
+        // Update the board and move count.
+        this.board[index] = this.currentPlayer;
+        this.movesMade++;
+        
+        // Define the value for incremental tracking: X=1, O=-1.
+        const value = this.currentPlayer === 'X' ? 1 : -1;
+        
+        // Convert 1D index to 2D coordinates (crucial for N x N).
+        const row = Math.floor(index / this.N);
+        const col = index % this.N;
+
+        // --- Incremental Tracking (The O(1) Optimization) ---
+        
+        // 1. Update Row and Column Counters
+        this.rowCounts[row] += value;
+        this.colCounts[col] += value;
+
+        // 2. Update Diagonals (only if the move is on a diagonal)
+        
+        // Main Diagonal check (row equals column)
+        if (row === col) {
+            this.diagCounts[0] += value;
+        }
+        
+        // Anti-Diagonal check (row + column equals N - 1)
+        if (row + col === this.N - 1) {
+            this.diagCounts[1] += value;
+        }
+
+        // --- Check Game Status ---
+
+        // Check win condition using the O(1) counters.
+        if (this.checkWin(row, col)) {
+            this.isGameOver = true;
+            this.winner = this.currentPlayer;
+        } else if (this.movesMade === this.N * this.N) {
+            // Check for a Draw (board is full).
+            this.isGameOver = true;
+            this.winner = 'Draw';
+        } else {
+            // Switch to the next player.
+            this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+        }
+
+        return true;
+    }
+
+    /**
+     * O(1) Win Check using the incremental counters.
+     * @param {number} row - The row of the last move.
+     * @param {number} col - The column of the last move.
+     * @returns {boolean} True if a win is detected on the row, column, or diagonal.
+     */
+    checkWin(row, col) {
+        // The target absolute value for a win is the board dimension N.
+        const targetAbs = this.N;
+
+        // Check Row Win (O(1) lookup)
+        if (Math.abs(this.rowCounts[row]) === targetAbs) {
+            return true;
+        }
+        
+        // Check Column Win (O(1) lookup)
+        if (Math.abs(this.colCounts[col]) === targetAbs) {
+            return true;
+        }
+
+        // Check Main Diagonal Win (O(1) lookup, only if the move was on it)
+        if (row === col && Math.abs(this.diagCounts[0]) === targetAbs) {
+            return true;
+        }
+        
+        // Check Anti-Diagonal Win (O(1) lookup, only if the move was on it)
+        if (row + col === this.N - 1 && Math.abs(this.diagCounts[1]) === targetAbs) {
+            return true;
+        }
+
+        // No win detected in this move.
+        return false;
+    }
+
+    /**
+     * Resets the game to its initial state.
+     */
+    resetGame() {
+        this.board.fill(null);
+        this.currentPlayer = 'X';
+        this.isGameOver = false;
+        this.winner = null;
+        this.movesMade = 0;
+        this.rowCounts.fill(0);
+        this.colCounts.fill(0);
+        this.diagCounts = [0, 0];
+    }
+}
+
+// --- Example of 4x4 Game Usage ---
+/*
+const game = new TicTacToeGameN(4);
+// X plays (0, 0)
+game.makeMove(0);
+// O plays (1, 0)
+game.makeMove(4);
+// X plays (0, 1)
+game.makeMove(1);
+// O plays (1, 1)
+game.makeMove(5);
+// X plays (0, 2)
+game.makeMove(2);
+// O plays (1, 2)
+game.makeMove(6);
+// X plays (0, 3) -> X wins on Row 0!
+game.makeMove(3); 
+console.log(game.getGameStatus()); // { isGameOver: true, winner: 'X' }
+*/
