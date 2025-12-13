@@ -23,3 +23,62 @@ const fastAdd = memoize(slowAdd);
 
 console.log(fastAdd(10, 20)); // "Computing..." → 30
 console.log(fastAdd(10, 20)); // returns cached result → 30 (no log this time)
+
+
+-----------------> Async memoization <------------------
+// Memoize an ASYNC function (one that returns a Promise)
+function memoizeAsync(fn) {
+
+  // Cache object to store promises keyed by arguments
+  const cache = {};
+
+  // Return a wrapped async function
+  return async function (...args) {
+
+    // Convert arguments to a unique cache key
+    const key = JSON.stringify(args);
+
+    // If a promise already exists for this key
+    if (cache[key]) {
+      return cache[key];               // return the SAME promise
+    }
+
+    // Call the original async function
+    // IMPORTANT: do NOT await here before caching
+    const promise = fn(...args);
+
+    // Store the promise immediately
+    cache[key] = promise;
+
+    try {
+      // Await the promise result
+      const result = await promise;
+
+      // Return resolved value
+      return result;
+
+    } catch (error) {
+
+      // If promise rejects, remove it from cache
+      // So future calls can retry
+      delete cache[key];
+
+      // Re-throw the error to caller
+      throw error;
+    }
+  };
+}
+async function slowAddAsync(a, b) {
+  console.log("Computing...");
+  await new Promise(res => setTimeout(res, 1000));
+  return a + b;
+}
+
+const fastAddAsync = memoizeAsync(slowAddAsync);
+
+// First call → executes function
+fastAddAsync(10, 20).then(console.log);
+
+// Second call (before or after resolve) → uses same promise
+fastAddAsync(10, 20).then(console.log);
+
