@@ -10,24 +10,39 @@ function shallowCopy(obj) {
   }
   
   // Step 3: Recursive Deep Copy
-  function deepCopy(obj) {
-    // Check if obj is an object or array
-    if (typeof obj !== 'object' || obj === null) {
-      return obj; // Return non-objects as is
-    }
-  
-    // Create a new object or array
-    const copy = Array.isArray(obj) ? [] : {};
-  
-    // Iterate over the properties or elements and recursively deep copy them
-    for (const key in obj) {
-      if (Object.hasOwnProperty.call(obj, key)) {
-        copy[key] = deepCopy(obj[key]);
-      }
-    }
-  
-    return copy;
+  function deepCopyObject(obj) {
+
+  // Base Case:
+  // If obj is null OR not an object, return as-is
+  // (primitives are immutable and safe to return)
+  if (obj === null || typeof obj !== "object") {
+    return obj;
   }
+
+  // Handle Arrays separately
+  if (Array.isArray(obj)) {
+    // Create a new array and recursively copy each element
+    return obj.map(deepCopyObject);
+  }
+
+  // For plain objects, create a new object
+  const result = {};
+
+  // Iterate over own properties of the object
+  for (const key in obj) {
+
+    // Ensure we only copy own properties (not inherited)
+    if (obj.hasOwnProperty(key)) {
+
+      // Recursively copy each property value
+      result[key] = deepCopyObject(obj[key]);
+    }
+  }
+
+  // Return the fully deep-copied object
+  return result;
+}
+
   
   // Step 4: Test the Deep Copy Function
   const originalObject = {
@@ -43,4 +58,17 @@ function shallowCopy(obj) {
   const copiedObject = deepCopy(originalObject);
   
   console.log(copiedObject);
+
+Circular Reference
+✅ Definition
+
+A circular reference happens when an object references itself directly or indirectly, forming a loop.
+
+Example
+const obj = { name: "Alice" };
+
+// Object references itself
+obj.self = obj;
+
+console.log(obj.self.self.self.name); // "Alice"
   
