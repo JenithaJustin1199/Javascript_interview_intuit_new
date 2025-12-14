@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+        body {
+  min-height: 100vh;           /* Make body fill full viewport height */
+  display: flex;               /* Enable flexbox layout */
+  align-items: center;         /* Vertical centering */
+  justify-content: center;     /* Horizontal centering */
+}
+      .tooltip-container {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+      }
+
+      .tooltip {
+        position: absolute;
+        /* Needed to “float” tooltip above/below the link.
+     Does NOT cause heavy layout reflows because tooltip is hidden by default.
+     Computations re-run only on hover.
+  */
+
+        top: 120%;
+        /* Places tooltip above the link.
+     Using a percentage avoids hardcoding pixel values — responsive-friendly.
+     Percentage properties affect layout only of this tooltip element.
+  */
+
+        left: 50%;
+        /* Horizontal placement relative to parent width.
+     No global reflow — only affects its own span box.
+  */
+
+        transform: translateX(-50%);
+        /* Centers tooltip horizontally.
+     Important: TRANSFORM runs on the GPU → no layout reflow, only repaint.
+     ✔ High-performance
+     ✔ Used in almost all UI tooltips, modals, popovers.
+  */
+
+        background: #333;
+        /* Simple paint — negligible cost. */
+
+        color: white;
+        /* Paint only — extremely cheap. */
+
+        padding: 6px 10px;
+        /* Changes the box size of tooltip only — local layout. */
+
+        border-radius: 4px;
+        /* Minor paint effect — cheap on modern browsers. */
+
+        white-space: nowrap;
+        /* Prevents multiline wrapping; ensures tooltip width stays compact.
+     No heavy cost — layout is still only on this node.
+  */
+
+        opacity: 0;
+        /* Hides tooltip without removing it from layout.
+     Important: opacity → GPU accelerated → no reflow.
+     ✔ Best performance for interactive UI components.
+  */
+
+        pointer-events: none;
+        /* Prevents tooltip from blocking hover.
+     No layout/paint cost; affects only hit-testing. */
+
+        transition: opacity 0.2s ease;
+        /* GPU accelerated → No reflow on opacity transitions.
+     ✔ Best practice for smooth animations.
+  */
+      }
+
+      /* Tooltip caret (triangle pointer) */
+      .tooltip::after {
+        content: "";
+        /* Creates caret without extra DOM node → reduces DOM weight.
+     DOM performance impact: zero extra elements. */
+
+        position: absolute;
+        /* Needed to position arrow relative to tooltip container. */
+
+        bottom: 100%;
+        /* Places caret below tooltip box. */
+
+        left: 50%;
+        /* Start caret in the middle. */
+
+        transform: translateX(-50%);
+        /* Centers caret perfectly — uses GPU → zero reflow. */
+
+        border-width: 6px;
+        border-style: solid;
+        border-color:  transparent transparent #333 transparent;
+        /* Renders triangle using border trick — zero layout cost.
+     Caret is entirely created via CSS → DOM-light.
+  */
+      }
+
+      .tooltip-container:hover .tooltip {
+        opacity: 1;
+        /* Show tooltip using GPU opacity transition.
+     ✔ No layout shift
+     ✔ No reflow
+     ✔ Smooth animation
+  */
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#" class="tooltip-container">
+      Hover me!
+      <span class="tooltip"> tooltip messages goes here! </span>
+    </a>
+  </body>
+</html>
+
+-------------> JS -> multiple links <-------
+<a href="#" data-tooltip="Home page">Home</a>
+<a href="#" data-tooltip="Profile page">Profile</a>
+<a href="#" data-tooltip="Settings page">Settings</a>
+.tooltip {
+    position: fixed;              /* Relative to viewport */
+    background: #333;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  
+    opacity: 0;                   /* Hidden by default */
+    pointer-events: none;         /* Avoid hover loops */
+    transition: opacity 0.15s;    /* Smooth fade */
+  }
+  
+// ----------------------------------------------------
+// CREATE A SINGLE TOOLTIP NODE (REUSED EVERYWHERE)
+// ----------------------------------------------------
+
+// Create one tooltip element only once
+// Why?
+// - Avoid creating/destroying DOM nodes repeatedly
+// - Better memory usage
+// - Faster than per-element tooltips
+const tooltip = document.createElement("div");
+
+// Assign CSS class for styling
+tooltip.className = "tooltip";
+
+// Append tooltip to document body
+// Why body?
+// - So it is not constrained by parent overflow
+// - Allows positioning anywhere on screen
+document.body.appendChild(tooltip);
+
+// ----------------------------------------------------
+// MOUSEOVER EVENT (SHOW TOOLTIP)
+// ----------------------------------------------------
+
+document.addEventListener("mouseover", (event) => {
+  // WHY mouseover and not mouseenter?
+  // - mouseenter DOES NOT bubble
+  // - event delegation requires bubbling
+  // - mouseover bubbles → perfect for delegation
+
+  // Find closest element that declares tooltip intent
+  // closest() allows nested elements inside link
+  const target = event.target.closest("[data-tooltip]");
+
+  // If hovered element does NOT have a tooltip → exit
+  if (!target) return;
+
+  // Set tooltip text from HTML data attribute
+  // Keeps JS logic separate from content
+  tooltip.textContent = target.dataset.tooltip;
+
+  // Make tooltip visible using opacity
+  // Why opacity?
+  // - GPU accelerated
+  // - No layout reflow
+  // - Smooth animation
+  tooltip.style.opacity = "1";
+
+  // ----------------------------------------------------
+  // POSITION CALCULATION
+  // ----------------------------------------------------
+
+  // Get bounding rectangle of hovered element
+  // Returns size + position relative to VIEWPORT
+  // NOT document → no scroll math needed
+  const rect = target.getBoundingClientRect();
+
+  // Measure tooltip size AFTER text is set
+  // Required to decide placement direction
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  // ----------------------------------------------------
+  // VIEWPORT DIMENSIONS
+  // ----------------------------------------------------
+
+  // window.innerWidth
+  // = width of visible browser viewport (in pixels)
+  // Excludes:
+  // - DevTools
+  // - Browser UI
+  // - Scrollbars (mostly)
+  const viewportWidth = window.innerWidth;
+
+  // window.innerHeight
+  // = height of visible browser viewport
+  // Important for checking vertical space availability
+  const viewportHeight = window.innerHeight;
+
+  // ----------------------------------------------------
+  // AVAILABLE SPACE AROUND ELEMENT
+  // ----------------------------------------------------
+
+  // Space ABOVE the element
+  // rect.top = distance from top of viewport to element
+  const spaceTop = rect.top;
+
+  // Space BELOW the element
+  // viewportHeight - rect.bottom
+  // WHY?
+  // - rect.bottom = distance from top of viewport to element's bottom
+  // - subtracting from viewport height gives remaining space below
+  const spaceBottom = viewportHeight - rect.bottom;
+
+  // Space to the LEFT of element
+  const spaceLeft = rect.left;
+
+  // Space to the RIGHT of element
+  // viewportWidth - rect.right
+  // WHY?
+  // - rect.right = distance from left of viewport to element's right edge
+  // - subtracting from viewport width gives remaining space on right
+  const spaceRight = viewportWidth - rect.right;
+
+  let top, left;
+
+  // ----------------------------------------------------
+  // DYNAMIC PLACEMENT DECISION
+  // ----------------------------------------------------
+
+  if (spaceTop > tooltipRect.height) {
+    // Enough space ABOVE → place tooltip on top
+    top = rect.top - tooltipRect.height - 8; // 8px gap
+    left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  } else if (spaceBottom > tooltipRect.height) {
+    // Enough space BELOW → place tooltip at bottom
+    top = rect.bottom + 8;
+    left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  } else if (spaceRight > tooltipRect.width) {
+    // Enough space on RIGHT → place tooltip right
+    top = rect.top + rect.height / 2 - tooltipRect.height / 2;
+    left = rect.right + 8;
+  } else {
+    // Fallback → place tooltip on LEFT
+    top = rect.top + rect.height / 2 - tooltipRect.height / 2;
+    left = rect.left - tooltipRect.width - 8;
+  }
+
+  // ----------------------------------------------------
+  // APPLY POSITION
+  // ----------------------------------------------------
+
+  // Use position: fixed so tooltip stays anchored
+  // to viewport and not affected by scrolling
+  tooltip.style.top = `${top}px`;
+  tooltip.style.left = `${left}px`;
+});
+
+// ----------------------------------------------------
+// MOUSEOUT EVENT (HIDE TOOLTIP)
+// ----------------------------------------------------
+
+document.addEventListener("mouseout", (event) => {
+  // WHY mouseout?
+  // - mouseleave does NOT bubble
+  // - mouseout bubbles → works with delegation
+
+  const target = event.target.closest("[data-tooltip]");
+  if (!target) return;
+
+  // Hide tooltip using opacity
+  // Tooltip remains in DOM for reuse
+  tooltip.style.opacity = "0";
+});
+--------> tooltip caret <--------------------------
+placement = "top" | "bottom" | "left" | "right";
+tooltip.className = `tooltip tooltip--${placement}`;
+.tooltip::after {
+    content: "";
+    position: absolute;
+    border-style: solid;
+  }
+  
+  /* Tooltip above → caret points down */
+  .tooltip--top::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0 6px;
+    border-color: #333 transparent transparent transparent;
+  }
+  
+  /* Tooltip below → caret points up */
+  .tooltip--bottom::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-color: transparent transparent #333 transparent;
+  }
+  
+  /* Tooltip right → caret points left */
+  .tooltip--right::after {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 6px 6px 0;
+    border-color: transparent #333 transparent transparent;
+  }
+  
+  /* Tooltip left → caret points right */
+  .tooltip--left::after {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 0 6px 6px;
+    border-color: transparent transparent transparent #333;
+  }
+  
+  let placement;
+
+if (spaceTop > tooltipRect.height) {
+  placement = "top";
+  ...
+} else if (spaceBottom > tooltipRect.height) {
+  placement = "bottom";
+  ...
+} else if (spaceRight > tooltipRect.width) {
+  placement = "right";
+  ...
+} else {
+  placement = "left";
+  ...
+}
+
+// Reset + apply placement class
+tooltip.className = `tooltip tooltip--${placement}`;
+
+-----------> clean up <--------
+function initTooltip() {
+    // ---------------------------------------
+    // Create ONE tooltip node (owned here)
+    // ---------------------------------------
+    const tooltip = document.createElement("div");
+    tooltip.className = "tooltip";
+    document.body.appendChild(tooltip);
+  
+    // ---------------------------------------
+    // AbortController = single cleanup point
+    // ---------------------------------------
+    const controller = new AbortController();
+    const { signal } = controller;
+  
+    // ---------------------------------------
+    // Event handlers (named for cleanup)
+    // ---------------------------------------
+    function onMouseOver(event) {
+      const target = event.target.closest("[data-tooltip]");
+      if (!target) return;
+  
+      tooltip.textContent = target.dataset.tooltip;
+      tooltip.style.opacity = "1";
+  
+      const rect = target.getBoundingClientRect();
+      const tipRect = tooltip.getBoundingClientRect();
+  
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+  
+      const spaceTop = rect.top;
+      const spaceBottom = vh - rect.bottom;
+      const spaceLeft = rect.left;
+      const spaceRight = vw - rect.right;
+  
+      let top, left, placement;
+  
+      if (spaceTop > tipRect.height) {
+        placement = "top";
+        top = rect.top - tipRect.height - 8;
+        left = rect.left + rect.width / 2 - tipRect.width / 2;
+      } else if (spaceBottom > tipRect.height) {
+        placement = "bottom";
+        top = rect.bottom + 8;
+        left = rect.left + rect.width / 2 - tipRect.width / 2;
+      } else if (spaceRight > tipRect.width) {
+        placement = "right";
+        top = rect.top + rect.height / 2 - tipRect.height / 2;
+        left = rect.right + 8;
+      } else {
+        placement = "left";
+        top = rect.top + rect.height / 2 - tipRect.height / 2;
+        left = rect.left - tipRect.width - 8;
+      }
+  
+      tooltip.className = `tooltip tooltip--${placement}`;
+      tooltip.style.top = `${top}px`;
+      tooltip.style.left = `${left}px`;
+    }
+  
+    function onMouseOut(event) {
+      if (!event.target.closest("[data-tooltip]")) return;
+      tooltip.style.opacity = "0";
+    }
+  
+    // ---------------------------------------
+    // Attach listeners (delegated)
+    // ---------------------------------------
+    document.addEventListener("mouseover", onMouseOver, { signal });
+    document.addEventListener("mouseout", onMouseOut, { signal });
+  
+    // ---------------------------------------
+    // Return explicit destroy function
+    // ---------------------------------------
+    return function destroyTooltip() {
+      controller.abort();   // removes all listeners
+      tooltip.remove();     // removes DOM node
+    };
+  }
+  
