@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn Top Nav</title>
+  <style>
+    /* Reset some default styles for cross-browser consistency */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Top Navigation Container */
+.top-nav {
+  display: flex; /* horizontal layout */
+  align-items: center; /* vertical centering */
+  justify-content: space-between; /* spread logo and right-side items */
+  padding: 0 16px;
+  height: 60px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #ddd;
+  font-family: Arial, sans-serif;
+  position: relative; /* for dropdown positioning */
+  z-index: 1000; /* make sure dropdown appears on top */
+}
+
+/* Logo on the left */
+.top-nav .logo a {
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 20px;
+  color: #0a66c2; /* LinkedIn blue */
+}
+
+/* Search bar */
+.top-nav .search input {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  width: 200px;
+  transition: width 0.3s ease; /* smooth expand on focus */
+}
+
+/* Expand search on focus */
+.top-nav .search input:focus {
+  width: 300px;
+  outline: none;
+  border-color: #0a66c2; /* focus color */
+}
+
+/* Navigation links */
+.nav-links {
+  list-style: none; /* remove bullets */
+  display: flex;
+  gap: 16px; /* space between items */
+}
+
+/* Links styling */
+.nav-links li a {
+  text-decoration: none;
+  color: #000;
+  font-size: 14px;
+  padding: 8px 12px;
+  transition: background 0.2s;
+}
+
+/* Hover/focus effect */
+.nav-links li a:hover,
+.nav-links li a:focus {
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+/* Profile container */
+.profile {
+  position: relative; /* dropdown is absolute relative to this */
+}
+
+/* Dropdown hidden by default */
+.profile .dropdown {
+  position: absolute;
+  top: 100%; /* below the button */
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 150px;
+  display: none; /* hidden initially */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+/* Dropdown links */
+.profile .dropdown a {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #000;
+}
+
+/* Hover effect inside dropdown */
+.profile .dropdown a:hover {
+  background-color: #f0f0f0;
+}
+
+/* Responsive: collapse nav-links on small screens */
+@media (max-width: 768px) {
+  .nav-links {
+    display: none; /* hide for mobile */
+  }
+}
+
+  </style>
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <nav class="top-nav" role="navigation" aria-label="Main Navigation">
+    <!-- Left: Logo -->
+    <div class="logo">
+      <a href="#">
+        <!-- Using text for simplicity; can replace with SVG/logo image -->
+        LinkedIn
+      </a>
+    </div>
+
+    <!-- Center: Search -->
+    <div class="search">
+      <input type="text" placeholder="Search" aria-label="Search" />
+    </div>
+
+    <!-- Right: Navigation Links -->
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">My Network</a></li>
+      <li><a href="#">Jobs</a></li>
+      <li><a href="#">Messaging</a></li>
+      <li><a href="#">Notifications</a></li>
+    </ul>
+
+    <!-- Profile / Avatar -->
+    <div class="profile">
+      <button aria-haspopup="true" aria-expanded="false">Me ▼</button>
+      <!-- Dropdown menu -->
+      <div class="dropdown">
+        <a href="#">View Profile</a>
+        <a href="#">Settings</a>
+        <a href="#">Sign Out</a>
+      </div>
+    </div>
+  </nav>
+
+  <script>
+    // Get the profile button and dropdown container
+const profileBtn = document.querySelector(".profile button");
+const dropdown = document.querySelector(".profile .dropdown");
+
+// Toggle dropdown on click
+profileBtn.addEventListener("click", () => {
+  const isVisible = dropdown.style.display === "block";
+  dropdown.style.display = isVisible ? "none" : "block";
+  profileBtn.setAttribute("aria-expanded", !isVisible);
+});
+
+// Optional: close dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".profile")) {
+    dropdown.style.display = "none";
+    profileBtn.setAttribute("aria-expanded", false);
+  }
+});
+
+  </script>
+</body>
+</html>
