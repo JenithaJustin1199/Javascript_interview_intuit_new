@@ -1,0 +1,120 @@
+With Regular Expression
+
+L = length of input string
+N = number of tuples
+K = numbers per tuple
+
+Then:
+
+Step	Complexity
+match()	-> O(L)
+slice + split -> 	O(L)
+map(Number)	-> O(N × K)
+
+
+Tuple
+function tuple(str) {
+| Part | Meaning                                |
+| ---- | -------------------------------------- |
+| `.`  | Match **any character** except newline |
+| `*`  | Match **0 or more times**              |
+| `?`  | Make it **non-greedy (lazy)**          |
+| `()` | Capture group                          |
+/g = global flag
+
+Without /g:
+
+match() returns only the first match
+
+With /g:
+
+match() returns ALL matchesz
+
+  // Step 1: Extract all "(...)" substrings
+  const step1 = str.match(/\((.*?)\)/g);
+  // OUTPUT:
+  // ["(1, 2, 3)", "(4, 5, 6)", "(7, 8, 9)"]
+
+  // Step 2: Remove parentheses
+  const step2 = step1.map(t => t.slice(1, -1));
+  // OUTPUT:
+  // ["1, 2, 3", "4, 5, 6", "7, 8, 9"]
+
+  // Step 3: Split by comma (allowing spaces)
+  const step3 = step2.map(t => t.split(/\s*,\s*/));
+  // OUTPUT:
+  // [
+  //   ["1", "2", "3"],
+  //   ["4", "5", "6"],
+  //   ["7", "8", "9"]
+  // ]
+
+  // Step 4: Convert strings to numbers
+  const arr = step3.map(nums => nums.map(Number));
+  // OUTPUT:
+  // [
+  //   [1, 2, 3],
+  //   [4, 5, 6],
+  //   [7, 8, 9]
+  // ]
+
+  return {
+    data: arr,
+
+    // Multiply column values at given index (1-based index)
+    multiply(index) {
+      const i = index - 1; // convert to 0-based index
+      let product = 1;
+
+      for (let row of arr) {
+        product *= row[i]; // multiply column values
+      }
+
+      return product;
+      // Example multiply(2):
+      // 2 * 5 * 8 = 80
+    }
+  };
+}
+
+
+with parsing:
+function tuple(str) {
+  const result = [];        // Final 2D array
+  let currentRow = [];     // Current tuple
+  let currentNum = "";     // Digits accumulator
+
+  for (let ch of str) {
+    if (ch === "(") {
+      currentRow = [];     // Start new tuple
+    } 
+    else if (ch === "," || ch === ")") {
+      if (currentNum !== "") {
+        currentRow.push(Number(currentNum)); // Push parsed number
+        currentNum = "";                     // Reset buffer
+      }
+
+      if (ch === ")") {
+        result.push(currentRow);             // End tuple
+      }
+    } 
+    else if (ch >= "0" && ch <= "9") {
+      currentNum += ch;                      // Build number
+    }
+  }
+
+  return {
+    data: result,
+
+    multiply(index) {
+      const i = index - 1;
+      let product = 1;
+
+      for (let row of result) {
+        product *= row[i];
+      }
+
+      return product;
+    }
+  };
+}
