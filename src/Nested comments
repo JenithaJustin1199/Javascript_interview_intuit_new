@@ -1,125 +1,314 @@
-import { useState } from "react";
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Character encoding -->
+    <meta charset="UTF-8" />
 
-const Comments = ({ comments: initialComments }) => {
-  const [comments, setComments] = useState(initialComments);
-  const [activeId, setActiveId] = useState(null);
-  const [replyText, setReplyText] = useState("");
+    <!-- Correct viewport configuration for responsive layout -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  const onReply = (activeId, replyText) => {
-    const addRecursively = (list) =>
-      list.map((comment) => {
-        if (comment.id === activeId) {
-          const newReply = {
-            id: Date.now(),
-            username: "Replied Name",
-            text: replyText,
-            replies: [],
-            date: new Date().toLocaleString()
-          };
-          return { ...comment, replies: [...comment.replies, newReply] };
-        }
+    <!-- Page title -->
+    <title>Nested Comments</title>
 
-        return {
-          ...comment,
-          replies: addRecursively(comment.replies)
-        };
-      });
-
-    setComments((prev) => addRecursively(prev));
-  };
-
-  const handleReply = (commentId) => {
-    if (!replyText.trim()) return;
-    onReply(commentId, replyText);
-    setReplyText("");
-    setActiveId(null);
-  };
-
-  return (
-    <div>
-      {comments.map((comment) => (
-        <div key={comment.id} className="comments">
-          <div className="commentsHeader">
-            <span>{comment.username}</span>
-            <span>{comment.date}</span>
-          </div>
-
-          <div className="commentsSection">{comment.text}</div>
-
-          <button className="comment-reply" onClick={() => setActiveId(comment.id)}>
-            Reply
-          </button>
-
-          {activeId === comment.id && (
-            <div>
-              <input
-                type="text"
-                value={replyText}
-                placeholder="Write your reply"
-                onChange={(e) => setReplyText(e.target.value)}
-              />
-              <button className="replyButton" onClick={() => handleReply(comment.id)}>
-                Submit
-              </button>
-            </div>
-          )}
-
-          {comment.replies?.length > 0 && (
-            <div className="replies">
-              <Comments comments={comment.replies} />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-export default Comments;
-.comments{
-  padding: 12px;
-  margin-top: 12px;
-  background-color: rgb(0, 0, 0);
-  border: 1px solid rgb(167, 165, 165);
-  color: white;
-  border-radius: 6px;
-  
-}
-.commentsHeader{
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-export const data = [
-  {
-    id: 1,
-    username: "Alice",
-    text: "This is the first comment.",
-    date: "2025-11-27 10:15 AM",
-    replies: [
-      {
-        id: 2,
-        username: "Bob",
-        text: "Reply to Alice",
-        date: "2025-11-27 10:20 AM",
-        replies: [
-          {
-            id: 3,
-            username: "Charlie",
-            text: "Reply to Bob",
-            date: "2025-11-27 10:25 AM",
-            replies: []
-          }
-        ]
+    <style>
+      /* Each comment block */
+      .comment {
+        border-left: 2px solid #ddd;   /* Visual nesting indicator */
+        padding-left: 10px;            /* Space from left border */
+        margin-top: 8px;               /* Vertical spacing between comments */
       }
-    ]
-  },
-  {
-    id: 4,
-    username: "David",
-    text: "Another top-level comment.",
-    date: "2025-11-27 11:00 AM",
-    replies: []
+
+      /* Styling for reply button */
+      button {
+        font-size: 12px;               /* Smaller button text */
+        margin-top: 4px;               /* Space above button */
+        cursor: pointer;               /* Pointer cursor on hover */
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Root container where all comments will be rendered -->
+    <div id="comments-root"></div>
+
+    <script>
+      // -------------------------------
+      // Comment data (TREE structure)
+      // -------------------------------
+      const commentsData = [
+        {
+          id: 1,                        // Unique identifier
+          text: "This is the first comment",
+          replies: [
+            {
+              id: 2,
+              text: "Reply to first comment",
+              replies: [
+                {
+                  id: 3,
+                  text: "Nested reply",
+                  replies: []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: 4,
+          text: "Second top-level comment",
+          replies: []
+        }
+      ];
+
+      // ------------------------------------------------
+      // Recursive function to render comments
+      // ------------------------------------------------
+      function renderComments(comments, parentElement) {
+        // Loop through each comment in the current level
+        comments.forEach((comment) => {
+
+          // Create container for a single comment
+          const commentDiv = document.createElement("div");
+
+          // Assign CSS class for styling
+          commentDiv.className = "comment";
+
+          // Comment text element
+          const text = document.createElement("p");
+
+          // Set comment text
+          text.textContent = comment.text;
+
+          // Create Reply button
+          const replyBtn = document.createElement("button");
+
+          // Button label
+          replyBtn.textContent = "Reply";
+
+          // Append text to comment container
+          commentDiv.appendChild(text);
+
+          // Append reply button to comment container
+          commentDiv.appendChild(replyBtn);
+
+          // Append comment container to parent DOM node
+          parentElement.appendChild(commentDiv);
+
+          // Create container for nested replies
+          const repliesContainer = document.createElement("div");
+
+          // Append replies container inside this comment
+          commentDiv.appendChild(repliesContainer);
+
+          // -------------------------------
+          // Recursive rendering of replies
+          // -------------------------------
+          if (comment.replies.length > 0) {
+            renderComments(comment.replies, repliesContainer);
+          }
+
+          // -------------------------------
+          // Reply button click handler
+          // -------------------------------
+          replyBtn.addEventListener("click", () => {
+            addReply(comment, repliesContainer);
+          });
+        });
+      }
+
+      // ------------------------------------------------
+      // Function to add a reply to a comment
+      // ------------------------------------------------
+      function addReply(parentComment, repliesContainer) {
+        // Prompt user for reply text
+        const replyText = prompt("Enter reply");
+
+        // Exit if input is empty or cancelled
+        if (!replyText) return;
+
+        // Create new reply object
+        const newReply = {
+          id: Date.now(),              // Simple unique ID
+          text: replyText,             // Reply text
+          replies: []                  // Future nested replies
+        };
+
+        // Update data model (TREE mutation)
+        parentComment.replies.push(newReply);
+
+        // Render ONLY the new reply (no full re-render)
+        renderComments([newReply], repliesContainer);
+      }
+
+      // -------------------------------
+      // Initial render
+      // -------------------------------
+
+      // Get root container by ID (FIXED)
+      const root = document.getElementById("comments-root");
+
+      // Render all top-level comments
+      renderComments(commentsData, root);
+    </script>
+  </body>
+</html>
+----------> TC <--------------------------
+
+| Operation             | Time Complexity |
+| --------------------- | --------------- |
+| Initial render        | **O(N)**        |
+| Add reply             | **O(1)**        |
+| Show input            | **O(1)**        |
+| Total (typical usage) | **O(N)**        |
+
+
+------------> with input box <-----------
+
+.reply-input {
+    width: 90%;
+    font-size: 12px;
+    margin-top: 6px;
   }
-];
+  
+
+replyBtn.addEventListener("click", () => {
+    showReplyInput(comment, repliesContainer, commentDiv);
+  });
+  
+
+function showReplyInput(parentComment, repliesContainer, commentDiv) {
+    // Prevent multiple input boxes for same comment
+    if (commentDiv.querySelector(".reply-input")) return;
+  
+    // Create input element
+    const input = document.createElement("input");
+  
+    // Single-line input
+    input.type = "text";
+  
+    // Placeholder text
+    input.placeholder = "Write a reply...";
+  
+    // CSS class
+    input.className = "reply-input";
+  
+    // Append input below comment
+    commentDiv.appendChild(input);
+  
+    // Focus cursor immediately
+    input.focus();
+  
+    // Handle Enter key submission
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && input.value.trim()) {
+        const newReply = {
+          id: Date.now(),
+          text: input.value.trim(),
+          replies: []
+        };
+  
+        // Update data model
+        parentComment.replies.push(newReply);
+  
+        // Render only the new reply
+        renderComments([newReply], repliesContainer);
+  
+        // Remove input after submission
+        input.remove();
+      }
+    });
+  }
+  ------------------------------------------------
+  
+Does the current approach re-render the entire tree? NO.
+Even though we use recursion, it does NOT re-render the whole tree.
+Why?
+    Because recursion is called on:
+    renderComments([newReply], repliesContainer);
+👉 Not on commentsData
+
+------------------------------------------------------
+
+how you optimize this for 1000s of DOM node?
+---> Virtualization list
+    10,000 comments → 10,000 DOM nodes ❌
+    ~30–50 DOM nodes at any time ✅
+    
+    const VISIBLE_COUNT = 30;
+
+    function getVisibleComments(flatList, scrollTop) {
+      const start = Math.floor(scrollTop / ROW_HEIGHT);
+      return flatList.slice(start, start + VISIBLE_COUNT);
+    }
+    
+----> Lazy Render Deep Replies
+{
+    id: 1,
+    text: "Comment",
+    replies: [...],
+    isExpanded: false
+  }
+  if (comment.isExpanded) {
+    renderComments(comment.replies, container);
+  }
+
+  comment.isExpanded = true;
+renderComments(comment.replies, repliesContainer);
+
+---> Use DocumentFragment (Batch DOM Writes)
+
+A DocumentFragment is a lightweight, in-memory container for DOM nodes 
+that is not part of the live DOM.
+
+comments.forEach(c => parent.appendChild(createNode(c)));
+ replace
+const fragment = document.createDocumentFragment();
+
+comments.forEach(c => {
+  fragment.appendChild(createNode(c));
+});
+
+parent.appendChild(fragment);
+
+-----> Memoize Expanded Threads (Very Senior Concept)
+❓ What problem does this solve?
+When collapsing & expanding threads:
+Without memoization → re-render subtree every time ❌
+With memoization → reuse DOM nodes ✅
+
+🧠 Idea
+Cache rendered subtrees by comment ID
+
+const renderedCache = new Map();
+function renderThread(comment) {
+    if (renderedCache.has(comment.id)) {
+      return renderedCache.get(comment.id);
+    }
+  
+    const node = document.createElement("div");
+    node.textContent = comment.text;
+  
+    const repliesContainer = document.createElement("div");
+    node.appendChild(repliesContainer);
+  
+    renderedCache.set(comment.id, node);
+    return node;
+  }
+  
+  Replca this :
+  const commentDiv = document.createElement("div");
+commentDiv.className = "comment";
+
+const text = document.createElement("p");
+text.textContent = comment.text;
+
+const replyBtn = document.createElement("button");
+replyBtn.textContent = "Reply";
+
+commentDiv.appendChild(text);
+commentDiv.appendChild(replyBtn);
+parentElement.appendChild(commentDiv);
+ with:
+ const commentDiv = renderThread(comment);
+parentElement.appendChild(commentDiv);
+
