@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /> <!-- Character encoding -->
+  <title>Virtualized List (Vanilla JS)</title>
+
+  <style>
+    /* ============================= */
+    /* 1️⃣ Outer Scroll Container    */
+    /* ============================= */
+    body {
+      margin: 0;                 /* Remove default body margin */
+      padding: 0;                /* Remove default body padding */
+      font-family: Arial, sans-serif; /* Simple readable font */
+    }
+
+    #scrollContainer {
+      height: 800px;             /* Viewport height */
+      overflow-y: auto;          /* Enable vertical scrolling */
+      border: 1px solid #ccc;    /* Visual boundary */
+      position: relative;        /* Needed for absolute children */
+    }
+
+    /* ============================= */
+    /* 2️⃣ Total Height Spacer       */
+    /* ============================= */
+    #spacer {
+      height: 0px;               /* Will be set dynamically */
+      position: relative;        /* Reference for window */
+    }
+
+    /* ============================= */
+    /* 3️⃣ Windowed Render Box       */
+    /* ============================= */
+    #window {
+      position: absolute;        /* Removed from normal flow */
+      top: 0;                    /* Anchor to top of spacer */
+      left: 0;                   /* Align left */
+      right: 0;                  /* Stretch horizontally */
+      will-change: transform;    /* Hint GPU for transforms */
+    }
+
+    /* ============================= */
+    /* 4️⃣ Individual Row Style      */
+    /* ============================= */
+    .row {
+      height: 40px;              /* Fixed row height */
+      line-height: 40px;         /* Vertically center text */
+      padding: 0 12px;           /* Horizontal padding */
+      box-sizing: border-box;    /* Include padding in height */
+      border-bottom: 1px solid #eee; /* Row separator */
+      background: #fff;          /* White background */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================= -->
+  <!-- 1️⃣ Outer Scroll Container    -->
+  <!-- ============================= -->
+  <div id="scrollContainer">
+
+    <!-- ============================= -->
+    <!-- 2️⃣ Total Height Spacer       -->
+    <!-- ============================= -->
+    <div id="spacer">
+
+      <!-- ============================= -->
+      <!-- 3️⃣ Windowed Render Box       -->
+      <!-- ============================= -->
+      <div id="window"></div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ============================= */
+    /* 1️⃣ Configuration             */
+    /* ============================= */
+    const TOTAL_ITEMS = 50000;        // Total number of rows
+    const ROW_HEIGHT = 40;            // Fixed height per row (px)
+    const VIEWPORT_HEIGHT = 800;      // Height of scroll container
+    const BUFFER = 10;                // Extra rows above & below
+
+    /* ============================= */
+    /* 2️⃣ DOM References            */
+    /* ============================= */
+    const scrollContainer = document.getElementById('scrollContainer');
+    const spacer = document.getElementById('spacer');
+    const windowEl = document.getElementById('window');
+
+    /* ============================= */
+    /* 3️⃣ Set Total Scroll Height   */
+    /* ============================= */
+    spacer.style.height = `${TOTAL_ITEMS * ROW_HEIGHT}px`; // Fake full height
+
+    /* ============================= */
+    /* 4️⃣ Calculate Visible Count   */
+    /* ============================= */
+    const VISIBLE_COUNT = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT); // Rows in viewport
+
+    /* ============================= */
+    /* 5️⃣ Create Reusable DOM Nodes */
+    /* ============================= */
+    const POOL_SIZE = VISIBLE_COUNT + BUFFER * 2; // Total nodes to keep
+    const rowPool = [];                            // Recycled rows
+
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const row = document.createElement('div'); // Create row element
+      row.className = 'row';                      // Apply row styles
+      windowEl.appendChild(row);                  // Add to window
+      rowPool.push(row);                          // Store for reuse
+    }
+
+    /* ============================= */
+    /* 6️⃣ Render Logic              */
+    /* ============================= */
+    function render() {
+      const scrollTop = scrollContainer.scrollTop; // Current scroll position
+
+      // Calculate first visible row index
+      const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
+
+      // Include buffer rows
+      const fromIndex = Math.max(0, startIndex - BUFFER);
+
+      // Move window using GPU-friendly transform
+      windowEl.style.transform = `translateY(${fromIndex * ROW_HEIGHT}px)`;
+
+      // Update pooled rows content
+      for (let i = 0; i < rowPool.length; i++) {
+        const rowIndex = fromIndex + i;            // Actual data index
+        const row = rowPool[i];                    // Recycled DOM node
+
+        if (rowIndex < TOTAL_ITEMS) {
+          row.style.display = 'block';             // Ensure visible
+          row.textContent = `Row #${rowIndex}`;    // Render content
+        } else {
+          row.style.display = 'none';              // Hide extra rows
+        }
+      }
+    }
+
+    /* ============================= */
+    /* 7️⃣ Scroll Optimization       */
+    /* ============================= */
+    let ticking = false;                           // Prevent over-rendering
+
+    scrollContainer.addEventListener('scroll', () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          render();                                // Render once per frame
+          ticking = false;                        // Reset flag
+        });
+        ticking = true;                           // Lock until frame executes
+      }
+    });
+
+    /* ============================= */
+    /* 8️⃣ Initial Render            */
+    /* ============================= */
+    render();                                      // First paint
+  </script>
+
+</body>
+</html>
