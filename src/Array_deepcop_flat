@@ -1,0 +1,144 @@
+/*
+1. ... spread operator works for shallow copy 
+        -> works as deep copy for 1 level
+        -> but for nested array this work as shallow copy
+2. shallow copy methods
+        const arr = [1, 2, 3];
+        const copy1 = arr.slice();
+        const copy2 = [...arr];
+        const copy3 = Array.from(arr);
+3. const deep = JSON.parse(JSON.stringify(arr));
+*/
+// -----------> Deepcopy of Array <----------
+function deepCopy(value) {
+
+    // Base Case:
+    // If value is NOT an object and NOT an array,
+    // it must be a primitive (number, string, boolean, null, undefined, symbol).
+    // Primitives are immutable, so we can safely return them directly.
+    if (!Array.isArray(value) && typeof value !== "object") {
+      return value;
+    }
+  
+    // Special Case:
+    // If value is an array, we need to create a NEW array
+    // and deep copy each element inside it.
+    if (Array.isArray(value)) {
+  
+      // map() creates a new array
+      // deepCopy is called recursively for every element
+      return value.map(deepCopy);
+    }
+  
+    // If we reach here, value is a non-null object (plain object)
+    // Create a new empty object to avoid reference sharing
+    const result = {};
+  
+    // Iterate over all enumerable properties of the object
+    for (const key in value) {
+  
+      // Recursively deep copy each property value
+      // This ensures nested objects/arrays are copied properly
+      result[key] = deepCopy(value[key]);
+    }
+  
+    // Return the fully deep-copied object
+    return result;
+  }
+  
+
+// -------------> Flattening Array <--------
+// Issue with recursion
+
+// Very deep nesting → call stack overflow
+
+// This is why iterative/stack approach matters
+
+function flattenRecursive(arr, depth) {
+    // This will store the final flattened result
+    const result = [];
+  
+    // Loop through each element in the input array
+    for (const item of arr) {
+  
+      // Case 1: item is an array AND we are allowed to flatten more levels
+      if (Array.isArray(item) && depth > 0) {
+  
+        // Recursively flatten the inner array
+        // Reduce depth by 1 because we are consuming one level of nesting
+        const flattenedInner = flattenRecursive(item, depth - 1);
+  
+        // Spread the returned flattened array into result
+        result.push(...flattenedInner);
+  
+      } else {
+        // Case 2:
+        // - item is not an array OR
+        // - depth limit reached
+        // Push item as-is
+        result.push(item);
+      }
+    }
+  
+    // Return the accumulated flattened array
+    return result;
+  }
+//   flattenRecursive([1, [2, [3]], 4], 1)
+
+//   | Step | item    | depth | action       |
+//   | ---- | ------- | ----- | ------------ |
+//   | 1    | 1       | 1     | push 1       |
+//   | 2    | [2,[3]] | 1     | recurse      |
+//   | 3    | 2       | 0     | push         |
+//   | 4    | [3]     | 0     | stop flatten |
+//   | 5    | 4       | 1     | push         |
+
+
+
+function flattenStack(arr, depth) {
+
+    // Stack holds objects with:
+    // - value: current element
+    // - depth: remaining depth allowed
+    const stack = [];
+  
+    // Push elements in reverse order so that
+    // we process them in original left-to-right order
+    for (let i = arr.length - 1; i >= 0; i--) {
+      stack.push({ value: arr[i], depth });
+    }
+  
+    // This will store the flattened result
+    const result = [];
+  
+    // Process stack until empty
+    while (stack.length > 0) {
+  
+      // Pop the top element from stack
+      const { value, depth: currentDepth } = stack.pop();
+  
+      // If value is an array AND we still can flatten
+      if (Array.isArray(value) && currentDepth > 0) {
+  
+        // Push inner array elements back onto stack
+        // Reverse loop ensures correct order
+        for (let i = value.length - 1; i >= 0; i--) {
+          stack.push({
+            value: value[i],
+            depth: currentDepth - 1 // reduce depth
+          });
+        }
+  
+      } else {
+        // If value is primitive OR depth limit reached
+        // Add it directly to result
+        result.push(value);
+      }
+    }
+  
+    // Final flattened array
+    return result;
+  }
+  
+
+  
