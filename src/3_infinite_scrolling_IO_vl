@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /> <!-- Ensure proper text encoding -->
+  <title>Infinite Scroll with Intersection Observer</title>
+
+  <style>
+    /* =============================== */
+    /* 1️⃣ Global Page Styles          */
+    /* =============================== */
+    body {
+      margin: 0;                          /* Remove default browser margin */
+      font-family: Arial, sans-serif;    /* Clean readable font */
+      background: #f5f5f5;               /* Light background for contrast */
+    }
+
+    /* =============================== */
+    /* 2️⃣ Scroll Container            */
+    /* =============================== */
+    #scrollContainer {
+      height: 600px;                     /* Fixed viewport height */
+      overflow-y: auto;                  /* Enable vertical scrolling */
+      border: 1px solid #ccc;            /* Visual boundary */
+      background: white;                 /* White scrolling area */
+      position: relative;                /* Needed for sentinel positioning */
+    }
+
+    /* =============================== */
+    /* 3️⃣ List Wrapper                */
+    /* =============================== */
+    #list {
+      padding: 0;                        /* Remove default padding */
+      margin: 0;                         /* Remove default margin */
+    }
+
+    /* =============================== */
+    /* 4️⃣ Individual Row              */
+    /* =============================== */
+    .row {
+      height: 50px;                      /* Fixed height for predictability */
+      line-height: 50px;                 /* Vertically center text */
+      padding: 0 16px;                   /* Horizontal padding */
+      box-sizing: border-box;            /* Include padding in height */
+      border-bottom: 1px solid #eee;     /* Row separator */
+    }
+
+    /* =============================== */
+    /* 5️⃣ Loading Indicator           */
+    /* =============================== */
+    #loading {
+      height: 60px;                      /* Visible space for loader */
+      display: flex;                     /* Center text */
+      align-items: center;               /* Vertical centering */
+      justify-content: center;           /* Horizontal centering */
+      color: #666;                       /* Muted color */
+      font-size: 14px;                   /* Smaller font */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =============================== -->
+  <!-- Scroll Container (Root)         -->
+  <!-- =============================== -->
+  <div id="scrollContainer">
+
+    <!-- =============================== -->
+    <!-- List of Rendered Items         -->
+    <!-- =============================== -->
+    <div id="list"></div>
+
+    <!-- =============================== -->
+    <!-- Sentinel / Loader Element      -->
+    <!-- =============================== -->
+    <div id="loading">Loading more items…</div>
+
+  </div>
+
+  <script>
+    /* =============================== */
+    /* 1️⃣ Configuration               */
+    /* =============================== */
+    const PAGE_SIZE = 20;                 // Number of items per fetch
+    const MAX_ITEMS = 200;                // Total items available (mock)
+
+    /* =============================== */
+    /* 2️⃣ State                       */
+    /* =============================== */
+    let currentCount = 0;                 // How many items are loaded
+    let isLoading = false;                // Prevent duplicate fetches
+
+    /* =============================== */
+    /* 3️⃣ DOM References              */
+    /* =============================== */
+    const scrollContainer = document.getElementById('scrollContainer');
+    const listEl = document.getElementById('list');
+    const loadingEl = document.getElementById('loading');
+
+    /* =============================== */
+    /* 4️⃣ Mock Data Fetch              */
+    /* =============================== */
+    function fetchMoreItems() {
+      if (isLoading) return;              // Guard: avoid parallel loads
+      if (currentCount >= MAX_ITEMS) return; // Guard: no more data
+
+      isLoading = true;                   // Mark loading state
+      loadingEl.textContent = 'Loading more items…'; // Update UI
+
+      // Simulate network delay
+      setTimeout(() => {
+        for (let i = 0; i < PAGE_SIZE; i++) {
+          if (currentCount >= MAX_ITEMS) break; // Stop if limit reached
+
+          const row = document.createElement('div'); // Create row element
+          row.className = 'row';                    // Apply row styling
+          row.textContent = `Item #${currentCount + 1}`; // Row content
+          listEl.appendChild(row);                  // Add to DOM
+
+          currentCount++;                           // Increment count
+        }
+
+        isLoading = false;                          // Reset loading flag
+
+        if (currentCount >= MAX_ITEMS) {
+          loadingEl.textContent = 'No more items';  // End state message
+          observer.disconnect();                    // Stop observing
+        }
+      }, 600); // Fake latency
+    }
+
+    /* =============================== */
+    /* 5️⃣ Intersection Observer Setup */
+    /* =============================== */
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];                   // Only one target
+
+        // If sentinel becomes visible
+        if (entry.isIntersecting) {
+          fetchMoreItems();                         // Load next page
+        }
+      },
+      {
+        root: scrollContainer,                      // Observe within scroll container
+        rootMargin: '0px 0px 200px 0px',             // Prefetch buffer (like overscan)
+        threshold: 0                                // Trigger as soon as visible
+      }
+    );
+
+    /* =============================== */
+    /* 6️⃣ Start Observing Sentinel    */
+    /* =============================== */
+    observer.observe(loadingEl);                    // Begin observation
+
+    /* =============================== */
+    /* 7️⃣ Initial Data Load           */
+    /* =============================== */
+    fetchMoreItems();                               // Load first page
+  </script>
+
+</body>
+</html>
