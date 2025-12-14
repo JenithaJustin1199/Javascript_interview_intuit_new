@@ -197,7 +197,44 @@ calc.reset();
 console.log(calc.getDisplay());  // Output: 0
 
 
----------------------------------------
+--------------------------------------- Support undo callback ------
+class Calculator {
+    constructor(onUndoCallback) { // HOC style: inject callback for undo
+      this.currentInput = "";
+      this.previousValue = null;
+      this.operator = null;
+      this.lastResult = null;
+      this.historyStack = [];
+      this.onUndoCallback = onUndoCallback || (() => {}); // noop default
+    }
+  
+    saveState() {
+      this.historyStack.push({
+        currentInput: this.currentInput,
+        previousValue: this.previousValue,
+        operator: this.operator,
+        lastResult: this.lastResult
+      });
+    }
+  
+    // Undo optionally to specific depth or last step
+    undo(steps = 1) {
+      while (steps-- > 0 && this.historyStack.length > 0) {
+        const prev = this.historyStack.pop();
+        this.currentInput = prev.currentInput;
+        this.previousValue = prev.previousValue;
+        this.operator = prev.operator;
+        this.lastResult = prev.lastResult;
+      }
+      // Execute HOC callback after undo
+      this.onUndoCallback(this.getDisplay());
+    }
+    
+    // ... other methods unchanged
+  }
+------------
+
+
 . Class Design (LLD Style)
 Main Class: Calculator
 
