@@ -32,14 +32,15 @@ The limit is based on:
 Impl:
 class Calculator {
     constructor() {
-        this.currentInput = "";          // Digits user is typing
-        this.previousValue = null;       // Value before operator
-        this.operator = null;            // Current operator (+ - * /)
-        this.lastResult = null;          // Last computed result
-        this.historyStack = [];          // Stack for undo operations
+        this.currentInput = "";          // Stores digits as STRING while user types (e.g. "12.3")
+        this.previousValue = null;       // Stores previous number (as NUMBER) before operator
+        this.operator = null;            // Stores selected operator (+ - * /)
+        this.lastResult = null;          // Stores last computed result
+        this.historyStack = [];          // Stack of previous states for UNDO functionality
     }
 
-    // Save a snapshot for UNDO
+    // Save a snapshot of the current state
+    // This allows us to restore it later using undo()
     saveState() {
         this.historyStack.push({
             currentInput: this.currentInput,
@@ -49,10 +50,10 @@ class Calculator {
         });
     }
 
-    // Restore last snapshot
+    // Undo restores the last saved state
     undo() {
         if (this.historyStack.length === 0) {
-            return; // nothing to undo
+            return; // Nothing to undo
         }
 
         const prev = this.historyStack.pop();
@@ -62,37 +63,57 @@ class Calculator {
         this.lastResult = prev.lastResult;
     }
 
-    // Handle digit input
+    // Handle digit input (0–9)
     inputDigit(d) {
         this.saveState();
-        
-        // Prevent leading zero like "0005"
+
+        // Prevent multiple leading zeros like "0005"
         if (this.currentInput === "0" && d === "0") return;
 
+        // IMPORTANT:
+        // We append digits as STRINGS because user input is sequential
+        // Example: pressing '1' then '2' → "12", not 1 + 2
         this.currentInput += d;
     }
 
-    // Handle decimal point
+    // Handle decimal point input
     inputDecimal() {
         this.saveState();
 
-        if (this.currentInput.includes(".")) return;  // prevent 1.2.3
+        // Prevent invalid numbers like "1.2.3"
+        if (this.currentInput.includes(".")) return;
+
+        // If user presses '.' first, assume "0."
         if (this.currentInput === "") this.currentInput = "0";
+
         this.currentInput += ".";
     }
 
-    // Set + - * /
+    // Set operator (+, -, *, /)
     setOperator(op) {
         this.saveState();
 
-        // If operator pressed twice, ignore second
+        // Case: User presses operator twice
+        // Example: 5 + - → change operator, don’t reset values
         if (!this.currentInput && this.previousValue !== null) {
             this.operator = op;
             return;
         }
 
-        // Move current input into previousValue if available
+        // If user has typed a number, move it to previousValue
         if (this.currentInput !== "") {
+            /*
+              WHY parseFloat HERE?
+
+              - currentInput is a STRING (e.g. "12.5")
+              - Math operations require NUMBERS
+              - Without parseFloat:
+                    "12" + "3"  → "123" (string concatenation ❌)
+              - With parseFloat:
+                    12 + 3 → 15 (correct arithmetic ✅)
+
+              We convert only at the moment when math is needed.
+            */
             this.previousValue = parseFloat(this.currentInput);
             this.currentInput = "";
         }
@@ -100,14 +121,20 @@ class Calculator {
         this.operator = op;
     }
 
-    // Execute the operation
+    // Perform calculation when "=" is pressed
     calculate() {
         this.saveState();
 
+        // Guard clause: ensure we have enough data to compute
         if (this.previousValue === null || this.currentInput === "" || !this.operator) {
-            return; // Not enough values to compute
+            return;
         }
 
+        /*
+          Again, parseFloat is required here because:
+          - currentInput is still a STRING
+          - We must convert it to NUMBER before arithmetic
+        */
         const current = parseFloat(this.currentInput);
         let result;
 
@@ -131,7 +158,13 @@ class Calculator {
                 return;
         }
 
-        // update state
+        /*
+          After calculation:
+          - result is a NUMBER
+          - But we store it as STRING in currentInput
+            so user can continue typing from the result
+            Example: 5 + 5 = 10 → typing '2' gives "102"
+        */
         this.lastResult = result;
         this.currentInput = String(result);
         this.previousValue = null;
@@ -140,13 +173,13 @@ class Calculator {
         return result;
     }
 
-    // Clear only current typing
+    // Clear only the current input (CE button)
     clearEntry() {
         this.saveState();
         this.currentInput = "";
     }
 
-    // Reset whole calculator
+    // Reset entire calculator state (AC button)
     reset() {
         this.saveState();
         this.currentInput = "";
@@ -155,8 +188,14 @@ class Calculator {
         this.lastResult = null;
     }
 
-    // For UI rendering
+    // Value to show on calculator screen
     getDisplay() {
+        /*
+          Display priority:
+          1. currentInput (user typing)
+          2. previousValue (after operator)
+          3. "0" (default state)
+        */
         return this.currentInput || this.previousValue || "0";
     }
 }
