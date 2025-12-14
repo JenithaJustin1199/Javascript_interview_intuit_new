@@ -1,0 +1,252 @@
+<!-- /*AutoComplete
+
+1. input -> having number of api Calls 
+2. once the fetch is called we can cache the response so we don't need to call the API again and again
+ with some expiration
+3. Also we can debouce the api function with some time limits
+
+// mock_data
+// promise -> setTimeOut
+// cache
+// handleSearch
+// renderSuggestions in HTML
+//
+*/ -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Typeahead</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+      /* Container for the typeahead component */
+      .typeahead {
+        width: 300px; /* Fixed width for demo */
+        position: relative; /* Needed to position dropdown */
+        font-family: sans-serif;
+      }
+
+      /* Suggestions list */
+      #suggestions {
+        border: 1px solid #ccc; /* Visible dropdown boundary */
+        list-style: none; /* Remove bullet points */
+        margin: 0;
+        padding: 0;
+        max-height: 150px; /* Limit height for scrolling */
+        overflow-y: auto; /* Enable scrolling */
+      }
+
+      /* Individual suggestion item */
+      #suggestions li {
+        padding: 6px;
+        cursor: pointer; /* Indicate clickable item */
+      }
+
+      /* Active item when navigating via keyboard */
+      #suggestions li.active {
+        background-color: #eee; /* Highlight active option */
+      }
+
+      /* Highlight matched text */
+      .highlight {
+        font-weight: bold; /* Emphasize matched substring */
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Wrapper for the typeahead UI -->
+    <div class="typeahead">
+      <!-- Search input field -->
+      <input id="searchInput" type="text" placeholder="Search fruits..."
+      autocomplete="off"
+      aria-autocomplete="list"
+
+      aria-expanded="false"
+      
+      aria-controls="suggestions"
+      
+      />
+
+      <!-- Dropdown list to display suggestions -->
+      <ul id="suggestions" role="listbox"></ul>
+    </div>
+
+    <script>
+      // Mock dataset representing backend search results
+      // In real apps, this data comes from an API
+      const MOCK_DATA = [
+        "Apple",
+        "Apricot",
+        "Banana",
+        "Blackberry",
+        "Blueberry",
+        "Cherry",
+        "Coconut",
+        "Grapes",
+        "Mango",
+        "Orange",
+        "Peach",
+        "Pineapple",
+        "Strawberry",
+        "Watermelon",
+      ];
+
+      // Simulates an async API call
+      // We use a Promise + setTimeout to mimic network latency
+      function fetchSuggestions(query) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            // Filter mock data based on query
+            const results = MOCK_DATA.filter((item) =>
+              item.toLowerCase().includes(query.toLowerCase())
+            );
+
+            // Resolve promise with filtered results
+            resolve(results);
+          }, 300); // 300ms delay simulates real network
+        });
+      }
+      // Debounce prevents excessive function calls while typing
+      // It ensures the function executes only after the user stops typing
+      function debounce(fn, delay) {
+        let timer; // Stores timeout ID
+
+        return function (...args) {
+          clearTimeout(timer); // Cancel previous scheduled execution
+
+          // Schedule new execution after delay
+          timer = setTimeout(() => {
+            fn.apply(this, args); // Call original function
+          }, delay);
+        };
+      }
+      // Cache to store previously fetched results
+      // Key: query string, Value: results array
+      const cache = new Map();
+      // Input element where user types
+      const input = document.getElementById("searchInput");
+
+      // UL element where suggestions are rendered
+      const list = document.getElementById("suggestions");
+
+      // Tracks currently selected suggestion index
+      let activeIndex = -1;
+
+      // Stores current visible results for keyboard selection
+      let currentResults = [];
+
+      // Handles search logic whenever input changes
+      async function handleSearch(query) {
+        // If input is empty, clear suggestions
+        if (!query) {
+          list.innerHTML = "";
+          input.setAttribute("aria-expanded", "false");
+          return;
+        }
+
+        // If results already cached, use them
+        if (cache.has(query)) {
+          renderSuggestions(cache.get(query), query);
+          return;
+        }
+
+        // Fetch suggestions asynchronously
+        const results = await fetchSuggestions(query);
+
+        // Store results in cache
+        cache.set(query, results);
+
+        // Render fetched suggestions
+        renderSuggestions(results, query);
+      }
+
+      const debouncedSearch = debounce((e) => {
+        handleSearch(e.target.value.trim());
+      }, 300);
+
+      // Listen to real-time input events
+      input.addEventListener("input", debouncedSearch);
+      function renderSuggestions(results, query) {
+        // Clear previous suggestions
+        list.innerHTML = "";
+
+        // Reset keyboard navigation state
+        activeIndex = -1;
+
+        // Store current results
+        currentResults = results;
+
+        // Create list items for each result
+        results.forEach((item) => {
+          const li = document.createElement("li");
+
+          // Accessibility role
+          li.role = "option";
+
+          // Highlight matched text
+          li.innerHTML = highlight(item, query);
+
+          // Click selects item
+          li.addEventListener("click", () => {
+            input.value = item;
+            list.innerHTML = "";
+            input.setAttribute("aria-expanded", "false");
+          });
+
+          // Append item to list
+          list.appendChild(li);
+        });
+
+        // Indicate suggestions are visible
+        input.setAttribute("aria-expanded", "true");
+      }
+      // Highlights the matched substring in suggestions
+      function highlight(text, query) {
+        // Create case-insensitive regex
+        const regex = new RegExp(`(${query})`, "ig");
+
+        // Wrap matched part with span
+        return text.replace(regex, `<span class="highlight">$1</span>`);
+      }
+
+      input.addEventListener("keydown", (e) => {
+        const items = list.querySelectorAll("li");
+
+        // Navigate down
+        if (e.key === "ArrowDown") {
+          activeIndex = (activeIndex + 1) % items.length;
+        }
+
+        // Navigate up
+        if (e.key === "ArrowUp") {
+          activeIndex = (activeIndex - 1 + items.length) % items.length;
+        }
+
+        // Select on Enter
+        if (e.key === "Enter" && activeIndex >= 0) {
+          input.value = currentResults[activeIndex];
+          list.innerHTML = "";
+          input.setAttribute("aria-expanded", "false");
+          return;
+        }
+
+        // Close dropdown on Escape
+        if (e.key === "Escape") {
+          list.innerHTML = "";
+          input.setAttribute("aria-expanded", "false");
+          return;
+        }
+
+        // Update active styles
+        items.forEach((item) => item.classList.remove("active"));
+        if (items[activeIndex]) {
+          items[activeIndex].classList.add("active");
+        }
+      });
+      // Debounced version of search handler
+
+    </script>
+  </body>
+</html>
