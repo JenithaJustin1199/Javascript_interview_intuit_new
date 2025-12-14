@@ -1,0 +1,168 @@
+```plaintext
+Virtualized List & Infinite Scrolling
+
+1. Problem: Rendering a Really Long List
+What happens if we render everything?
+- Example: 50,000 rows
+- Each row = DOM node
+
+Browser work for each node:
+1. Create DOM nodes
+2. Style calculation
+3. Layout (measure width/height)
+4. Paint pixels
+5. Composite layers
+6. Re-run layout on every scroll
+
+Performance impact:
+- Memory: 50k rows ≈ 50–100MB DOM memory
+- Layout time: 30–40ms per frame (bad)
+- Target: 16ms per frame (60 FPS)
+- Issues:
+  - Layout thrashing
+  - Slow initial render
+  - Slow Time-To-Interactive
+  - Scroll jank
+
+Root cause: Too many DOM nodes + frequent re-layout
+
+2. Core Idea: Virtualized List
+Render only what the user sees, not everything
+
+Key principle:
+Rendered Items = Visible Items + Buffer
+
+Example:
+- Viewport height = 800px
+- Row height = 40px
+- Visible rows = 800 / 40 = 20 rows
+- Add buffer: Render ~30–40 rows total (even if dataset has 50,000 items)
+
+3. Why Do We Need a Buffer?
+Problem without buffer:
+- Scroll happens faster than render
+- Visible window changes rapidly
+- Causes: Flicker, Blank space
+
+Solution: Overscan / Buffer
+- Visible window: 100px → 120px
+- Rendered window: 95px → 125px
+
+Benefits:
+- No empty gaps during fast scroll
+- Smooth UX
+- Browser always has content ready
+
+4. Virtualized List Architecture
+Outer Scroll Container (overflow: auto, fixed height)
+├── Total Height Spacer (height = totalRows * rowHeight)
+    └── Windowed Box (translated via transform)
+        ├── Row Renderer
+        ├── Row Renderer
+        ├── Row Renderer
+        └── ...
+
+5. Role of Each Layer
+1. Outer Scroll Container
+   - Fixed height
+   - overflow: auto
+   - Handles native scrolling
+
+2. Total Height Spacer
+   - Single div
+   - Height = totalRows × estimatedRowHeight
+   - Makes scrollbar behave as if full list exists
+
+3. Windowed Render Box
+   - Contains only visible + buffer rows
+   - Positioned using transform: translateY(startIndex * rowHeight)
+   - Uses GPU acceleration
+
+4. Item Renderer
+   - Renders individual rows
+   - Reused (recycled) instead of recreated
+
+6. Why Use transform: translateY?
+Bad: top / margin-top → triggers layout/reflow
+Good: transform: translateY() → GPU accelerated, only compositing phase, no reflow
+Critical for smooth scrolling
+
+7. Scroll Handling Strategy
+Problem: Scroll event fires too frequently → repeated state updates
+Solution:
+Scroll Event
+↓
+requestAnimationFrame
+↓
+Compute visible range
+↓
+Update transform
+
+Benefits:
+- Max one update per frame
+- No layout thrashing
+- Smooth 60 FPS
+
+8. Optimizations in Virtualized Lists
+1. Limit DOM Nodes: Keep constant (~30–40), independent of data size
+2. Recycle DOM Nodes: Reuse row components, change content instead of destroy/create
+3. GPU Accelerated CSS: transform, will-change: transform
+4. Throttle Scroll: Use requestAnimationFrame (avoid setTimeout/debounce)
+
+9. Fixed Height vs Dynamic Height Rows
+Fixed Height (Preferred):
+- Predictable math
+- O(1) index → offset calculation
+- No layout measurement
+- offset = index * rowHeight
+
+Dynamic Height Rows (Hard):
+Problems:
+- Browser must measure each row → forced layout
+- Scroll position becomes inaccurate
+
+Solutions:
+1. Measure once
+2. Cache heights
+3. Never re-measure unnecessarily
+
+10. Handling Dynamic Heights (Advanced)
+Height Cache: index → measuredHeight
+Prefix Sum / Fenwick Tree (Binary Indexed Tree):
+- Compute total height before index i
+- Update height: O(log n)
+- Query scroll offset: O(log n)
+- Efficient for large lists
+
+11. Architecture Summary (Mental Model)
+User Scrolls
+↓
+Compute visible index range
+↓
+Translate windowed box
+↓
+Recycle rows
+↓
+GPU paints only visible items
+
+12. Key Interview One-Liners
+- "Virtualization reduces DOM size, not data size"
+- "Scrollbar is fake, content is real"
+- "Transform avoids layout, top causes reflow"
+- "Buffer prevents flicker during fast scroll"
+- "Dynamic heights require prefix-sum structures"
+
+13. When This Scales to Infinite Scroll
+- Backend provides paginated data
+- Frontend virtualizes rendering
+- Data loading ≠ rendering
+Infinite scroll = Data pagination + UI virtualization
+
+Use as:
+- Revision notes
+- Whiteboard explanation
+- Sticky architecture diagrams
+- Senior Frontend interview prep
+``` 
+
+You can copy-paste the content inside the code block directly into your code editor or notes file. All unnecessary spacing, emojis, and decorative elements have been removed or minimized for clean readability.
