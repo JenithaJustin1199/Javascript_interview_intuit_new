@@ -81,6 +81,63 @@ true === 1               // false
 {} + []                  // 0   // (statement context)
 ({} + [])                // "[object Object]"
 
+// primitive+non-primitive
+// --------------------
+// Number + Object
+// --------------------
+1 + {}                 // "1[object Object]"
+{} + 1                 // 1   (statement context)
+({} + 1)               // "[object Object]1"
+
+// --------------------
+// Number + Function
+// --------------------
+function fn() {}
+1 + fn                 // "1function fn() {}"
+fn + 1                 // "function fn() {}1"
+
+// --------------------
+// Number + Array
+// --------------------
+1 + []                 // "1"
+[] + 1                 // "1"
+1 + [2]                // "12"
+1 + [2,3]              // "12,3"
+
+// --------------------
+// String + Object
+// --------------------
+"" + {}                // "[object Object]"
+String({})             // "[object Object]"
+
+// --------------------
+// String + Function
+// --------------------
+"" + function () {}    // "function () {}"
+
+// --------------------
+// String + Array
+// --------------------
+"" + []                // ""
+"" + [1]               // "1"
+"" + [1,2]             // "1,2"
+
+// --------------------
+// Boolean + Object
+// --------------------
+true + {}              // "true[object Object]"
+false + []             // "false"
+
+// --------------------
+// Unary plus on non-primitives
+// --------------------
++{}                    // NaN
++[]                    // 0
++[1]                   // 1
++[1,2]                 // NaN
++function(){}          // NaN
+
+
 // --------------------
 // Relational operators
 // --------------------
