@@ -1,0 +1,54 @@
+/*
+Object Property descriptors
+    -> Data descriptors
+    -> Accessor Descriptors
+*/
+const obj = {};
+
+// Define property with descriptor
+Object.defineProperty(obj, "name", {
+  value: "Alice",
+  writable: false,       // cannot modify
+  enumerable: true,      // shows in loops
+  configurable: false    // cannot delete or reconfigure
+});
+
+console.log(obj.name); // Alice
+
+// Trying to change value
+obj.name = "Bob";
+console.log(obj.name); // Alice ❌ unchanged
+
+// Trying to delete
+delete obj.name;
+console.log(obj.name); // Alice ❌ cannot delete
+
+
+// ---------------------------- Accessor Descriptors --------------------
+
+const person = {
+    firstName: "Alice",
+    lastName: "Smith"
+  };
+  
+  Object.defineProperty(person, "fullName", {
+    get() {
+      // Called when reading fullName
+      return `${this.firstName} ${this.lastName}`;
+    },
+    set(value) {
+      // Called when setting fullName
+      const [first, last] = value.split(" ");
+      this.firstName = first;
+      this.lastName = last;
+    },
+    enumerable: true,
+    configurable: true
+  });
+  
+  console.log(person.fullName); // Alice Smith ✅
+  
+  person.fullName = "Bob Johnson";
+  console.log(person.firstName); // Bob
+  console.log(person.lastName);  // Johnson
+  
