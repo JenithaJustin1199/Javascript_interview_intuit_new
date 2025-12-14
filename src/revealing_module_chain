@@ -1,0 +1,143 @@
+Revealing module pattern:
+1. const fn = (function () {
+  function inner() {
+    console.log("Hi");
+  }
+
+  // Reveal a modified toString
+  function getFunction() {
+    return inner;
+  }
+
+  getFunction.toString = function() {
+    return "start:" + inner.toString() + ":end";
+  };
+
+  return getFunction;
+})();
+
+console.log(1 + fn); // 1start:function inner() { console.log("Hi"); }:end
+
+--------------------------------------------------------------------------------------------------
+
+2. const magicNumber = (function() {
+  // Private number
+  const value = 32;
+
+  const obj = {};
+
+  obj.valueOf = function() {
+    return value; // used in numeric ops
+  };
+
+  obj.toString = function() {
+    return `The answer is ${value}`;
+  };
+
+  return obj;
+})();
+
+console.log(magicNumber + 10);    // 42
+console.log(magicNumber * 2);     // 64
+console.log(String(magicNumber)); // "The answer is 32"
+
+// Concept behind it:
+| Operator/Method | Coercion Called                        |
+| --------------- | -------------------------------------- |
+| `+` (number)    | `valueOf()` then fallback `toString()` |
+| `*`             | `valueOf()`                            |
+| `String()`      | `toString()`                           |
+
+--------------------------------------------------------------------------------------
+
+3. function chainable(initialValue) {
+  // Private state
+  let currentValue = initialValue;
+
+  // Revealing Module Pattern: expose only add/mul
+  const api = {
+    add(num) {
+      currentValue += num;
+      return api; // for chaining
+    },
+    mul(num) {
+      currentValue *= num;
+      return api; // for chaining
+    },
+    // Convert object to number for numeric operations
+    valueOf() {
+      return currentValue;
+    },
+    // Convert object to string for string coercion
+    toString() {
+      return `Result: ${currentValue}`;
+    }
+  };
+
+  return api;
+}
+console.log(chainable(5).add(3).mul(2)); 
+// valueOf is called in console → 16
+
+console.log(chainable(5).add(3).mul(2) + 10); 
+// valueOf() used in + → 16 + 10 = 26
+
+console.log(String(chainable(5).add(3).mul(2))); 
+// toString() → "Result: 16"
+
+-----------------------------------------------------------------------------------------
+
+4. function calc(initialValue) {
+  let currentValue = initialValue;
+
+  const api = {
+    add(n) { currentValue += n; return api; },
+    sub(n) { currentValue -= n; return api; },
+    mul(n) { currentValue *= n; return api; },
+    div(n) { currentValue /= n; return api; },
+    value() { return currentValue; },
+    valueOf() { return currentValue; },
+    toString() { return `Result: ${currentValue}`; }
+  };
+
+  return api;
+}
+
+// Example
+console.log(calc(5).add(3).mul(2).sub(4) + 0); // coerces to number → prints 12
+console.log(String(calc(5).add(3).mul(2).sub(4))); // "Result: 12"
+
+-----------------------------------------------------------------------------------
+5. function add(...initialArgs) {
+  // private sum
+  let total = initialArgs.reduce((a, b) => a + b, 0);
+
+  function inner(...args) {
+    if (args.length === 0) return inner; // ignore empty calls if any
+    total += args.reduce((a, b) => a + b, 0);
+    return inner;
+  }
+
+  // Numeric coercion (console.log, +, *, etc.)
+  inner.valueOf = function() {
+    return total;
+  };
+
+  // String coercion (String(), template strings)
+  inner.toString = function() {
+    return `Sum: ${total}`;
+  };
+
+  return inner;
+}
+currying + Type coericision revealing pattern
+console.log(add(2)(3)(4));      
+// console.log tries to convert to string → calls toString() → "Sum: 9" 
+// BUT **before printing**, Node/Chrome console ALSO tries valueOf() → 9  
+// so you will see: 9
+
+console.log(String(add(2)(3)(4))); 
+// "Sum: 9"
+
+------------------------------------------------------------
+
