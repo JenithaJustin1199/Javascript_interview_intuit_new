@@ -1,0 +1,186 @@
+1. function curriedSum(...initialArgs) {
+  // private accumulator inside closure
+  let total = initialArgs.reduce((a, b) => a + b, 0);
+
+  function inner(...args) {
+    if (args.length === 0) {
+      // termination condition → return final result
+      return total;
+    }
+
+    // accumulate into private total
+    total += args.reduce((a, b) => a + b, 0);
+
+    // return same function for further chaining
+    return inner;
+  }
+
+  return inner;
+}
+const sum = curriedSum(1)(2)(3)();     // 6
+const sum2 = curriedSum(1, 2)(3)();    // 6
+
+
+---------------------------------------------------------------------------------
+
+2. compose and pipe with nester functions
+// compose → right to left
+const composed = compose(add(2), mul(3), sub(1));
+console.log(composed(5)); // 20
+
+// pipe → left to right
+const piped = pipe(add(2), mul(3), sub(1));
+console.log(piped(5)); // 20
+
+compose:
+function compose(...fns) {
+  return function(x) {
+    return fns.reduceRight((acc, fn) => fn(acc), x);
+  };
+}
+
+pipe:
+function pipe(...fns) {
+  return function(x) {
+    return fns.reduce((acc, fn) => fn(acc), x);
+  };
+}
+
+---------------------------------------------------------------------------------
+
+3. compose and pipe with Async
+const composeAsync = (...fns) => x =>
+  fns.reduceRight((p, fn) => p.then(fn), Promise.resolve(x));
+
+const pipeAsync = (...fns) => x =>
+  fns.reduce((p, fn) => p.then(fn), Promise.resolve(x));
+
+  await composeAsync(f1, f2, f3)(value);
+
+  ---------------------------------------------------------------------------------
+
+3)function logger(level) {
+  return function(message) {
+    return function() {
+      const output = `[${level}] ${message}`;
+      console.log(output);
+      return output; // return if caller wants it
+    };
+  };
+}
+
+logger("INFO")("User logged in")();  
+// prints: [INFO] User logged in
+
+logger("ERROR")("DB failure")();  
+// prints: [ERROR] DB failure
+---------------------------------------------------------------------------------
+4)const validate = curriedValidator(isEmail)(isNotEmpty);
+validate("test@example.com"); // true/false
+function curriedValidator(...validators) {
+  // Collect validators through currying
+  function collector(...newValidators) {
+    // If called with an input (non-function), run validation
+    if (typeof newValidators[0] !== "function") {
+      const input = newValidators[0];
+      return validators.every(v => v(input));
+    }
+
+    // Else continue collecting validators
+    return curriedValidator(...validators, ...newValidators);
+  }
+
+  return collector;
+}
+function isNotEmpty(str) {
+  return str.trim().length > 0;
+}
+
+function isEmail(str) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str);
+}
+
+---------------------------------------------------------------------------------
+5)function curriedFetch(url) {
+  // Store parameters in closure
+  let params = {
+    url,
+    method: "GET",
+    headers: {},
+    body: null
+  };
+
+  function collector(arg) {
+    // If the final empty call () is made → trigger fetch
+    if (arg === undefined) {
+      return fetch(params.url, {
+        method: params.method,
+        headers: params.headers,
+        body: params.body
+      }).then(res => res.json());
+    }
+
+    // If argument looks like HTTP METHOD
+    if (typeof arg === "string" && ["GET", "POST", "PUT", "PATCH", "DELETE"].includes(arg)) {
+      params.method = arg;
+      return collector;
+    }
+
+    // If argument is headers
+    if (typeof arg === "object" && !Array.isArray(arg)) {
+      params.headers = { ...params.headers, ...arg };
+      return collector;
+    }
+
+    // If argument is a body (string or object)
+    if (typeof arg === "string" || typeof arg === "object") {
+      params.body = typeof arg === "object" ? JSON.stringify(arg) : arg;
+      return collector;
+    }
+
+    return collector;
+  }
+
+  return collector;
+}
+curriedFetch("https://api.com/data")("GET")().then(console.log);
+curriedFetch("https://api.com/data")("GET")({ Authorization: "Bearer 123" })()
+  .then(console.log);
+curriedFetch("https://api.com/create")("POST")({ "Content-Type": "application/json" })({ name: "Jeni" })()
+  .then(console.log);
+curriedFetch("https://api.com/users")().then(console.log);
+
+---------------------------------------------------------------------------------
+6) Pipe and Async function
+function pipeAsync(...fns) {
+  return function (initialArg) {
+    return fns.reduce(
+      (promiseChain, fn) => promiseChain.then(fn),
+      Promise.resolve(initialArg)
+    );
+  };
+}
+
+pipeAsync(fetchUser)(getProfile)(sendEmail)(userId)
+  .then(result => console.log("DONE:", result))
+  .catch(err => console.error(err));
+
+
+  const fetchUser = (id) => async () => {
+  return new Promise(resolve =>
+    setTimeout(() => resolve({ id, name: "John Doe" }), 200)
+  );
+};
+
+const getProfile = (user) => async () => {
+  return new Promise(resolve =>
+    setTimeout(() => resolve({ ...user, email: "john@example.com" }), 200)
+  );
+};
+
+const sendEmail = (profile) => async () => {
+  return new Promise(resolve =>
+    setTimeout(() => resolve(`Email sent to ${profile.email}`), 200)
+  );
+};
+
