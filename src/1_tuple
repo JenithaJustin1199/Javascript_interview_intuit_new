@@ -118,3 +118,45 @@ function tuple(str) {
     }
   };
 }
+
+------------------> Single pass <-------------------
+
+function tuple(str) {
+  const result = [];
+
+  // Regex to match content inside each pair of parentheses
+  const regex = /\(([^)]+)\)/g;
+  let match;
+
+  // Single pass over the string
+  while ((match = regex.exec(str)) !== null) {
+    // match[1] contains "1, 2, 3"
+    const numbers = match[1]
+      .split(/\s*,\s*/)   // split by comma with optional spaces
+      .map(Number);       // convert to numbers
+
+    result.push(numbers);
+  }
+
+  return {
+    data: result,
+
+    multiply(index) {
+      let product = 1;
+      const i = index - 1;
+
+      for (const row of result) {
+        product *= row[i];
+      }
+
+      return product;
+    }
+  };
+}
+| Aspect         | Explanation                      |
+| -------------- | -------------------------------- |
+| Regex scan     | `.exec()` moves internal pointer |
+| No re-matching | No `.match()` + `.map()` chain   |
+| No temp arrays | Each tuple processed immediately |
+| Complexity     | **O(n)**                         |
+
