@@ -1,0 +1,111 @@
+function hasParent(parent, child) {
+  let current = child;
+
+  while (current) {
+    if (current === parent) return true;
+    current = current.parentNode;
+  }
+
+  return false;
+}
+Time Complexity: O(h)
+
+Where:
+h = height (depth) of the DOM tree from child up to the root
+
+-------------------------------- String repeat ----------
+String.prototype.repeatLinear = function (times) {
+  let result = "";
+
+  for (let i = 0; i < times; i++) {
+    result += this;
+  }
+
+  return result;
+};
+Example
+js
+Copy code
+"string".repeatLinear(3);
+// "stringstringstring"
+⏱️ Time Complexity
+O(n × len) → simplified as O(n)
+(where n = times, len = string length)
+------O(logn)
+String.prototype.repeatLog = function (times) {
+  // Final answer
+  let result = "";
+
+  // Current chunk of string (starts with original string)
+  let current = this.toString();
+
+  // Loop until times becomes 0
+  while (times > 0) {
+
+    // If times is odd, include current chunk
+    if (times & 1) {
+      result += current;
+
+      // Dry run for "ab".repeatLog(5):
+      // times = 5 (101) → result += "ab"
+      // result = "ab"
+    }
+
+    // Double the current string
+    current += current;
+
+    // Dry run:
+    // current = "ab" → "abab"
+    // then → "abababab"
+
+    // Divide times by 2 (bitwise)
+    times >>= 1;
+
+    // Dry run:
+    // 5 → 2 → 1 → 0
+  }
+
+  return result;
+};
+times = 5 (101)
+result = ""
+current = "ab"
+
+Step 1:
+times odd → result = "ab"
+current = "abab"
+times = 2
+
+Step 2:
+times even → skip
+current = "abababab"
+times = 1
+
+Step 3:
+times odd → result = "ab" + "abababab"
+times = 0
+
+------------------> recursive approach --------
+String.prototype.repeatRecursiveLog = function (times) {
+  // Base cases
+  if (times === 0) return "";
+  if (times === 1) return this.toString();
+
+  // Recursive divide
+  const half = this.repeatRecursiveLog(Math.floor(times / 2));
+
+  // If even
+  if (times % 2 === 0) {
+    return half + half;
+  }
+
+  // If odd
+  return half + half + this;
+};
+repeat(3)
+→ half = repeat(1) = "ab"
+→ odd → "ab" + "ab" + "ab"
+⏱ Complexity
+Time: O(log n)
+
+Space: O(log n) (recursion depth)
