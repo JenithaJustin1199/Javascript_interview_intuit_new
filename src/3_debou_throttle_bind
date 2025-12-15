@@ -1,0 +1,52 @@
+Debounce
+Debounce ensures a function runs only after a pause in repeated calls.
+Calls:  ||||||||____✔
+Executes once after delay
+function debounce(fn, delay) {
+  let timerId;
+
+  return function (...args) {
+    const context = this;
+
+    clearTimeout(timerId);               // cancel previous timer
+    timerId = setTimeout(() => {
+      fn.apply(context, args);           // run after pause
+    }, delay);
+  };
+}
+
+-----------
+Throttle
+Throttle ensures a function runs at most once in a given time interval.
+function throttle(fn, limit) {
+  let inThrottle = false;
+
+  return function (...args) {
+    const context = this;
+
+    if (!inThrottle) {
+      fn.apply(context, args);            // execute immediately
+      inThrottle = true;
+
+      setTimeout(() => {
+        inThrottle = false;               // allow next call
+      }, limit);
+    }
+  };
+}
+
+----------------------
+Bind
+bind creates a new function with a permanently bound this context.
+Function.prototype.myBind = function (context, ...bindArgs) {
+  const originalFn = this;
+
+  return function (...callArgs) {
+    return originalFn.apply(
+      context,
+      [...bindArgs, ...callArgs]         // support partial application
+    );
+  };
+};
+const fn = obj.method.bind(obj);
+fn(); // this === obj
