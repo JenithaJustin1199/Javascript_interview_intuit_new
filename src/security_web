@@ -1,0 +1,27 @@
+Content Security Policy (CSP)
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self';
+
+
+✔ Blocks inline scripts
+✔ Prevents XSS even if bug exists
+
+| Attack / Risk                  | What It Is (One-liner)                          | Example                              | How to Prevent / Fix                     |
+| ------------------------------ | ----------------------------------------------- | ------------------------------------ | ---------------------------------------- |
+| **XSS (Cross-Site Scripting)** | Injecting malicious JS via user input           | `<script>alert(1)</script>` in input | Escape output, use DOM APIs, CSP         |
+| **Stored XSS**                 | Malicious input stored in DB and executed later | Comment section attack               | Sanitize before store + escape on render |
+| **Reflected XSS**              | Malicious input reflected in response           | Search query injection               | Encode server responses                  |
+| **DOM XSS**                    | JS uses unsafe APIs like `innerHTML`            | `el.innerHTML = location.hash`       | Use `textContent`, avoid eval            |
+| **CSRF**                       | User performs actions unknowingly               | Auto-submit hidden form              | CSRF tokens, SameSite cookies            |
+| **SQL Injection**              | Inject SQL via input                            | `' OR 1=1 --`                        | Prepared statements                      |
+| **Command Injection**          | Execute system commands                         | `; rm -rf /`                         | Validate input, no shell execution       |
+| **HTML Injection**             | Inject HTML tags                                | `<img onerror=alert(1)>`             | Output encoding                          |
+| **Open Redirect**              | Redirect user to malicious site                 | `/redirect?url=evil.com`             | Allowlist URLs                           |
+| **Clickjacking**               | UI hidden under attacker page                   | Invisible iframe                     | `X-Frame-Options`, CSP                   |
+| **Sensitive Data Exposure**    | Passwords/tokens leaked                         | HTTP forms                           | HTTPS, encryption                        |
+| **Brute Force**                | Repeated login attempts                         | Guess passwords                      | Rate limiting                            |
+| **Mass Assignment**            | Extra fields overwrite data                     | `{ isAdmin: true }`                  | Whitelist fields                         |
+| **Insecure File Upload**       | Upload malicious files                          | `.php`, `.exe`                       | Validate MIME, file type                 |
+| **Broken Auth**                | Weak session handling                           | Session fixation                     | HttpOnly, Secure cookies                 |
+| **CORS Misconfig**             | Any origin allowed                              | `*` with credentials                 | Strict origin policy                     |
