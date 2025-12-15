@@ -1,22 +1,65 @@
 Revealing module pattern:
+// Assign the result of an IIFE to `fn`
 1. const fn = (function () {
+  // ↑ This is an IIFE (Immediately Invoked Function Expression)
+  // Why IIFE?
+  // 1. Creates a private scope
+  // 2. Executes immediately (one-time setup)
+  // 3. Avoids polluting global scope
+  // 4. Enables closure-based encapsulation (Revealing Module Pattern)
+
+  // Private function — NOT accessible from outside
   function inner() {
     console.log("Hi");
   }
 
-  // Reveal a modified toString
+  // This function will be exposed publicly
   function getFunction() {
+    // Returns the private `inner` function
+    // Demonstrates closure: `inner` survives after IIFE execution
     return inner;
   }
 
-  getFunction.toString = function() {
+  // Override the default toString() of `getFunction`
+  // This controls how `getFunction` behaves during type coercion
+  getFunction.toString = function () {
+    // Accesses `inner` via closure
+    // `inner` is private but still reachable here
     return "start:" + inner.toString() + ":end";
   };
 
+  // Return only the public API
+  // Everything else remains private inside the IIFE
   return getFunction;
+
+  // After this point, the IIFE finishes execution
+  // But the returned function still holds references (closure)
 })();
 
-console.log(1 + fn); // 1start:function inner() { console.log("Hi"); }:end
+// At this point:
+// fn === getFunction
+// inner is NOT accessible globally
+// fn has a custom toString()
+
+// --------------------------------------------
+
+// When evaluating `1 + fn`:
+console.log(1 + fn);
+
+/*
+Execution flow of `1 + fn`:
+
+1. `+` operator with number + object
+2. JS tries to convert `fn` to a primitive
+3. Calls fn.valueOf() → returns object (ignored)
+4. Calls fn.toString() → our overridden version runs
+5. Returns:
+   "start:function inner() { console.log("Hi"); }:end"
+6. Number 1 is converted to string
+7. Final result:
+   "1start:function inner() { console.log("Hi"); }:end"
+*/
+
 
 --------------------------------------------------------------------------------------------------
 
