@@ -1,0 +1,137 @@
+A generator in JavaScript is:
+
+“A function that can pause its execution and later resume, producing a sequence of values on demand.”
+
+You can recognize it by the function* syntax and use of yield.
+
+Example in one line:
+
+function* gen() { yield 1; yield 2; } 
+
+Generator and iterator:
+1. const seq = generateSequence(1)(3)(2); 
+for (const n of seq()) console.log(n);
+// Output:
+// 1
+// 3
+  const infiniteSeq = generateSequence(0)(null)(5);
+
+let count = 0;
+for (const n of infiniteSeq()) {
+  console.log(n);
+  if (++count === 5) break;
+}
+// Output: 0, 5, 10, 15, 20
+const desc = generateSequence(10)(4)(-2);
+
+console.log([...desc()]);
+// [10, 8, 6, 4]
+function generateSequence(start) {
+  return function (end) {
+    return function (step = 1) {
+
+      // Return a generator function — final () call triggers it
+      return function* () {
+        let current = start;
+
+        // If end is undefined/null → infinite sequence
+        const infinite = end == null;
+
+        while (infinite || (step > 0 ? current <= end : current >= end)) {
+          yield current;
+          current += step;
+        }
+      };
+    };
+  };
+}
+
+--------------------------- Round Robin --------
+function roundRobin(nested) {
+  // Create an iterator for each inner array
+  let iterators = nested.map(arr => arr[Symbol.iterator]());
+  let current = 0;
+
+  function hasNext() {
+    return iterators.length > 0;
+  }
+
+  function next() {
+    if (!hasNext()) return undefined;
+
+    // Pick the current iterator
+    const iterator = iterators[current];
+    const result = iterator.next();
+
+    if (result.done) {
+      // Remove exhausted iterator
+      iterators.splice(current, 1);
+
+      // If we removed last iterator, reset current to 0
+      if (current >= iterators.length) current = 0;
+
+      return next(); // retry with next iterator
+    }
+
+    // Move to next iterator
+    current = (current + 1) % iterators.length;
+    return result.value;
+  }
+
+  return { next, hasNext };
+}
+const data = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9],
+];
+
+const rr = roundRobin(data);
+
+console.log(rr.next()); // 1
+console.log(rr.next()); // 4
+console.log(rr.next()); // 7
+console.log(rr.next()); // 2
+console.log(rr.next()); // 5
+console.log(rr.next()); // 8
+console.log(rr.next()); // 3
+console.log(rr.next()); // 6
+console.log(rr.next()); // 9
+console.log(rr.hasNext()); // false
+
+--------
+
+2. Round Robin in iterators:
+
+function* roundRobin(nestedList) {
+  // Step 1: Convert each inner list into its own iterator
+  const iterators = nestedList.map(list => list[Symbol.iterator]());
+
+  while (iterators.length) {
+    // Step 2: Iterate over iterators in order
+    for (let i = 0; i < iterators.length; i++) {
+      const res = iterators[i].next();
+
+      if (res.done) {
+        // Remove iterator if completed
+        iterators.splice(i, 1);
+        i--; // Adjust index
+      } else {
+        yield res.value; // Yield the value in round-robin fashion
+      }
+    }
+  }
+}
+Symbol is:
+
+✔ a unique value
+✔ used for hidden and safe object keys
+✔ part of JavaScript primitive types
+
+Symbol.iterator:
+
+✔ built-in special symbol
+✔ lets objects define their iteration logic
+✔ enables for..of, spread, array destructuring
+
+
