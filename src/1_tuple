@@ -6,11 +6,14 @@ K = numbers per tuple
 
 Then:
 
-Step	Complexity
-match()	-> O(L)
-slice + split -> 	O(L)
-map(Number)	-> O(N × K)
+| Step          | Complexity |
+| ------------- | ---------- |
+| match()       | O(L)       |
+| slice + split | O(N × K)   |
+| map(Number)   | O(N × K)   |
+| multiply      | O(N)       |
 
+O(L+N×K)
 
 Tuple
 function tuple(str) {
@@ -76,7 +79,14 @@ match() returns ALL matchesz
     }
   };
 }
-
+-----------------------------------------------
+Parsing: O(L)+Multiply: O(N)⟹O(L+N)
+| Operation      | Complexity |
+| -------------- | ---------- |
+| Parsing string | O(L)       |
+| Multiply col   | O(N)       |
+| Total TC       | O(L + N)   |
+| Space SC       | O(N × K)   |
 
 with parsing:
 function tuple(str) {
@@ -159,4 +169,16 @@ function tuple(str) {
 | No re-matching | No `.match()` + `.map()` chain   |
 | No temp arrays | Each tuple processed immediately |
 | Complexity     | **O(n)**                         |
+
+------------->
+| Concern              | Recommendation                                                |
+| -------------------- | ------------------------------------------------------------- |
+| Large strings        | Single-pass parsing / generators / streaming                  |
+| Empty tuples         | Skip or return empty array                                    |
+| Extra spaces         | Trim numbers while parsing                                    |
+| Non-numeric          | Throw error or skip; handle consistently                      |
+| Single tuple/value   | Support 1-element tuples                                      |
+| Variable tuple sizes | Either throw error or skip missing indices; document behavior |
+| Time complexity      | O(L + N) (single-pass)                                        |
+| Space complexity     | O(N × K)                                                      |
 
