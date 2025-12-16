@@ -382,3 +382,82 @@
 
 </body>
 </html>
+
+
+------------------> we can try using the pool of items <------------------
+  function render() {
+    const scrollTop = scrollContainer.scrollTop;
+    const viewportHeight = scrollContainer.clientHeight;
+
+    /**
+     * WHY Math.ceil?
+     * viewportHeight / ROW_HEIGHT may be fractional.
+     * Example: 620px / 50px = 12.4 rows
+     *
+     * Math.ceil ensures we render the PARTIALLY visible row.
+     * Without this → blank gap at bottom of viewport.
+     */
+    const visibleCount =
+      Math.ceil(viewportHeight / ROW_HEIGHT);
+
+    /**
+     * WHY Math.floor?
+     * scrollTop / ROW_HEIGHT converts pixels → row index.
+     * Example: 120px / 50px = 2.4
+     *
+     * Math.floor ensures we start rendering
+     * from the FIRST PARTIALLY visible row.
+     *
+     * Using Math.ceil here would SKIP rows → flicker.
+     */
+    const startIndex = Math.max(
+      Math.floor(scrollTop / ROW_HEIGHT) - BUFFER,
+      0
+    );
+
+    /**
+     * BUFFER * 2
+     * - BUFFER rows above viewport
+     * - BUFFER rows below viewport
+     *
+     * This hides scroll latency during fast scrolling.
+     */
+    const endIndex = Math.min(
+      startIndex + visibleCount + BUFFER * 2,
+      items.length
+    );
+
+    const requiredPoolSize = endIndex - startIndex;
+
+    /* Ensure enough reusable rows exist */
+    ensureRowPool(requiredPoolSize);
+
+    /**
+     * DOM REUSE:
+     * Instead of creating/removing elements,
+     * we update textContent of existing rows.
+     */
+    for (let i = 0; i < requiredPoolSize; i++) {
+      const rowIndex = startIndex + i;
+      const rowEl = rowPool[i];
+
+      if (rowIndex < items.length) {
+        rowEl.textContent = items[rowIndex];
+        rowEl.style.display = "block";
+      } else {
+        rowEl.style.display = "none";
+      }
+    }
+
+    /**
+     * GPU-ACCELERATED POSITIONING
+     * Moves the entire window to correct scroll position.
+     *
+     * WHY transform?
+     * - No layout recalculation
+     * - No reflow
+     * - GPU compositing only
+     */
+    windowEl.style.transform =
+      `translateY(${startIndex * ROW_HEIGHT}px)`;
+  }
