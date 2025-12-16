@@ -1,10 +1,19 @@
 <!-- /*AutoComplete
 
 1. input -> having number of api Calls 
-2. once the fetch is called we can cache the response so we don't need to call the API again and again
- with some expiration
-3. Also we can debouce the api function with some time limits
+2.  cache the response so we don't need to call the API again and again
+3.  debouce the api function with some time limits
+4. Race conditions
+Solution 1: Request ID (most common)
+Solution 2: AbortController (real backend APIs)
 
+What is AbortController?
+AbortController allows you to cancel an in-flight async operation, like fetch()
+Why it matters
+Saves backend resources
+Prevents stale responses
+
+Cleaner than letting old requests finish
 // mock_data
 // promise -> setTimeOut
 // cache
@@ -108,6 +117,25 @@
           }, 300); // 300ms delay simulates real network
         });
       }
+
+     // with race condition abort
+     function fetchSuggestions(query, signal) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      const results = MOCK_DATA.filter(item =>
+        item.toLowerCase().includes(query.toLowerCase())
+      );
+      resolve(results);
+    }, 300);
+
+    // Abort handling
+    signal.addEventListener("abort", () => {
+      clearTimeout(timeoutId);
+      reject(new DOMException("Aborted", "AbortError"));
+    });
+  });
+}
+
       // Debounce prevents excessive function calls while typing
       // It ensures the function executes only after the user stops typing
       function debounce(fn, delay) {
@@ -161,6 +189,42 @@
         // Render fetched suggestions
         renderSuggestions(results, query);
       }
+
+     // with race
+     async function handleSearch(query) {
+  if (!query) {
+    list.innerHTML = "";
+    input.setAttribute("aria-expanded", "false");
+    return;
+  }
+
+  if (cache.has(query)) {
+    renderSuggestions(cache.get(query), query);
+    return;
+  }
+
+  // 🔴 Abort previous request
+  if (abortController) {
+    abortController.abort();
+  }
+
+  abortController = new AbortController();
+
+  try {
+    const results = await fetchSuggestions(
+      query,
+      abortController.signal
+    );
+
+    cache.set(query, results);
+    renderSuggestions(results, query);
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      console.error(err);
+    }
+  }
+}
+
 
       const debouncedSearch = debounce((e) => {
         handleSearch(e.target.value.trim());
