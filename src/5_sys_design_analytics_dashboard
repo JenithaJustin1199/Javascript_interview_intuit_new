@@ -1,0 +1,345 @@
+ 1️⃣ Index / Agenda (One-liners)
+
+1. **Mental Model** – Baseline snapshot + batched real-time deltas, never per event
+2. **Initial Render Strategy** – Consistent UI first, real-time later
+3. **Real-Time Transport** – SSE/WS feeding buffered events
+4. **60 FPS Buffering** – Frame-based processing using RAF
+5. **Backpressure** – Protect UI from fast producers
+6. **Client Aggregation** – Convert events → deltas
+7. **KPIs** – Aggregated, not event-driven
+8. **Virtualized Feed** – Render only what’s visible
+9. **Diffing Algorithm** – Update only changed UI parts
+10. **Heatmap Concept** – Density, not raw events
+11. **H3 Spatial Indexing** – Hex-based geo aggregation
+12. **Heatmap Performance** – O(n) aggregation, GPU rendering
+13. **GPU Rendering** – WebGL for massive parallel draw
+14. **requestAnimationFrame** – Rendering aligned to paint cycle
+15. **Web Workers** – Heavy computation off main thread
+16. **Resync & Recovery** – Snapshot replaces missed events
+17. **Failure Modes** – Network loss, tab suspension
+18. **Trade-offs** – Accuracy vs smoothness, detail vs scale
+19. **End Summary** – Scalable, smooth, correct real-time UI
+
+ 2️⃣ Frontend Architecture (Draw This)
+
+```
+                ┌─────────────┐
+                │   Backend   │
+                │ (Signups)   │
+                └──────┬──────┘
+                       │
+                 SSE / WebSocket
+                       │
+               ┌───────▼────────┐
+               │ Event Buffer   │  ← Backpressure
+               │ (Ring / Queue) │
+               └───────┬────────┘
+                       │
+               requestAnimationFrame
+                       │
+               ┌───────▼────────┐
+               │ Aggregator     │
+               │ (Batch + Delta│
+               │  Computation) │
+               └───────┬────────┘
+                       │
+               ┌───────▼────────┐
+               │ In-Memory Store│
+               │ (Normalized)  │
+               └───────┬────────┘
+         ┌─────────────┼─────────────┐
+         │             │             │
+     ┌───▼───┐     ┌───▼───┐     ┌───▼────────┐
+     │ KPIs  │     │Heatmap│     │ Feed List  │
+     │ (DOM) │     │(WebGL)│     │(Virtualized│
+     └───────┘     └───────┘     └────────────┘
+```
+
+---
+
+## 3️⃣ Notes (Start → Flow → End)
+
+---
+
+### 1. Mental Model (Start With This)
+
+* Initial snapshot = **source of truth**
+* Real-time events = **incremental deltas**
+* Rendering is:
+
+  * ❌ Not per event
+  * ✅ Per animation frame
+* Goal:
+
+  * Consistency
+  * Smooth 60 FPS
+  * Bounded memory
+
+---
+
+### 2. Initial Render Strategy
+
+* Page load must show **meaningful UI immediately**
+* Avoid:
+
+  * Empty states
+  * Partial UI
+  * Inconsistent numbers
+
+**Flow**
+
+* Fetch REST snapshot
+* Populate in-memory store
+* No rendering yet
+* Render once (KPIs, charts, heatmap, feed)
+
+---
+
+### 3. Real-Time Connection
+
+* Start SSE / WebSocket **after first render**
+* Events flow into client buffer
+* No direct rendering from events
+
+---
+
+### 4. 60 FPS Buffering (RAF Loop)
+
+* Target: 16.6ms/frame
+* Use `requestAnimationFrame`
+* On each frame:
+
+  * Drain buffer
+  * Aggregate events
+  * Compute deltas
+  * Update store
+  * Render once
+
+---
+
+### 5. Backpressure (Very Important)
+
+**Problem**
+
+* Backend: 500 events/sec
+* Browser: ~100 events/sec
+* Result:
+
+  * Buffer grows
+  * Memory increases
+  * Frames drop
+  * UI freezes
+
+**Solutions**
+
+* Fixed-size buffer
+* Event compaction
+* Aggregation over raw events
+* Mode switching
+
+**Example**
+
+* Instead of events:
+
+  * E1, E2, E3
+* Send:
+
+  * `{ country: "IN", delta: +25 }`
+
+---
+
+### 6. Client Aggregation
+
+* Aggregate per:
+
+  * Country
+  * Time window
+  * Geo cell
+* Feed raw → aggregated data
+* UI driven by aggregates, not events
+
+---
+
+### 7. KPIs
+
+* KPI = Key Performance Indicator
+* Examples:
+
+  * Total signups
+  * Signups/sec
+  * Region counts
+* KPIs update from deltas
+* No per-event DOM updates
+
+---
+
+### 8. Virtualized Feed
+
+* Large event feeds are virtualized
+* Render only visible rows
+* O(visible items) DOM nodes
+* Prevents layout + memory issues
+
+---
+
+### 9. Diffing Algorithm
+
+* Track previous vs current state
+* Update only:
+
+  * Changed KPIs
+  * Updated heatmap buffers
+  * Visible feed items
+
+**Complexity**
+
+* O(changes), not O(total)
+
+---
+
+### 10. Heatmap Concept
+
+* Heatmap shows **density**
+* Not individual signups
+* Improves:
+
+  * Performance
+  * Readability
+  * Scalability
+
+---
+
+### 11. H3 Spatial Indexing
+
+* Hierarchical hexagonal grid
+* Multi-resolution
+* Hexagons:
+
+  * Uniform neighbors
+  * Low distortion
+
+**Compression**
+
+* 10,000 points → 100–300 cells
+* Cell = `{cellId, count}`
+
+---
+
+### 12. Heatmap Zoom Behavior
+
+* Zoom out → coarse resolution
+* Zoom in → finer resolution
+* Geometry stable, counts change
+
+---
+
+### 13. Heatmap Performance
+
+* Aggregation: O(n) per batch
+* Rendering:
+
+  * Few hundred shapes
+  * GPU handles coloring
+* No DOM per event
+
+---
+
+### 14. GPU Rendering (WebGL)
+
+* GPU excels at:
+
+  * Parallel math
+  * Pixel coloring
+* JS prepares buffers
+* GPU draws heatmap in one pass
+
+---
+
+### 15. requestAnimationFrame + GPU
+
+* RAF syncs with browser paint
+* CPU:
+
+  * Aggregation
+  * Buffer prep
+* GPU:
+
+  * Draws frame
+* No mid-frame rendering
+
+---
+
+### 16. Web Workers
+
+**Move to Workers**
+
+* H3 computation
+* Geo clustering
+* Large reductions
+* KPI math
+* SSE parsing
+
+**Stay on Main Thread**
+
+* DOM updates
+* Event handlers
+* Rendering orchestration
+
+---
+
+### 17. Resync & Recovery
+
+**When**
+
+* Network drop
+* Tab suspended
+* Missed events
+
+**How**
+
+* Stop real-time stream
+* Fetch fresh snapshot
+* Replace store
+* Render once
+* Resume deltas
+
+---
+
+### 18. Failure Modes
+
+* Long JS tasks → frame drops
+* Large buffers → memory spike
+* Too many DOM nodes → scroll jank
+
+**Mitigation**
+
+* Workers
+* Virtualization
+* Aggregation
+* Backpressure
+
+---
+
+### 19. Trade-offs (Call Out Explicitly)
+
+* Accuracy vs smoothness
+* Detail vs scalability
+* Event fidelity vs aggregation
+* CPU simplicity vs GPU complexity
+
+---
+
+### 20. Ending Statement (Memorize This)
+
+**“This architecture ensures a consistent baseline, smooth 60 FPS updates, and scalable real-time analytics by batching work, aggregating data, and leveraging GPU rendering with safe recovery via snapshots.”**
+
+---
+
+If you want next:
+
+* **Whiteboard-only version**
+* **React hooks mapping**
+* **LinkedIn interviewer follow-ups**
+* **10-minute timed walkthrough**
+
+Just say the word.
