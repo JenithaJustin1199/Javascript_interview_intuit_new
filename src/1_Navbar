@@ -3,134 +3,204 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- WHY:
+       Ensures responsive scaling on mobile devices.
+       Without this → layout breaks on phones. -->
+
   <title>LinkedIn Top Nav</title>
+
   <style>
-    /* Reset some default styles for cross-browser consistency */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+    /* ===============================
+       Global Reset
+    =============================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      /* WHY:
+         box-sizing avoids width/height bugs when padding is added.
+         Industry default for predictable layouts. */
+    }
 
-/* Top Navigation Container */
-.top-nav {
-  display: flex; /* horizontal layout */
-  align-items: center; /* vertical centering */
-  justify-content: space-between; /* spread logo and right-side items */
-  padding: 0 16px;
-  height: 60px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #ddd;
-  font-family: Arial, sans-serif;
-  position: relative; /* for dropdown positioning */
-  z-index: 1000; /* make sure dropdown appears on top */
-}
+    /* ===============================
+       Top Navigation Container
+    =============================== */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 60px;
 
-/* Logo on the left */
-.top-nav .logo a {
-  text-decoration: none;
-  font-weight: bold;
-  font-size: 20px;
-  color: #0a66c2; /* LinkedIn blue */
-}
+      background-color: #ffffff;
+      border-bottom: 1px solid #ddd;
 
-/* Search bar */
-.top-nav .search input {
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  width: 200px;
-  transition: width 0.3s ease; /* smooth expand on focus */
-}
+      font-family: Arial, sans-serif;
 
-/* Expand search on focus */
-.top-nav .search input:focus {
-  width: 300px;
-  outline: none;
-  border-color: #0a66c2; /* focus color */
-}
+      position: relative;
+      z-index: 1000;
+      /* WHY:
+         Dropdown must appear above page content.
+         Without z-index → clipped by siblings. */
+    }
 
-/* Navigation links */
-.nav-links {
-  list-style: none; /* remove bullets */
-  display: flex;
-  gap: 16px; /* space between items */
-}
+    /* ===============================
+       Logo
+    =============================== */
+    .logo a {
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 20px;
+      color: #0a66c2;
+    }
 
-/* Links styling */
-.nav-links li a {
-  text-decoration: none;
-  color: #000;
-  font-size: 14px;
-  padding: 8px 12px;
-  transition: background 0.2s;
-}
+    /* ===============================
+       Search
+    =============================== */
+    .search {
+      position: relative;
+    }
 
-/* Hover/focus effect */
-.nav-links li a:hover,
-.nav-links li a:focus {
-  background-color: #f0f0f0;
-  border-radius: 4px;
-}
+    .search input {
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      width: 200px;
 
-/* Profile container */
-.profile {
-  position: relative; /* dropdown is absolute relative to this */
-}
+      transition: width 0.3s ease;
+      /* WHY:
+         Smooth UX when expanding.
+         Alternative: transform-based expansion avoids layout,
+         but width is acceptable for small elements. */
+    }
 
-/* Dropdown hidden by default */
-.profile .dropdown {
-  position: absolute;
-  top: 100%; /* below the button */
-  right: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  min-width: 150px;
-  display: none; /* hidden initially */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  z-index: 1000;
-}
+    .search input:focus {
+      width: 300px;
+      outline: none;
+      border-color: #0a66c2;
+    }
 
-/* Dropdown links */
-.profile .dropdown a {
-  display: block;
-  padding: 8px 12px;
-  text-decoration: none;
-  color: #000;
-}
+    /* ===============================
+       Navigation Links
+    =============================== */
+    .nav-links {
+      list-style: none;
+      display: flex;
+      gap: 16px;
+    }
 
-/* Hover effect inside dropdown */
-.profile .dropdown a:hover {
-  background-color: #f0f0f0;
-}
+    .nav-links a {
+      text-decoration: none;
+      color: #000;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 4px;
 
-/* Responsive: collapse nav-links on small screens */
-@media (max-width: 768px) {
-  .nav-links {
-    display: none; /* hide for mobile */
-  }
-}
+      transition: background-color 0.2s;
+      /* WHY:
+         Hover feedback for usability.
+         Avoid animating layout properties. */
+    }
 
+    .nav-links a:hover,
+    .nav-links a:focus {
+      background-color: #f0f0f0;
+    }
+
+    /* ===============================
+       Profile + Dropdown
+    =============================== */
+    .profile {
+      position: relative;
+    }
+
+    .profile button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* Dropdown menu */
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+
+      min-width: 160px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+
+      /* GPU-friendly animation setup */
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-5px);
+
+      transition: opacity 0.15s ease,
+                  transform 0.15s ease,
+                  visibility 0.15s;
+
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+
+    /* Visible state */
+    .dropdown.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      /* WHY:
+         transform + opacity = compositing only (GPU).
+         Alternative (bad): display: none/block → no animation + layout. */
+    }
+
+    .dropdown a {
+      display: block;
+      padding: 10px 12px;
+      text-decoration: none;
+      color: #000;
+      font-size: 14px;
+    }
+
+    .dropdown a:hover,
+    .dropdown a:focus {
+      background-color: #f0f0f0;
+    }
+
+    /* ===============================
+       Responsive (Mobile)
+    =============================== */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        /* WHY:
+           Simplified demo behavior.
+           Real LinkedIn replaces this with icons / hamburger menu. */
+      }
+    }
   </style>
 </head>
+
 <body>
-  <!-- Top Navigation Bar -->
+
+  <!-- ===============================
+       Top Navigation
+  =============================== -->
   <nav class="top-nav" role="navigation" aria-label="Main Navigation">
-    <!-- Left: Logo -->
+
     <div class="logo">
-      <a href="#">
-        <!-- Using text for simplicity; can replace with SVG/logo image -->
-        LinkedIn
-      </a>
+      <a href="#">LinkedIn</a>
     </div>
 
-    <!-- Center: Search -->
     <div class="search">
-      <input type="text" placeholder="Search" aria-label="Search" />
+      <input
+        type="text"
+        placeholder="Search"
+        aria-label="Search"
+      />
     </div>
 
-    <!-- Right: Navigation Links -->
     <ul class="nav-links">
       <li><a href="#">Home</a></li>
       <li><a href="#">My Network</a></li>
@@ -139,38 +209,74 @@
       <li><a href="#">Notifications</a></li>
     </ul>
 
-    <!-- Profile / Avatar -->
+    <!-- Profile Menu -->
     <div class="profile">
-      <button aria-haspopup="true" aria-expanded="false">Me ▼</button>
-      <!-- Dropdown menu -->
-      <div class="dropdown">
-        <a href="#">View Profile</a>
-        <a href="#">Settings</a>
-        <a href="#">Sign Out</a>
+      <button
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="profile-menu"
+      >
+        Me ▼
+      </button>
+
+      <div
+        class="dropdown"
+        id="profile-menu"
+        role="menu"
+      >
+        <a href="#" role="menuitem">View Profile</a>
+        <a href="#" role="menuitem">Settings</a>
+        <a href="#" role="menuitem">Sign Out</a>
       </div>
     </div>
   </nav>
 
   <script>
-    // Get the profile button and dropdown container
-const profileBtn = document.querySelector(".profile button");
-const dropdown = document.querySelector(".profile .dropdown");
+    /* ===============================
+       Dropdown Logic
+    =============================== */
 
-// Toggle dropdown on click
-profileBtn.addEventListener("click", () => {
-  const isVisible = dropdown.style.display === "block";
-  dropdown.style.display = isVisible ? "none" : "block";
-  profileBtn.setAttribute("aria-expanded", !isVisible);
-});
+    const profileBtn = document.querySelector(".profile button");
+    const dropdown = document.querySelector(".dropdown");
 
-// Optional: close dropdown when clicking outside
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".profile")) {
-    dropdown.style.display = "none";
-    profileBtn.setAttribute("aria-expanded", false);
-  }
-});
+    function closeDropdown() {
+      dropdown.classList.remove("open");
+      profileBtn.setAttribute("aria-expanded", "false");
+    }
 
+    function openDropdown() {
+      dropdown.classList.add("open");
+      profileBtn.setAttribute("aria-expanded", "true");
+    }
+
+    profileBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = dropdown.classList.contains("open");
+      isOpen ? closeDropdown() : openDropdown();
+    });
+
+    /* WHY:
+       Click outside handling.
+       Uses event bubbling + closest().
+       Scales well for small DOM. */
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".profile")) {
+        closeDropdown();
+      }
+    });
+
+    /* Keyboard accessibility */
+    profileBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeDropdown();
+        profileBtn.focus();
+      }
+    });
+
+    /* WHY:
+       Keyboard users must be able to dismiss menus.
+       Accessibility requirement. */
   </script>
+
 </body>
 </html>
