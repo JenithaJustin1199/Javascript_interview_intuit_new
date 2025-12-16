@@ -1,0 +1,300 @@
+# 📝 Google Docs – Senior Frontend System Design (Sticky Notes)
+
+---
+
+## 1️⃣ What Is Google Docs?
+
+**1-liner:** A real-time collaborative document editor that supports multiple users editing the same document with strong consistency, offline support, and high performance.
+
+---
+
+## 2️⃣ What Interviewers Expect (Senior Frontend)
+
+### ❌ NOT expected
+
+* Designing distributed databases from scratch
+* Implementing CRDT/OT math proofs
+
+### ✅ Expected
+
+* Clear collaboration model understanding
+* Frontend data flow + sync strategy
+* Offline-first + conflict handling
+* Performance at scale
+
+---
+
+## 3️⃣ Core Requirements Breakdown
+
+| Requirement       | Meaning              |
+| ----------------- | -------------------- |
+| Reliability       | No data loss         |
+| In-order edits    | Correct sequence     |
+| Multi-user        | 10–100 editors       |
+| Offline           | Edit without network |
+| Conflict handling | Merge edits          |
+| Performance       | Low latency typing   |
+
+---
+
+## 4️⃣ High-Level Architecture (Sticky Diagram)
+
+```
+UI Editor
+ ├─ Cursor
+ ├─ Selection
+ ├─ Toolbar
+
+Collab Engine (FE)
+ ├─ Operation Queue
+ ├─ Version Tracker
+ ├─ OT / CRDT Adapter
+ --> CRDT (Conflict-free Replicated Data Types)
+CRDT ensures all replicas converge automatically without transforming operations or relying on ordering.
+Instead of fixing conflicts after they happen,
+CRDT designs data structures that cannot conflict.
+----> OT (Operational Transformation)
+OT transforms concurrent edits so all users end up with the same document, while preserving each user’s intent.
+Intuition (Non-math)
+Multiple users edit the same document at the same time.
+Their edits arrive in different orders on different machines.
+
+Network Layer
+ ├─ WebSocket
+ ├─ Retry / ACK
+
+Local Storage
+ ├─ IndexedDB
+ ├─ Offline Ops
+
+Backend (Awareness)
+ ├─ Ordering
+ ├─ Fan-out
+```
+
+---
+
+## 5️⃣ Data Model (Frontend View)
+
+### Document = Operations, not text
+
+```
+Insert("A", pos=5)
+Delete(len=3, pos=8)
+```
+
+Why:
+
+* Easier merge
+* Smaller payloads
+* Real-time sync
+
+---
+
+## 6️⃣ In-Order Delivery (CRITICAL)
+
+**Problem:** Network packets arrive out of order
+
+### Solution (Frontend):
+
+* Assign sequence numbers
+* Apply only next expected version
+
+```
+Ops: 1 → 2 → 3 → 4
+Arrives: 1, 3, 2
+Apply: 1 → 2 → 3
+```
+
+---
+
+## 7️⃣ Collaboration Model
+
+### Two Industry Approaches
+
+| Model                      | Used By       |
+| -------------------------- | ------------- |
+| OT (Operational Transform) | Google Docs   |
+| CRDT                       | Figma, Notion |
+
+---
+
+## 8️⃣ OT (Operational Transform) – Interview Level
+
+**1-liner:** Transforms concurrent operations so everyone sees the same document.
+
+```
+User A: Insert "X" @5
+User B: Insert "Y" @5
+
+Transform → deterministic order
+```
+
+Frontend Role:
+
+* Apply transformed ops
+* Maintain local cursor
+
+---
+
+## 9️⃣ Conflict Handling (User POV)
+
+Conflicts rarely visible
+
+* System auto-merges
+* Last-write-wins avoided
+
+```
+Edit A + Edit B
+ → Transformed
+ → Same result
+```
+
+---
+
+## 🔟 Offline Support (VERY IMPORTANT)
+
+### Offline-First Strategy
+
+```
+User Edit
+ ↓
+Local Apply
+ ↓
+Queue Operation
+ ↓ (online)
+Sync
+```
+
+Stored in:
+
+* IndexedDB
+
+---
+
+## 1️⃣1️⃣ Re-sync After Offline
+
+Steps:
+
+1. Fetch latest doc version
+2. Replay offline ops
+3. Transform if needed
+
+```
+Server v10
+Offline ops (v7)
+→ transform → v11
+```
+
+---
+
+## 1️⃣2️⃣ Reliability & Durability
+
+Frontend Guarantees:
+
+* ACK-based sending
+* Retry unacked ops
+* Persist ops locally
+
+```
+Send → ACK → Clear
+No ACK → Retry
+```
+
+---
+
+## 1️⃣3️⃣ Multi-Participant Scaling
+
+Challenges:
+
+* Cursor storms
+* Too many updates
+
+Solutions:
+
+* Throttle cursor updates
+* Batch ops
+
+```
+Typing → batch → send
+```
+
+---
+
+## 1️⃣4️⃣ Cursor & Presence (Senior Signal)
+
+Separate channel:
+
+* Cursor position
+* User color
+
+```
+Presence ≠ Document Data
+```
+
+---
+
+## 1️⃣5️⃣ Performance (Typing Must Be Instant)
+
+Rules:
+
+* Apply local edits synchronously
+* Network async
+
+```
+Keypress → DOM update → sync later
+```
+
+Optimizations:
+
+* Rope / piece table
+* Avoid full re-render
+
+---
+
+## 1️⃣6️⃣ Rendering Strategy (Frontend)
+
+* Virtualized document blocks
+* Avoid contenteditable pitfalls
+
+```
+Large Doc
+ ↓
+Render visible blocks only
+```
+
+---
+
+## 1️⃣7️⃣ Network Layer
+
+* WebSocket (bi-directional)
+* Heartbeats
+* Reconnect logic
+
+```
+FE ⇄ WS ⇄ Server
+```
+
+---
+
+## 1️⃣8️⃣ Failure Scenarios (Interview Gold)
+
+| Failure   | Handling               |
+| --------- | ---------------------- |
+| WS drop   | Reconnect + replay     |
+| Tab crash | Restore from IndexedDB |
+| Conflict  | OT resolve             |
+
+---
+
+## 1️⃣9️⃣ Security (Awareness)
+
+* Auth tokens
+* Doc permissions
+* Sanitized input
+
+---
+
+## ⭐ Interview Gold Summary (Memorize)
+
+> "Google Docs is built as an offline-first, operation-based editor. On the frontend, edits ar
