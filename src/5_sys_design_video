@@ -1,0 +1,254 @@
+"I use Media Source Extensions to stream video in small chunks,
+maintain a 15–30s buffer, 
+and apply adaptive bitrate logic based on network and buffer health. 
+Intersection Observer pauses off-screen videos to save CPU,
+and uploads are handled via resumable chunked uploads with Service Worker support."
+1️⃣ ABR (Adaptive Bitrate Streaming)
+
+**1-liner:** Auto-switch video quality in real time based on network + buffer + device.
+
+**Why:**
+* Unstable networks
+* Faster start
+* Lower data + CPU
+**Common Formats:**
+* HLS (`.m3u8`)
+* DASH (`.mpd`)
+User Network ⇄ Player ⇄ Manifest ⇄ Segments
+
+2️⃣ Multi-Resolution Encoding (Backend context – interviewer expects awareness)
+
+Same video encoded into multiple bitrates:
+
+| Res   | Bitrate |
+| ----- | ------- |
+| 240p  | 300kbps |
+| 360p  | 700kbps |
+| 720p  | 2.5Mbps |
+| 1080p | 5Mbps   |
+
+Each → split into **segments**
+
+3️⃣ Chunks / Segments
+Small time-based video pieces (2–6s) fetched independently.
+Why chunks?**
+* Resume playback
+* ABR switching
+* Faster start
+Video
+ ├─ seg_0 (0–5s)
+ ├─ seg_1 (5–10s)
+ ├─ seg_2 (10–15s)
+```
+4️⃣ Why `<video>` Alone Is Not Enough
+
+Limitations:
+
+* No ABR control
+* No buffer insight
+* No quality switching logic
+
+👉 Use **MSE (Media Source Extensions)**
+5️⃣ MSE (Media Source Extensions)
+
+**1-liner:** JS-controlled video streaming into `<video>` buffer.
+
+```
+Fetch → JS → SourceBuffer → <video>
+```
+
+Core Objects:
+
+* `MediaSource`
+* `SourceBuffer`
+
+---
+
+## 6️⃣ SourceBuffer
+
+**Role:** Holds binary video data for decoding.
+
+```
+mediaSource
+ ├─ video SourceBuffer
+ └─ audio SourceBuffer
+```
+
+Operations:
+
+* `appendBuffer()` → add chunk
+* `remove()` → free memory
+
+---
+
+## 7️⃣ Buffer Management (CRITICAL)
+
+**Target:** 15–30s buffer
+
+**Why:**
+
+* <10s → rebuffering
+* > 30s → memory waste
+
+**Logic:**
+
+```
+if buffer < 10s → fetch
+if buffer > 30s → cleanup
+```
+
+```
+| Played | Buffered | Future |
+```
+
+---
+
+## 8️⃣ ABR Decision Engine (Frontend)
+
+**Signals Used:**
+
+* Chunk download time
+* Buffer length
+* Dropped frames
+* Viewport size
+
+**Sticky Rule:**
+
+```
+Slow download → downgrade
+Healthy buffer → upgrade
+```
+
+```
+Network ↓ → Quality ↓
+Network ↑ → Quality ↑
+```
+
+---
+
+## 9️⃣ Intersection Observer (Feed Optimization)
+
+**1-liner:** Detects visibility to pause/mute videos off-screen.
+
+```
+Viewport
+ ├─ Video visible → play
+ └─ Video hidden → pause
+```
+
+**Why interviewers love this:**
+
+* CPU optimization
+* Battery saving
+* Scales feeds
+
+---
+
+## 🔟 Thumbnail Loading
+
+### A. Sprite Sheets (YouTube-style)
+
+```
+[ frame1 | frame2 | frame3 ]
+```
+
+* Single image
+* CSS `background-position`
+
+### B. Lazy-loaded thumbnails
+
+* `loading="lazy"`
+
+### C. Hover preview video
+
+* 3–5s muted MP4/WebM
+
+---
+
+## 1️⃣1️⃣ Slow Network Handling
+
+**APIs / Techniques:**
+
+* `navigator.connection.effectiveType`
+* Start low-quality
+* Smaller buffer
+
+```
+2G → 240p
+4G → 720p
+```
+
+Abort slow fetches:
+
+* `AbortController`
+
+---
+
+## 1️⃣2️⃣ Resumable Uploads (Upload Side)
+Large uploads split into chunks so failures can resume.
+
+```
+1GB File
+ ├─ 5MB chunk 1
+ ├─ 5MB chunk 2
+ └─ ...
+```
+
+---
+
+## 1️⃣3️⃣ File API (Chunking)
+```
+file.slice(start, end)
+```
+
+Used to:
+* Retry failed chunks
+* Parallel uploads
+
+---
+
+## 1️⃣4️⃣ TUS Protocol (Industry Standard)
+**Features:**
+
+* Resume upload
+* Checkpoints
+* Idempotent chunks
+Used by:
+
+* Vimeo
+* Cloudflare
+
+---
+
+## 1️⃣5️⃣ Service Worker (Bonus Points)
+**Role:**
+* Background retries
+* Offline resume
+* Upload persistence
+```
+Network ↓
+Service Worker ↑
+
+ 1️⃣6️⃣ Full Frontend Architecture (Sticky Diagram)
+
+```
+UI
+ ├─ <video>
+ ├─ Thumbnails
+ ├─ IO
+
+Playback Engine
+ ├─ MSE
+ ├─ SourceBuffer
+ ├─ Buffer Manager
+ ├─ ABR Logic
+
+Network
+ ├─ Chunk Fetcher
+ ├─ Retry / Abort
+
+Upload
+ ├─ File Slice
+ ├─ TUS
+ ├─ SW
+```
