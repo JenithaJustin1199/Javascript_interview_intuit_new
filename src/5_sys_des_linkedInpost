@@ -6,7 +6,62 @@ Non-Functional: Fast TTI (Time to Interactive), smooth scrolling, offline suppor
 -> rich media
 -> cache layer
 -> like/comments
+-> Service workers (cache-first)
 
+Total users -> 1 B
+DAU 40% = 400M
+Read query >>>> write query
+
+Communication -> SSE (Server sent Events) + Rest API
+
+#### Data Models
+- **User**: ID (PK), name, followers/list (as sets or graphs).
+- **Post**: ID (PK), user_id (FK), content, timestamp, media_urls.
+- **Timeline**: User_id (PK), post_ids (sorted set by timestamp, sharded).
+- **Friendship**: User_id (PK), follower_id (set).
+- Use NoSQL (e.g., Cassandra) for timelines due to high writes/reads; relational DB for users/posts.
+
+Get one post feed
+{
+  "elements": [
+    {
+      "id": "urn:li:activity:70123456",
+      "actor": {
+        "urn": "urn:li:person:123",
+        "name": "Jane Smith",
+        "title": "Software Engineer at LinkedIn"
+      },
+      "content": {
+        "text": "Hello world! This is my first post.",
+        "media": []
+      },
+      "socialCounts": {
+        "numLikes": 42,
+        "numComments": 5
+      },
+      "createdAt": 1702746921000
+    }
+  ],
+  "paging": {
+    "next_cursor": "dXNlcl9pZD0xMjM0NTY=" // For infinite scroll
+  }
+}
+---------- POST FEED ----
+{
+  "author": "urn:li:person:abc12345", // Unique Resource Name for the member
+  "lifecycleState": "PUBLISHED",      // DRAFT or PUBLISHED
+  "specificContent": {
+    "com.linkedin.ugc.ShareContent": {
+      "shareCommentary": {
+        "text": "Excited to share my new role at..."
+      },
+      "shareMediaCategory": "NONE"    // NONE, ARTICLE, IMAGE, or VIDEO
+    }
+  },
+  "visibility": {
+    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" // CONNECTIONS or PUBLIC
+  }
+}
 
 ---> Infinite Scroll
 1. Problem: Rendering a Really Long List
