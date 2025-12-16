@@ -1,161 +1,383 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /> <!-- Ensure proper text encoding -->
-  <title>Infinite Scroll with Intersection Observer</title>
+  <meta charset="UTF-8" />
+  <!-- WHY:
+       Ensures correct text encoding.
+       Prevents weird character rendering issues.
+       Alternative (bad): Omitting charset can cause encoding bugs. -->
+
+  <title>Virtualized Infinite List (IO + GPU)</title>
 
   <style>
-    /* =============================== */
-    /* 1️⃣ Global Page Styles          */
-    /* =============================== */
+    /* ===============================
+       Global Page Styles
+    =============================== */
     body {
-      margin: 0;                          /* Remove default browser margin */
-      font-family: Arial, sans-serif;    /* Clean readable font */
-      background: #f5f5f5;               /* Light background for contrast */
+      margin: 0;
+      /* WHY:
+         Remove default browser margin.
+         Prevents unexpected scrollbars and layout shifts.
+         Alternative: Leaving default margin causes UI inconsistency. */
+
+      font-family: Arial, sans-serif;
+      /* WHY:
+         Simple, readable font for demo.
+         Alternative: Default serif fonts look inconsistent across OS. */
+
+      background: #f5f5f5;
+      /* WHY:
+         Visual contrast between page and scroll container.
+         Helps debugging layout boundaries. */
+
+      padding: 20px;
+      /* WHY:
+         Prevent content from sticking to screen edges.
+         Improves readability. */
     }
 
-    /* =============================== */
-    /* 2️⃣ Scroll Container            */
-    /* =============================== */
+    /* ===============================
+       Scroll Container (Viewport)
+    =============================== */
     #scrollContainer {
-      height: 600px;                     /* Fixed viewport height */
-      overflow-y: auto;                  /* Enable vertical scrolling */
-      border: 1px solid #ccc;            /* Visual boundary */
-      background: white;                 /* White scrolling area */
-      position: relative;                /* Needed for sentinel positioning */
+      height: 600px;
+      /* WHY:
+         Fixed viewport height is REQUIRED for virtualization math.
+         Without fixed height → cannot calculate visible rows.
+         Alternative: Full page scroll makes virtualization harder. */
+
+      overflow-y: auto;
+      /* WHY:
+         Enables native scrolling.
+         Virtualization relies on scrollTop from this container.
+         Alternative: overflow: visible → no scrolling. */
+
+      border: 1px solid #ccc;
+      /* WHY:
+         Visual boundary for demo clarity.
+         Not required functionally. */
+
+      background: #fff;
+      /* WHY:
+         Distinguish content from page background. */
+
+      position: relative;
+      /* WHY:
+         Needed because children (spacer/window) use absolute positioning.
+         Alternative: Without relative, absolute children position to body. */
     }
 
-    /* =============================== */
-    /* 3️⃣ List Wrapper                */
-    /* =============================== */
-    #list {
-      padding: 0;                        /* Remove default padding */
-      margin: 0;                         /* Remove default margin */
+    /* ===============================
+       Spacer (Fake Full Height)
+    =============================== */
+    #spacer {
+      position: relative;
+      /* WHY:
+         Acts as a positioning context for the window.
+         Represents total scrollable height.
+         Alternative: No spacer → scrollbar won’t reflect full dataset. */
+
+      width: 100%;
     }
 
-    /* =============================== */
-    /* 4️⃣ Individual Row              */
-    /* =============================== */
+    /* ===============================
+       Windowed Render Box
+       (GPU Accelerated Layer)
+    =============================== */
+    #window {
+      position: absolute;
+      /* WHY:
+         Allows free vertical movement via transform.
+         Alternative: position: static → transform breaks layout. */
+
+      top: 0;
+      left: 0;
+      width: 100%;
+
+      will-change: transform;
+      /* WHY:
+         Hints browser to promote this element to GPU layer.
+         Improves smooth scrolling.
+         Alternative: Without this, browser may repaint instead of composite. */
+    }
+
+    /* ===============================
+       Individual Row
+    =============================== */
     .row {
-      height: 50px;                      /* Fixed height for predictability */
-      line-height: 50px;                 /* Vertically center text */
-      padding: 0 16px;                   /* Horizontal padding */
-      box-sizing: border-box;            /* Include padding in height */
-      border-bottom: 1px solid #eee;     /* Row separator */
+      height: 50px;
+      /* WHY:
+         Fixed height simplifies virtualization math.
+         offset = index * height (O(1)).
+         Alternative: Dynamic height → needs measurement & caching. */
+
+      line-height: 50px;
+      /* WHY:
+         Vertical centering without extra flexbox.
+         Simple & performant. */
+
+      padding: 0 16px;
+      /* WHY:
+         Horizontal spacing for readability. */
+
+      box-sizing: border-box;
+      /* WHY:
+         Ensures padding does NOT increase row height.
+         Critical for correct scroll calculations. */
+
+      border-bottom: 1px solid #eee;
+      /* WHY:
+         Visual separation of rows.
+         Not required for logic. */
     }
 
-    /* =============================== */
-    /* 5️⃣ Loading Indicator           */
-    /* =============================== */
+    /* ===============================
+       Loading Sentinel
+    =============================== */
     #loading {
-      height: 60px;                      /* Visible space for loader */
-      display: flex;                     /* Center text */
-      align-items: center;               /* Vertical centering */
-      justify-content: center;           /* Horizontal centering */
-      color: #666;                       /* Muted color */
-      font-size: 14px;                   /* Smaller font */
+      height: 60px;
+      /* WHY:
+         Needs physical height to be observed by IntersectionObserver.
+         Zero height → observer may never trigger. */
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* WHY:
+         Center loading text visually. */
+
+      color: #666;
+      font-size: 14px;
     }
   </style>
 </head>
+
 <body>
 
-  <!-- =============================== -->
-  <!-- Scroll Container (Root)         -->
-  <!-- =============================== -->
+  <h2>Virtualized Infinite Scroll</h2>
+
+  <!-- WHY:
+       Wrapper for virtualization + infinite scroll.
+       Scroll events & IO are scoped to this container. -->
   <div id="scrollContainer">
 
-    <!-- =============================== -->
-    <!-- List of Rendered Items         -->
-    <!-- =============================== -->
-    <div id="list"></div>
+    <!-- WHY:
+         Spacer creates illusion of full list height.
+         Scrollbar size depends on this element. -->
+    <div id="spacer">
 
-    <!-- =============================== -->
-    <!-- Sentinel / Loader Element      -->
-    <!-- =============================== -->
+      <!-- WHY:
+           Only visible rows live here.
+           This node is moved using transform instead of layout properties. -->
+      <div id="window"></div>
+    </div>
+
+    <!-- WHY:
+         Sentinel element.
+         IntersectionObserver watches this to decide WHEN to load more data. -->
     <div id="loading">Loading more items…</div>
-
   </div>
 
   <script>
-    /* =============================== */
-    /* 1️⃣ Configuration               */
-    /* =============================== */
-    const PAGE_SIZE = 20;                 // Number of items per fetch
-    const MAX_ITEMS = 200;                // Total items available (mock)
+    /* ===============================
+       Configuration
+    =============================== */
+    const ROW_HEIGHT = 50;
+    /* WHY:
+       Used for index → pixel calculation.
+       Required for virtualization math.
+       Alternative: Variable heights → complex measurement logic. */
 
-    /* =============================== */
-    /* 2️⃣ State                       */
-    /* =============================== */
-    let currentCount = 0;                 // How many items are loaded
-    let isLoading = false;                // Prevent duplicate fetches
+    const BUFFER = 5;
+    /* WHY:
+       Extra rows above & below viewport.
+       Prevents blank gaps during fast scroll.
+       Alternative: No buffer → flickering. */
 
-    /* =============================== */
-    /* 3️⃣ DOM References              */
-    /* =============================== */
-    const scrollContainer = document.getElementById('scrollContainer');
-    const listEl = document.getElementById('list');
-    const loadingEl = document.getElementById('loading');
+    const PAGE_SIZE = 50;
+    /* WHY:
+       Backend pagination simulation.
+       Decouples data loading from rendering. */
 
-    /* =============================== */
-    /* 4️⃣ Mock Data Fetch              */
-    /* =============================== */
+    const MAX_ITEMS = 1000;
+    /* WHY:
+       Prevent infinite growth in demo.
+       Simulates finite backend dataset. */
+
+    /* ===============================
+       State
+    =============================== */
+    let items = [];
+    /* WHY:
+       Holds fetched data.
+       Virtualization limits DOM, NOT data size. */
+
+    let isLoading = false;
+    /* WHY:
+       Prevents duplicate fetches.
+       Alternative: Without this → race conditions & duplicate items. */
+
+    /* ===============================
+       DOM References
+    =============================== */
+    const scrollContainer = document.getElementById("scrollContainer");
+    const spacer = document.getElementById("spacer");
+    const windowEl = document.getElementById("window");
+    const loadingEl = document.getElementById("loading");
+
+    /* ===============================
+       Mock Fetch (Pagination)
+    =============================== */
     function fetchMoreItems() {
-      if (isLoading) return;              // Guard: avoid parallel loads
-      if (currentCount >= MAX_ITEMS) return; // Guard: no more data
+      if (isLoading || items.length >= MAX_ITEMS) return;
+      /* WHY:
+         Guard against parallel fetches and over-fetching.
+         Alternative: Multiple simultaneous requests → duplicates. */
 
-      isLoading = true;                   // Mark loading state
-      loadingEl.textContent = 'Loading more items…'; // Update UI
+      isLoading = true;
+      loadingEl.textContent = "Loading more items…";
 
-      // Simulate network delay
       setTimeout(() => {
+        /* WHY:
+           Simulates network latency.
+           Real app would call fetch()/XHR. */
+
         for (let i = 0; i < PAGE_SIZE; i++) {
-          if (currentCount >= MAX_ITEMS) break; // Stop if limit reached
-
-          const row = document.createElement('div'); // Create row element
-          row.className = 'row';                    // Apply row styling
-          row.textContent = `Item #${currentCount + 1}`; // Row content
-          listEl.appendChild(row);                  // Add to DOM
-
-          currentCount++;                           // Increment count
+          if (items.length >= MAX_ITEMS) break;
+          items.push(`Item #${items.length + 1}`);
         }
 
-        isLoading = false;                          // Reset loading flag
+        updateSpacerHeight();
+        /* WHY:
+           Scrollbar must grow when data grows.
+           Without this → incorrect scroll behavior. */
 
-        if (currentCount >= MAX_ITEMS) {
-          loadingEl.textContent = 'No more items';  // End state message
-          observer.disconnect();                    // Stop observing
+        render();
+        /* WHY:
+           Re-render visible window after data update. */
+
+        isLoading = false;
+
+        if (items.length >= MAX_ITEMS) {
+          loadingEl.textContent = "No more items";
+          observer.disconnect();
+          /* WHY:
+             Stop observing once all data is loaded.
+             Prevents unnecessary callbacks. */
         }
-      }, 600); // Fake latency
+      }, 500);
     }
 
-    /* =============================== */
-    /* 5️⃣ Intersection Observer Setup */
-    /* =============================== */
+    /* ===============================
+       Virtualized Rendering
+    =============================== */
+    function render() {
+      const scrollTop = scrollContainer.scrollTop;
+      /* WHY:
+         Determines which items should be visible. */
+
+      const viewportHeight = scrollContainer.clientHeight;
+
+      const visibleCount =
+        Math.ceil(viewportHeight / ROW_HEIGHT);
+      /* WHY:
+         How many rows fit in viewport. */
+
+      const startIndex = Math.max(
+        Math.floor(scrollTop / ROW_HEIGHT) - BUFFER,
+        0
+      );
+      /* WHY:
+         Compute first visible index + buffer.
+         Prevents flicker at boundaries. */
+
+      const endIndex = Math.min(
+        startIndex + visibleCount + BUFFER * 2,
+        items.length
+      );
+
+      windowEl.innerHTML = "";
+      /* WHY:
+         Simple implementation.
+         Alternative (better): DOM recycling for even less GC. */
+
+      for (let i = startIndex; i < endIndex; i++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.textContent = items[i];
+        windowEl.appendChild(row);
+      }
+
+      /* 🔥 GPU-ACCELERATED POSITIONING */
+      windowEl.style.transform =
+        `translateY(${startIndex * ROW_HEIGHT}px)`;
+      /* WHY:
+         Moves visible window without triggering layout.
+         Alternative (bad): top / margin-top → reflow + jank. */
+    }
+
+    function updateSpacerHeight() {
+      spacer.style.height =
+        `${items.length * ROW_HEIGHT}px`;
+      /* WHY:
+         Fake total height = total items × row height.
+         Scrollbar depends on this. */
+    }
+
+    /* ===============================
+       Scroll Handling (rAF)
+    =============================== */
+    let ticking = false;
+
+    scrollContainer.addEventListener("scroll", () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          render();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+    /* WHY:
+       requestAnimationFrame ensures max 1 render per frame.
+       Alternative: direct scroll handler → layout thrashing. */
+
+    /* ===============================
+       Intersection Observer
+       (WHEN to load data)
+    =============================== */
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];                   // Only one target
-
-        // If sentinel becomes visible
-        if (entry.isIntersecting) {
-          fetchMoreItems();                         // Load next page
+        if (entries[0].isIntersecting) {
+          fetchMoreItems();
         }
       },
       {
-        root: scrollContainer,                      // Observe within scroll container
-        rootMargin: '0px 0px 200px 0px',             // Prefetch buffer (like overscan)
-        threshold: 0                                // Trigger as soon as visible
+        root: scrollContainer,
+        /* WHY:
+           Observe within custom scroll container.
+           Default viewport would be wrong here. */
+
+        rootMargin: "0px 0px 300px 0px",
+        /* WHY:
+           Prefetch buffer.
+           Loads data BEFORE user hits bottom. */
+
+        threshold: 0
+        /* WHY:
+           Trigger as soon as sentinel is visible. */
       }
     );
 
-    /* =============================== */
-    /* 6️⃣ Start Observing Sentinel    */
-    /* =============================== */
-    observer.observe(loadingEl);                    // Begin observation
+    observer.observe(loadingEl);
 
-    /* =============================== */
-    /* 7️⃣ Initial Data Load           */
-    /* =============================== */
-    fetchMoreItems();                               // Load first page
+    /* ===============================
+       Initial Load
+    =============================== */
+    fetchMoreItems();
+    /* WHY:
+       Load first page on mount.
+       Without this → empty screen. */
   </script>
 
 </body>
