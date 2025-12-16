@@ -1,0 +1,422 @@
+
+# requirements
+
+* Messaging **must feel instant**, not eventual
+* UI updates **before** server ACK
+* WebSocket is for **live**, REST for **history**
+* Messages are **append-only**, ordered by server
+* Presence ≠ messages
+* Read receipts are **visibility-based**
+* Scroll behavior is **part of correctness**
+* Redux store is **normalized**, not nested
+* Failure handling matters more than happy path
+ 
+ 1️⃣ Index / Agenda (One-liner Each)
+
+1. **Problem Definition** – Real-time 1:1 & group messaging
+2. **Core Requirements** – Instant UX, reliability, scale
+3. **Transport Choice** – Why WebSocket
+4. **Connection Lifecycle** – Heartbeats & fallback
+5. **Dual Stream Model** – History + live messages
+6. **Race Conditions** – Ordering & deduplication
+7. **Optimistic UI** – Pending → sent → failed
+8. **State Normalization** – Conversations vs messages
+9. **Socket Manager** – Single source of truth for WS
+10. **Message Store** – Redux-style normalized store
+11. **Concurrency Resolver** – Ordering & conflict handling
+12. **Presence & Inference** – Online, typing, last seen
+13. **Read Receipts** – Seen logic via viewport
+14. **Intersection Observer** – Visibility-based signals
+15. **Rich Media** – Images, voice, attachments
+16. **URL Unfurling** – Link previews via backend
+17. **Message UI Components** – Bubble system
+18. **Scrolling Model** – Sticky + preserved scroll
+19. **Virtualization** – Performance at scale
+20. **Failure Scenarios** – Network, retry, resync
+21. **End Summary** – Why this architecture scales
+
+---
+
+## 2️⃣ Frontend Architecture (Draw This)
+
+```
+                  ┌──────────────────────┐
+                  │     Messaging UI     │
+                  │ (Thread, Composer,   │
+                  │  Bubbles, Media)     │
+                  └─────────┬────────────┘
+                            │
+        ┌───────────────────▼───────────────────┐
+        │           Viewport Controller          │
+        │ (Scroll, Sticky, IntersectionObserver)│
+        └───────────────────┬───────────────────┘
+                            │
+        ┌───────────────────▼───────────────────┐
+        │              Message Store             │
+        │   Conversations | Messages | Presence  │
+        └───────────────────┬───────────────────┘
+                            │
+        ┌──────────────┬────▼─────┬─────────────┐
+        │ SocketManager│ Optimistic│ Concurrency │
+        │ (WS + HB)    │ Updater   │ Resolver    │
+        └──────────────┴────┬─────┴─────────────┘
+                             │
+                  ┌──────────▼──────────┐
+                  │   WebSocket Layer   │
+                  │  (Live Messages)   │
+                  └──────────┬──────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │ REST APIs (History, Unfurl) │
+              └─────────────────────────────┘
+```
+
+---
+
+
+
+---
+
+## 4️⃣ Sticky Notes (Topic-wise)
+
+---
+
+### 1. Problem Definition
+
+**1-liner**
+A real-time messaging system where messages feel instant, stay ordered, support rich media, and scale to millions of concurrent users.
+
+---
+
+### 2. Core Requirements
+
+* Instant message send
+* Reliable delivery
+* Correct ordering
+* Online/offline presence
+* Read receipts
+* Rich media support
+* Smooth scrolling
+* Scales to large threads
+
+---
+
+### 3. Why WebSocket?
+
+**Why**
+
+* Full duplex
+* Low latency
+* Server push
+* Persistent connection
+
+**Used for**
+
+* Live messages
+* Presence updates
+* Typing indicators
+* Read receipts
+
+---
+
+### 4. WebSocket Lifecycle
+
+* Connect on app open
+* Authenticate once
+* Heartbeat (ping/pong)
+* Reconnect on drop
+
+```
+Client ── ping ──> Server
+Client <─ pong ── Server
+```
+
+---
+
+### 5. Fallback Strategy
+
+If WS fails:
+
+* Long polling
+* Periodic REST fetch
+
+```
+WS down → REST sync → WS retry
+```
+
+---
+
+### 6. Dual Stream Model (CRITICAL)
+
+**Why**
+
+* History is large
+* Live stream is infinite
+
+**Model**
+
+```
+REST → Historical Messages
+WS   → Live Messages
+```
+
+**Rule**
+
+* History loads first
+* Live stream appends
+
+---
+
+### 7. Race Conditions
+
+**Problem**
+
+* Message arrives via WS
+* Same message appears in REST fetch
+
+**Solution**
+
+* Message IDs
+* Deduplication
+* Server timestamp ordering
+
+---
+
+### 8. Optimistic UI (Senior Signal)
+
+**Flow**
+
+```
+User sends message
+→ Show instantly (pending)
+→ Server ACK
+→ Mark as sent
+→ On failure → error state
+```
+
+States:
+
+* pending
+* sent
+* failed
+
+---
+
+### 9. Message State Normalization
+
+**Redux Shape**
+
+```
+conversations: { id → meta }
+messages: { id → message }
+conversationMessages: { convId → [msgIds] }
+```
+
+Why:
+
+* Fast updates
+* No deep nesting
+* Easy pagination
+
+---
+
+### 🔟 Socket Manager
+
+**Responsibilities**
+
+* Single WS connection
+* Reconnect logic
+* Heartbeats
+* Fan-out events
+
+**Never**
+
+* Multiple sockets per tab
+
+---
+
+### 1️⃣1️⃣ Message Store
+
+Holds:
+
+* Messages
+* Conversations
+* Delivery status
+* Presence
+
+Updates from:
+
+* REST
+* WebSocket
+* Optimistic actions
+
+---
+
+### 1️⃣2️⃣ Concurrency Resolver
+
+Handles:
+
+* Ordering
+* Deduplication
+* Late ACKs
+
+Uses:
+
+* Message ID
+* Server timestamp
+* Local temp ID mapping
+
+---
+
+### 1️⃣3️⃣ Presence & Inference
+
+Presence states:
+
+* online
+* offline
+* last seen
+
+Typing indicator:
+
+* Throttled WS events
+
+```
+Presence ≠ Message Data
+```
+
+---
+
+### 1️⃣4️⃣ Read Receipts
+
+**How**
+
+* Track message visibility
+* Send “seen” when visible
+
+**Tool**
+
+* Intersection Observer
+
+```
+Message enters viewport
+→ mark as read
+```
+
+---
+
+### 1️⃣5️⃣ Intersection Observer (Key Usage)
+
+Used for:
+
+* Read receipts
+* Lazy media loading
+* Performance
+
+Why:
+
+* No scroll listeners
+* Efficient
+
+---
+
+### 1️⃣6️⃣ Rich Media Support
+
+Message types:
+
+* Text
+* Image
+* Video
+* Voice note
+* Attachment
+
+Each type:
+
+* Separate renderer
+* Shared bubble layout
+
+---
+
+### 1️⃣7️⃣ URL Unfurling (Link Preview)
+
+**Flow**
+
+```
+User pastes URL
+→ FE sends URL to backend
+→ Backend fetches OG metadata
+→ FE renders preview
+```
+
+Frontend handles:
+
+* Loading skeleton
+* Failure fallback
+
+---
+
+### 1️⃣8️⃣ Message Bubble System
+
+* Flexible layout
+* Content-aware sizing
+* Accessibility support
+
+LinkedIn-specific:
+
+* InMail components
+* CTA buttons
+* Rich cards
+
+---
+
+### 1️⃣9️⃣ Scrolling Model (Very Important)
+
+Problems:
+
+* New messages arriving
+* User scrolling history
+
+Solutions:
+
+* Sticky scroll at bottom
+* Preserve scroll when loading history
+
+```
+User at bottom → auto-scroll
+User scrolling up → preserve position
+```
+
+---
+
+### 2️⃣0️⃣ Virtualization & Windowing
+
+* Render only visible messages
+* Prevent DOM explosion
+* Works with large threads
+
+---
+
+### 2️⃣1️⃣ Failure Scenarios
+
+| Scenario      | Handling           |
+| ------------- | ------------------ |
+| WS drop       | Reconnect + resync |
+| Send failure  | Retry / error UI   |
+| Duplicate msg | Dedup              |
+| Tab refresh   | Restore store      |
+
+---
+
+### 2️⃣2️⃣ End Summary (Memorize)
+
+**“This architecture separates history from live streams, uses WebSocket for low-latency delivery, applies optimistic updates for instant UX, and ensures correctness through normalization, ordering, and viewport-aware signals like read receipts.”**
+
+---
+
+If you want next:
+
+* **Whiteboard-only version**
+* **Redux reducers & actions sketch**
+* **LinkedIn follow-up questions**
+* **How recruiters evaluate this answer**
+
+Just say 👍
