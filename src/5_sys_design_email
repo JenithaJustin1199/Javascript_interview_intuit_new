@@ -1,0 +1,341 @@
+# 📧 Email Client – Senior Frontend Engineer Expectations (Sticky Notes)
+
+---
+
+## 1️⃣ What Is an Email Client?
+
+**1-liner:** A web application that lets users compose, send, receive, search, and manage emails efficiently and securely.
+
+Examples:
+
+* Gmail Web
+* Outlook Web
+
+---
+
+## 2️⃣ What Interviewers Expect From a Senior Frontend Engineer
+
+### ❌ NOT expected
+
+* Building SMTP server
+* Writing mail delivery logic from scratch
+
+### ✅ Expected
+
+* Deep UI + state + performance + protocol awareness
+* Clear frontend–backend boundaries
+* Security + scale thinking
+
+---
+
+## 3️⃣ High-Level Email Client Architecture (Sticky Diagram)
+
+```
+UI Layer
+ ├─ Inbox / Thread List
+ ├─ Email Viewer
+ ├─ Compose Editor
+ ├─ Attachments
+
+State Layer
+ ├─ Folder State (Inbox, Sent)
+ ├─ Thread Cache
+ ├─ Drafts (Local)
+
+Network Layer
+ ├─ REST / GraphQL APIs
+ ├─ WebSocket (new mail)
+
+Infra Awareness
+ ├─ SMTP (send)
+ ├─ IMAP / POP3 (receive)
+```
+
+---
+
+## 4️⃣ Core Email Client Features (Frontend POV)
+
+### A. Inbox / Thread List
+
+**Concerns:**
+
+* Virtualized list (10k+ emails)
+* Pagination / cursor-based fetch
+* Unread counts
+
+```
+Inbox
+ ├─ Thread 1
+ ├─ Thread 2
+ └─ ... (virtualized)
+```
+
+---
+
+### B. Email Viewer
+
+**Concerns:**
+
+* HTML sanitization (XSS)
+* Inline images (CID)
+* Lazy-load attachments
+
+```
+Email Body
+ ├─ Safe HTML
+ ├─ Inline Images
+ └─ Attachments
+```
+
+---
+
+### C. Compose Email
+
+**Concerns:**
+
+* Rich text editor
+* Draft autosave
+* Attachment upload
+
+```
+Compose
+ ├─ To / CC / BCC
+ ├─ Subject
+ ├─ Body (HTML)
+ └─ Attachments
+```
+
+---
+
+## 5️⃣ Performance Expectations (Senior Level)
+
+### A. Virtualization (Inbox)
+
+* React Window / custom
+* Only render visible rows
+
+```
+10000 emails
+ ↓
+20 DOM nodes
+```
+
+---
+
+### B. Caching Strategy
+
+* Thread list cached
+* Email body fetched on open
+
+```
+Inbox Cache → Click → Fetch Body
+```
+
+---
+
+### C. Optimistic UI
+
+* Mark as read
+* Delete
+* Archive
+
+```
+User Action → UI Update → API
+```
+
+---
+
+## 6️⃣ Offline & Draft Handling
+
+### Drafts
+
+* Stored in IndexedDB / LocalStorage
+* Autosave every few seconds
+
+```
+Typing → AutoSave → Local Draft
+```
+
+### Offline Mode
+
+* Read cached emails
+* Queue sends
+
+---
+
+## 7️⃣ Security (Very Important)
+
+### A. XSS Protection
+
+* Sanitize email HTML
+* Block scripts, iframes
+
+```
+Incoming HTML
+ ↓ sanitize
+ Safe Render
+```
+
+---
+
+### B. Attachment Safety
+
+* Virus scan (backend)
+* Content-Type validation
+
+---
+
+## 8️⃣ Real-Time Updates
+
+### New Email Arrival
+
+Options:
+
+* WebSockets
+* Server-Sent Events
+* Polling (fallback)
+
+```
+Server → WS → Inbox Update
+```
+
+---
+
+## 9️⃣ Email Protocol Awareness (Interview Bonus)
+
+### SMTP – Simple Mail Transfer Protocol
+
+**1-liner:** Protocol used to SEND emails.
+
+Used when:
+
+* User clicks "Send"
+
+---
+
+### IMAP – Internet Message Access Protocol
+
+**1-liner:** Protocol used to READ & SYNC emails.
+
+Used for:
+
+* Inbox
+* Folders
+* Sync across devices
+
+---
+
+### POP3 – Post Office Protocol
+
+**1-liner:** Downloads emails once (less common now).
+
+---
+
+## 🔟 SMTP – How It Works (Sticky Flow)
+
+```
+Client
+ ↓
+SMTP Server
+ ↓
+Recipient SMTP
+ ↓
+Inbox
+```
+
+Steps:
+
+1. Client connects to SMTP
+2. AUTH
+3. MAIL FROM
+4. RCPT TO
+5. DATA
+6. QUIT
+
+---
+
+## 1️⃣1️⃣ What Is Nodemailer?
+
+**1-liner:** Node.js library to send emails using SMTP or email services.
+
+Used in:
+
+* Backend / BFF
+* NOT frontend
+
+---
+
+## 1️⃣2️⃣ Nodemailer Architecture (Sticky)
+
+```
+Frontend
+ └─ POST /send-email
+      ↓
+Backend (Node)
+ ├─ Nodemailer
+ ├─ SMTP Transport
+ └─ Auth
+      ↓
+SMTP Server
+      ↓
+Recipient Mailbox
+```
+
+---
+
+## 1️⃣3️⃣ Nodemailer Transport Types
+
+* SMTP (Gmail, Outlook)
+* OAuth2 (secure Gmail)
+* SES / SendGrid
+
+---
+
+## 1️⃣4️⃣ How SMTP Looks (Low-Level Example)
+
+```
+C: EHLO example.com
+S: 250 OK
+C: AUTH LOGIN
+C: MAIL FROM:<a@x.com>
+C: RCPT TO:<b@y.com>
+C: DATA
+C: Hello World
+C: .
+S: 250 Message accepted
+```
+
+---
+
+## 1️⃣5️⃣ Frontend–Backend Contract (Senior Signal)
+
+Frontend:
+
+* Compose UI
+* Validation
+* Attachment chunk upload
+
+Backend:
+
+* SMTP
+* Retry
+* DKIM / SPF
+
+---
+
+## 1️⃣6️⃣ Scaling Considerations (Frontend)
+
+* Infinite inbox scroll
+* Search (debounced)
+* Attachment lazy loading
+* Thread grouping
+
+---
+
+## ⭐ Interview Gold Answer (Memorize)
+
+> "As a senior frontend engineer, I focus on inbox virtualization, secure HTML rendering, offline drafts, and real-time updates. Sending emails is handled via backend APIs using SMTP (often via Nodemailer). On the frontend, I ensure performance, accessibility, and resilience, while being protocol-aware without implementing SMTP directly."
+
+---
+
+✅ This is **exactly senior-level frontend email client design depth**.
