@@ -1,5 +1,4 @@
 
-
 ## 2.1 Functional Requirements
 
 * Show real-time user sign-up count (global + per region)
@@ -223,7 +222,140 @@ WebGL is a browser technology that uses the Graphics Processing Unit to render c
 * Throttled real-time updates
 
 **Why throttling?**
-Updating the UI on every event causes frame drops.
+Updating the UI on every incoming event causes main-thread congestion, layout recalculation, and dropped animation frames. Throttling batches updates into predictable intervals (for example, every 500 milliseconds), keeping frames per second stable.
+
+---
+
+## 6.6.1 Data Shape From Backend (Very Important for Front-End)
+
+**One-liner:** Backend sends *render-ready, aggregated data*, not raw events.
+
+### Initial Load API Response (REST)
+
+```json
+{
+  "generatedAt": 1734355200000,
+  "timeWindow": "last_24_hours",
+  "totals": {
+    "global": 18234567,
+    "byPlatform": {
+      "web": 8234567,
+      "android": 6234567,
+      "ios": 3765433
+    }
+  },
+  "timeSeries": [
+    { "timestamp": 1734351600000, "count": 1245 },
+    { "timestamp": 1734351900000, "count": 1312 }
+  ],
+  "geo": [
+    { "h3Index": "8928308280fffff", "count": 340 },
+    { "h3Index": "8928308280bffff", "count": 120 }
+  ]
+}
+```
+
+**Why this shape?**
+
+* Time series maps directly to charts
+* H3 cells map directly to heatmap rendering
+* No transformation-heavy work on the browser
+
+---
+
+### Real-Time Stream Payload (WebSocket)
+
+```json
+{
+  "type": "incremental_update",
+  "timestamp": 1734355212000,
+  "delta": {
+    "global": 12,
+    "h3": [
+      { "h3Index": "8928308280fffff", "delta": 2 }
+    ]
+  }
+}
+```
+
+**Key Idea:**
+
+* Backend sends *deltas*, not full snapshots
+* Front-end applies deltas to cached state
+
+---
+
+## 6.6.2 Front-End Caching Strategy
+
+**One-liner:** Cache aggressively, but invalidate intentionally.
+
+### Where Data Is Stored
+
+1. **In-memory cache (JavaScript runtime)**
+
+   * Holds latest dashboard state
+   * Fastest access, resets on refresh
+
+2. **Persistent cache (Browser storage)**
+
+   * Used only for initial hydration
+   * Example: last successful snapshot
+
+---
+
+### Cache Layers Explained
+
+#### In-Memory State Cache
+
+* Central state store holds:
+
+  * Last full snapshot
+  * Rolling time-series window
+  * H3 cell aggregates
+
+**Why in-memory?**
+
+* Charts re-render frequently
+* Storage access would be too slow
+
+---
+
+#### Persistent Cache (Local Storage or Indexed Database)
+
+**What is Indexed Database?**
+Indexed Database is a browser-native database for storing structured data asynchronously.
+
+**Stored Data:**
+
+* Last REST snapshot
+* Metadata like timestamp and version
+
+**Usage Pattern:**
+
+* Load cached snapshot immediately
+* Render UI instantly
+* Replace with fresh data when network responds
+
+**Trade-off:**
+
+* Slightly stale data is acceptable for analytics
+
+---
+
+## 6.6.3 Cache Invalidation Rules
+
+**One-liner:** Never cache forever.
+
+### Rules
+
+* Snapshot expires after fixed time window
+* Version mismatch invalidates cache
+* Manual refresh clears cache
+
+**Why versioning?**
+Backend data contracts change over time; versioning avoids runtime crashes.
+
+---
 
 ---
 
@@ -280,3 +412,4 @@ Backpressure is controlling data flow when the consumer cannot keep up with the 
 * Tie UI decisions back to scale and reliability
 
 This approach signals **senior front-end system design maturity**.
+
