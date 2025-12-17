@@ -1,4 +1,3 @@
-
 ## 2.1 Functional Requirements
 
 * Show real-time user sign-up count (global + per region)
@@ -412,4 +411,5 @@ Backpressure is controlling data flow when the consumer cannot keep up with the 
 * Tie UI decisions back to scale and reliability
 
 This approach signals **senior front-end system design maturity**.
+
 
