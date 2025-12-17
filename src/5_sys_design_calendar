@@ -1,98 +1,128 @@
-Web Calendar – Senior Frontend System Design (Sticky Notes)
+# 1. Problem Statement (One-liner)
+
+Design a **highly interactive, front-end heavy web calendar** that can render, edit, and synchronize time-based events accurately across multiple views, timezones, and devices, while scaling to thousands of events smoothly.
 
 ---
 
-## 1️⃣ Index / Agenda (One-liner Each)
+# 2. Requirements (Short Notes)
 
-1. **Problem Definition** – Interactive calendar for events
-2. **Core Views** – Month, Week, Day, Agenda
-3. **Data Model** – Events, instances, recurrences
-4. **Time & Timezone** – Correct local rendering
-5. **Layout Algorithm** – Overlapping events
-6. **Rendering Strategy** – Grid + virtualization
-7. **Interaction Model** – Drag, resize, select
-8. **Optimistic Updates** – Instant UX
-9. **Conflict Handling** – Concurrent edits
-10. **Recurrence Rules** – RRULE expansion
-11. **Performance** – Large calendars
-12. **Scrolling Model** – Sticky headers
-13. **Accessibility** – Keyboard + screen readers
-14. **Offline & Sync** – Reliability
-15. **Failure Scenarios** – Recovery
-16. **Trade-offs** – Design decisions
-17. **End Summary** – Why this scales
+## 2.1 Functional Requirements
+
+* Display calendar in Month, Week, Day, and Agenda views
+* Create, edit, delete events
+* Drag and resize events visually
+* Support recurring events
+* Handle overlapping events correctly
+* Work across timezones
+* Sync changes with backend
+* Work in offline or flaky network conditions
+
+## 2.2 Non-Functional Requirements
+
+* Pixel-accurate rendering
+* Smooth scrolling and interactions
+* Correctness over animations
+* Fast initial load
+* Scalable to large event sets
+* Accessible via keyboard and screen readers
 
 ---
 
-## 2️⃣ Frontend Architecture (Draw This)
+# 3. Front-End Architecture Diagram (With Responsibilities)
 
 ```
-                 ┌────────────────────┐
-                 │   Calendar UI      │
-                 │ (Month/Week/Day)   │
-                 └─────────┬──────────┘
-                           │
-        ┌──────────────────▼──────────────────┐
-        │        View Layout Engine            │
-        │ Grid | Overlap Resolver | Position  │
-        └──────────────────┬──────────────────┘
-                           │
-        ┌──────────────────▼──────────────────┐
-        │            Calendar Store            │
-        │ Events | Instances | Selection       │
-        └──────────────────┬──────────────────┘
-          ┌───────────────┼───────────────┐
-          │               │               │
-┌─────────▼────────┐ ┌────▼─────┐ ┌──────▼────────┐
-│ Interaction Ctrl │ │ Sync Mgr │ │ Timezone Ctrl │
-│ Drag / Resize    │ │ REST/WS  │ │ Local ↔ UTC   │
-└─────────┬────────┘ └────┬─────┘ └───────────────┘
-          │                │
-     ┌────▼─────┐     ┌────▼────────┐
-     │ RAF Loop │     │ Backend API │
-     │ Rendering│     │ Events      │
-     └──────────┘     └─────────────┘
+┌──────────────────────────────┐
+│        Calendar UI           │  ← Month / Week / Day / Agenda views
+│  (Pure rendering components) │
+└───────────────┬──────────────┘
+                │
+┌───────────────▼──────────────┐
+│      View Layout Engine       │  ← Computes positions, sizes, overlaps
+│  Grid | Overlap Resolver      │
+└───────────────┬──────────────┘
+                │
+┌───────────────▼──────────────┐
+│        Calendar Store         │  ← Single source of truth
+│ Events | Instances | UI State │
+└───────────────┬──────────────┘
+   ┌────────────┼─────────────┐
+   │            │             │
+┌──▼─────────┐ ┌▼──────────┐ ┌▼────────────────┐
+│ Interaction│ │ Sync       │ │ Timezone         │
+│ Controller │ │ Manager    │ │ Controller       │
+│ Drag/Resize│ │ REST       │ │ UTC ↔ Local      │
+└──┬─────────┘ └┬──────────┘ └──────────────────┘
+   │              │
+┌──▼──────────┐  ┌▼────────────────┐
+│ Rendering    │  │ Backend APIs     │
+│ Scheduler    │  │ Events           │
+│ requestFrame │  │                  │
+└──────────────┘  └──────────────────┘
 ```
 
 ---
 
-## 3️⃣ Interview Hints (Say These)
+# 4. Screen-First Thinking (What Renders First)
 
-* Calendar is **layout-heavy**, not data-heavy
-* Correctness > animations
-* Timezone bugs are **P0 issues**
-* Overlapping layout is the hardest part
-* Rendering must scale to **thousands of events**
-* Drag/resize must be **pixel-accurate**
-* Optimistic updates are expected
+## First Screen Strategy
 
----
+* Render calendar grid immediately
+* Show skeleton placeholders for events
+* Hydrate events once data is ready
 
-## 4️⃣ Sticky Notes (Topic-wise)
+**Why skeletons?**
+They preserve layout and prevent visual jumps.
 
 ---
 
-### 1. Problem Definition
+# 5. Index – Front-End Design Roadmap (One-Liners)
 
-**1-liner**
-A calendar UI that displays, creates, and edits time-based events accurately across views, timezones, and devices.
+1. Rendering Strategy – How views are painted
+2. Data Model – Event vs instance separation
+3. Timezone Handling – Correct time math
+4. Layout Algorithm – Overlap resolution
+5. Rendering Performance – Avoid reflows
+6. Interaction Model – Drag, resize, select
+7. Optimistic Updates – Instant feedback
+8. Conflict Resolution – Concurrent edits
+9. Recurrence Expansion – Visible range only
+10. Scrolling Model – Sticky headers
+11. Accessibility – Keyboard-first
+12. Offline and Sync – Resilient UX
+13. Failure Handling – Recovery paths
+14. Trade-offs – Explicit decisions
 
 ---
 
-### 2. Core Views
-
-* Month → date grid
-* Week → time grid (7 columns)
-* Day → single column
-* Agenda → list view
-
-Each view = different layout strategy.
+# 6. Detailed Front-End Design
 
 ---
 
-### 3. Data Model
+## 6.1 Rendering Strategy
 
-**Event (Source of Truth)**
+**One-liner:** Calendar is layout-heavy, so layout computation is separated from rendering.
+
+### Approach
+
+* CSS Grid for time slots
+* Absolute positioning for events
+
+**Trade-offs:**
+
+* Grid simplifies alignment
+* Absolute positioning requires manual math
+
+**Alternative:**
+
+* Flexbox (less predictable for overlaps)
+
+---
+
+## 6.2 Data Model
+
+**One-liner:** Separate persistent event data from view-specific instances.
+
+### Event (Source of Truth)
 
 ```
 {
@@ -105,195 +135,174 @@ Each view = different layout strategy.
 }
 ```
 
-**Derived Instance**
+### Instance
 
-* Expanded per view
-* Cached per date range
+* Generated per visible range
+* Cached temporarily
 
----
-
-### 4. Time & Timezone Handling (CRITICAL)
-
-Rules:
-
-* Store everything in UTC
-* Convert to local for rendering
-* DST aware
-
-```
-Backend → UTC
-Frontend → Local TZ
-```
-
-Never store UI time as source of truth.
+**Why separation matters?**
+Prevents recomputation on every render.
 
 ---
 
-### 5. Layout Algorithm (Overlapping Events)
+## 6.3 Time and Timezone Handling (Critical)
 
-**Problem**
+**One-liner:** Store in Coordinated Universal Time, render in local time.
 
-* Multiple events overlap in same time slot
+### Rules
 
-**Solution**
+* Backend stores Coordinated Universal Time
+* Frontend converts to local timezone
+* Daylight Saving Time aware
 
-* Sweep line algorithm
-* Assign columns dynamically
-
-```
-Events sorted by start time
-→ detect overlap
-→ split width
-```
+**Why this matters?**
+Timezone bugs break trust immediately.
 
 ---
 
-### 6. Rendering Strategy
+## 6.4 Layout Algorithm (Overlapping Events)
 
-* CSS Grid for time slots
-* Absolute positioning for events
-* Virtualize rows for long days
+**One-liner:** Resolve overlaps deterministically.
 
-Why:
+### Technique
 
-* Predictable layout
-* Fast reflow
+* Sort events by start time
+* Sweep through timeline
+* Assign columns
+
+**Alternative:**
+
+* Interval trees (more complex)
 
 ---
 
-### 7. Interaction Model
+## 6.5 Rendering Performance
 
-Supported:
+**One-liner:** Only render what is visible.
+
+### Techniques
+
+* Virtualized rows
+* Memoized layout calculations
+* requestAnimationFrame batching
+
+**What is requestAnimationFrame?**
+A browser API that schedules rendering work before the next repaint.
+
+---
+
+## 6.6 Interaction Model
+
+**One-liner:** All interactions must be pixel-accurate.
+
+### Supported Interactions
 
 * Click to create
 * Drag to move
 * Resize to extend
-* Multi-select
 
-Handled via:
+**Implementation**
 
 * Pointer events
 * Ghost elements during drag
 
 ---
 
-### 8. Optimistic Updates
+## 6.7 Optimistic Updates
 
-Flow:
+**One-liner:** UI updates immediately, backend confirms later.
+
+### Flow
 
 ```
-User creates event
-→ Render immediately
-→ API call
-→ Success → confirm
-→ Failure → revert
+User action → Update UI → Send API → Confirm or rollback
 ```
 
-States:
-
-* pending
-* saved
-* error
+**Trade-off:**
+Fast UX vs revert complexity
 
 ---
 
-### 9. Conflict Handling
+## 6.8 Conflict Resolution
 
-Scenario:
+**One-liner:** Detect concurrent edits safely.
 
-* Same event edited on two devices
+### Strategy
 
-Strategy:
-
-* Versioning
-* Last-write-wins + notify
-* Optional soft warning
+* Version numbers
+* Last-write-wins
+* User notification
 
 ---
 
-### 🔟 Recurrence Rules (RRULE)
+## 6.9 Recurrence Rules
 
-Examples:
+**One-liner:** Expand recurrence only for visible range.
 
-* Daily
-* Weekly
-* Monthly
-
-Frontend:
-
-* Expands only visible range
-* Avoid infinite expansion
+**Why?**
+Avoid infinite or expensive computation.
 
 ---
 
-### 1️⃣1️⃣ Performance Optimizations
+## 6.10 Scrolling Model
 
-* Windowed rendering
-* Memoized layout
-* RAF batching
-* Avoid full reflows
+**One-liner:** Preserve spatial context.
 
----
-
-### 1️⃣2️⃣ Scrolling Model
+### Features
 
 * Sticky time column
 * Sticky day headers
-* Preserve scroll on updates
+* Scroll position retention
 
 ---
 
-### 1️⃣3️⃣ Accessibility (Senior Signal)
+## 6.11 Accessibility
+
+**One-liner:** Calendar must not be mouse-only.
+
+### Practices
 
 * Keyboard navigation
 * ARIA roles
 * Screen reader labels
 
-Calendar is **not mouse-only**.
-
 ---
 
-### 1️⃣4️⃣ Offline & Sync
+## 6.12 Offline and Sync
+
+**One-liner:** Work without network.
+
+### Strategy
 
 * Cache events locally
-* Queue edits
+* Queue mutations
 * Sync when online
 
 ---
 
-### 1️⃣5️⃣ Failure Scenarios
+## 6.13 Failure Handling
 
-| Failure     | Handling         |
-| ----------- | ---------------- |
-| API failure | Retry / rollback |
-| TZ mismatch | Recompute layout |
-| Large data  | Pagination       |
-
----
-
-## 5️⃣ Trade-offs (Explicit)
-
-| Decision          | Pros          | Cons          |
-| ----------------- | ------------- | ------------- |
-| CSS Grid          | Simple layout | Less flexible |
-| Absolute pos      | Precise       | Manual math   |
-| Optimistic UI     | Fast UX       | Revert logic  |
-| Client recurrence | Responsive    | CPU cost      |
-| Server recurrence | Consistent    | Latency       |
+| Failure           | Handling          |
+| ----------------- | ----------------- |
+| API error         | Retry or rollback |
+| Timezone mismatch | Recompute layout  |
+| Large data        | Pagination        |
 
 ---
 
-## 6️⃣ Ending Statement (Memorize)
+## 6.14 Trade-offs Summary
+
+| Decision             | Pros       | Cons          |
+| -------------------- | ---------- | ------------- |
+| CSS Grid             | Simple     | Less flexible |
+| Absolute positioning | Precise    | Manual math   |
+| Optimistic UI        | Fast       | Rollback      |
+| Client recurrence    | Responsive | CPU cost      |
+
+---
+
+# 7. Final Interview Summary
 
 **“This calendar design separates event data from layout computation, handles timezones safely, resolves overlaps deterministically, and delivers instant interactions through optimistic updates and virtualized rendering.”**
 
----
-
-If you want next:
-
-* **Overlap algorithm dry-run**
-* **Drag & resize math**
-* **React component breakdown**
-* **Google Calendar-style edge cases**
-
-Just say 👍
+This signals **senior front-end system design thinking**.
