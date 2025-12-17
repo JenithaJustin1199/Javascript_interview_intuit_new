@@ -50,6 +50,9 @@ String.prototype.repeatLog = function (times) {
       // times = 5 (101) → result += "ab"
       // result = "ab"
     }
+or if (times % 2 === 1) {
+      result += current;
+    }
 
     // Double the current string
     current += current;
