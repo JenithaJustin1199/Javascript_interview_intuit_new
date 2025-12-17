@@ -19,31 +19,60 @@
 
 # 3. High-Level Architecture Diagram (Front-End Centric)
 
-```
-+----------------------+
-|      User Browser    |
-|----------------------|
-| React / UI Layer     |  <- Renders charts, maps, counters
-| State Management     |  <- Manages real-time + cached state
-| Data Fetching Layer  |  <- Fetch, stream, retry, backpressure
-| Rendering Optimizer  |  <- Virtualization, memoization
-+----------+-----------+
-           |
-           | HTTPS / WebSocket
-           v
-+----------------------+
-|   Edge / CDN Layer   |  <- Static assets, caching, SSR HTML
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Analytics APIs       |  <- Aggregated sign-up metrics
-+----------------------+
-```
++------------------------+
+|        Browser         |
+|------------------------|
+| UI Components          |
+| State Store            |
+| Event Stream Listener  |  <- EventSource (SSE)
+| Rendering Pipeline     |
++-----------+------------+
+            |
+            | HTTP (REST + SSE)
+            v
++------------------------+
+| CDN / Edge Layer       |
+|------------------------|
+| Static Assets          |
+| REST Caching           |
++-----------+------------+
+            |
+            v
++------------------------+
+| Analytics Aggregation  |
+| API + Event Stream     |
++------------------------+
+1. Initial Load (REST)
 
-**Note:** Backend complexity is hidden from the front-end using aggregated APIs and streaming endpoints.
+Exactly the same as before.
 
----
+{
+  "generatedAt": 1734355200000,
+  "totals": { "global": 18234567 },
+  "timeSeries": [...],
+  "geo": [...]
+}
+
+
+This snapshot:
+
+Is cached
+
+Renders immediately
+
+Hydrates the UI
+
+2. Real-Time Updates (Server-Sent Events)
+event: signup_delta
+data: {
+  "timestamp": 1734355212000,
+  "delta": {
+    "global": 15,
+    "h3": [
+      { "h3Index": "8928308280fffff", "delta": 3 }
+    ]
+  }
+}
 
 # 4. UI Screens – What the User Sees First
 
