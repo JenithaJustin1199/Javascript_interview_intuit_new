@@ -1,373 +1,292 @@
-1. Requirements (Clarify Scope)
-Functional: Infinite scroll, rich media (video/images), social actions (like/comment), creating posts.
-Non-Functional: Fast TTI (Time to Interactive), smooth scrolling, offline support, accessibility (a11y).
+# 1. Problem Statement (One-liner)
 
--> Infinit scroll
--> rich media
--> cache layer
--> like/comments
--> Service workers (cache-first)
+Design a **highly scalable, read-heavy social feed UI** that supports infinite scrolling, rich media, social interactions, and real-time updates for hundreds of millions of daily active users, while remaining fast, accessible, and resilient on unreliable networks.
 
-Total users -> 1 B
-DAU 40% = 400M
-Read query >>>> write query
+---
 
-Communication -> SSE (Server sent Events) + Rest API
+# 2. Requirements (Clarify Scope – Short Notes)
 
-#### Data Models
-- **User**: ID (PK), name, followers/list (as sets or graphs).
-- **Post**: ID (PK), user_id (FK), content, timestamp, media_urls.
-- **Timeline**: User_id (PK), post_ids (sorted set by timestamp, sharded).
-- **Friendship**: User_id (PK), follower_id (set).
-- Use NoSQL (e.g., Cassandra) for timelines due to high writes/reads; relational DB for users/posts.
+## 2.1 Functional Requirements
 
-Get one post feed
-{
-  "elements": [
-    {
-      "id": "urn:li:activity:70123456",
-      "actor": {
-        "urn": "urn:li:person:123",
-        "name": "Jane Smith",
-        "title": "Software Engineer at LinkedIn"
-      },
-      "content": {
-        "text": "Hello world! This is my first post.",
-        "media": []
-      },
-      "socialCounts": {
-        "numLikes": 42,
-        "numComments": 5
-      },
-      "createdAt": 1702746921000
-    }
-  ],
-  "paging": {
-    "next_cursor": "dXNlcl9pZD0xMjM0NTY=" // For infinite scroll
-  }
-}
----------- POST FEED ----
-{
-  "author": "urn:li:person:abc12345", // Unique Resource Name for the member
-  "lifecycleState": "PUBLISHED",      // DRAFT or PUBLISHED
-  "specificContent": {
-    "com.linkedin.ugc.ShareContent": {
-      "shareCommentary": {
-        "text": "Excited to share my new role at..."
-      },
-      "shareMediaCategory": "NONE"    // NONE, ARTICLE, IMAGE, or VIDEO
-    }
-  },
-  "visibility": {
-    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" // CONNECTIONS or PUBLIC
-  }
-}
+* Infinite scrolling feed
+* Render text, images, and videos (rich media)
+* Social actions: like, comment, create post
+* Real-time feed updates (new posts, counts)
+* Offline and flaky-network support
 
----> Infinite Scroll
-1. Problem: Rendering a Really Long List
-What happens if we render everything?
-- Example: 50,000 rows
-- Each row = DOM node
+## 2.2 Non-Functional Requirements
 
-Browser work for each node:
-1. Create DOM nodes
-2. Style calculation
-3. Layout (measure width/height)
-4. Paint pixels
-5. Composite layers
-6. Re-run layout on every scroll
+* Fast Time to Interactive
+* Smooth sixty frames per second scrolling
+* High perceived performance
+* Strong accessibility support
+* Scales to one billion users
 
-Performance impact:
-- Memory: 50k rows ≈ 50–100MB DOM memory
-- Layout time: 30–40ms per frame (bad)
-- Target: 16ms per frame (60 FPS)
-- Issues:
-  - Layout thrashing
-  - Slow initial render
-  - Slow Time-To-Interactive
-  - Scroll jank
+---
 
-Root cause: Too many DOM nodes + frequent re-layout
+# 3. Scale Assumptions (Interview Context)
 
-2. Core Idea: Virtualized List
-Render only what the user sees, not everything
+* Total users: 1 billion
+* Daily active users: ~400 million
+* Read traffic is much higher than write traffic
+* Feed is append-heavy and read-optimized
 
-Key principle:
-Rendered Items = Visible Items + Buffer
+---
 
-Example:
-- Viewport height = 800px
-- Row height = 40px
-- Visible rows = 800 / 40 = 20 rows
-- Add buffer: Render ~30–40 rows total (even if dataset has 50,000 items)
+# 4. High-Level Front-End Architecture (With Responsibilities)
 
-3. Why Do We Need a Buffer?
-Problem without buffer:
-- Scroll happens faster than render
-- Visible window changes rapidly
-- Causes: Flicker, Blank space
+```
+┌──────────────────────────────┐
+│          Feed UI             │  ← Post list, media, actions
+│ (Pure rendering components)  │
+└───────────────┬──────────────┘
+                │
+┌───────────────▼──────────────┐
+│   Virtualized Feed Renderer  │  ← Windowed rendering, buffer
+│   (Scroll + Layout Engine)   │
+└───────────────┬──────────────┘
+                │
+┌───────────────▼──────────────┐
+│        Client Cache Layer    │  ← Normalized entities
+│   In-memory + Persistent     │
+└───────────────┬──────────────┘
+     ┌──────────┼──────────┐
+     │          │          │
+┌────▼─────┐ ┌──▼────────┐ ┌▼─────────────────┐
+│ Media     │ │ Sync      │ │ Service Worker   │
+│ Loader    │ │ Manager   │ │ Cache + Offline  │
+│ Lazy load │ │ REST + SSE│ │ Asset strategy   │
+└────┬─────┘ └──┬────────┘ └──────────────────┘
+     │            │
+┌────▼────────┐ ┌▼─────────────────┐
+│ Intersection │ │ Backend APIs      │
+│ Observer     │ │ Feed / Actions    │
+└──────────────┘ └──────────────────┘
+```
 
-Solution: Overscan / Buffer
-- Visible window: 100px → 120px
-- Rendered window: 95px → 125px
+---
 
-Benefits:
-- No empty gaps during fast scroll
-- Smooth UX
-- Browser always has content ready
+# 5. Index – Front-End Design Roadmap (One-Liners)
 
-4. Virtualized List Architecture
-Outer Scroll Container (overflow: auto, fixed height)
-├── Total Height Spacer (height = totalRows * rowHeight)
-    └── Windowed Box (translated via transform)
-        ├── Row Renderer
-        ├── Row Renderer
-        ├── Row Renderer
-        └── ...
+1. Rendering Strategy – How the feed is painted
+2. Infinite Scroll Model – Pagination vs rendering
+3. Virtualized List – DOM size control
+4. Data Fetching – Cursor-based pagination
+5. Rich Media Loading – Images and video
+6. Client Cache Layer – What and where to cache
+7. Social Actions – Like and comment flow
+8. Post Creation – Optimistic publishing
+9. Real-Time Updates – Server push
+10. Service Worker – Performance and offline
+11. Performance Optimizations – Fast Time to Interactive
+12. Accessibility – Inclusive interaction
+13. Failure Handling – Resilience paths
+14. Trade-offs – Explicit design choices
 
-5. Role of Each Layer
-1. Outer Scroll Container
-   - Fixed height
-   - overflow: auto
-   - Handles native scrolling
+---
 
-2. Total Height Spacer
-   - Single div
-   - Height = totalRows × estimatedRowHeight
-   - Makes scrollbar behave as if full list exists
+# 6. Detailed Front-End Design
 
-3. Windowed Render Box
-   - Contains only visible + buffer rows
-   - Positioned using transform: translateY(startIndex * rowHeight)
-   - Uses GPU acceleration
+---
 
-4. Item Renderer
-   - Renders individual rows
-   - Reused (recycled) instead of recreated
+## 6.1 Rendering Strategy
 
-6. Why Use transform: translateY?
-Bad: top / margin-top → triggers layout/reflow
-Good: transform: translateY() → GPU accelerated, only compositing phase, no reflow
-Critical for smooth scrolling
+**One-liner:** Rendering efficiency matters more than data size.
 
-7. Scroll Handling Strategy
-Problem: Scroll event fires too frequently → repeated state updates
-Solution:
-Scroll Event
-↓
-requestAnimationFrame
-↓
-Compute visible range
-↓
-Update transform
+### Approach
 
-Benefits:
-- Max one update per frame
-- No layout thrashing
-- Smooth 60 FPS
+* Virtualized list renders only visible posts
+* Constant number of Document Object Model nodes
 
-8. Optimizations in Virtualized Lists
-1. Limit DOM Nodes: Keep constant (~30–40), independent of data size
-2. Recycle DOM Nodes: Reuse row components, change content instead of destroy/create
-3. GPU Accelerated CSS: transform, will-change: transform
-4. Throttle Scroll: Use requestAnimationFrame (avoid setTimeout/debounce)
+**Why?**
+Rendering thousands of posts directly causes layout thrashing and frame drops.
 
-9. Fixed Height vs Dynamic Height Rows
-Fixed Height (Preferred):
-- Predictable math
-- O(1) index → offset calculation
-- No layout measurement
-- offset = index * rowHeight
+---
 
-Dynamic Height Rows (Hard):
-Problems:
-- Browser must measure each row → forced layout
-- Scroll position becomes inaccurate
+## 6.2 Infinite Scroll Model
 
-Solutions:
-1. Measure once
-2. Cache heights
-3. Never re-measure unnecessarily
+**One-liner:** Infinite scroll is pagination plus virtualization.
 
-10. Handling Dynamic Heights (Advanced)
-Height Cache: index → measuredHeight
-Prefix Sum / Fenwick Tree (Binary Indexed Tree):
-- Compute total height before index i
-- Update height: O(log n)
-- Query scroll offset: O(log n)
-- Efficient for large lists
+### Backend Responsibility
 
-11. Architecture Summary (Mental Model)
-User Scrolls
-↓
-Compute visible index range
-↓
-Translate windowed box
-↓
-Recycle rows
-↓
-GPU paints only visible items
+* Cursor-based pagination using last seen post identifier or timestamp
 
-12. Key Interview One-Liners
-- "Virtualization reduces DOM size, not data size"
-- "Scrollbar is fake, content is real"
-- "Transform avoids layout, top causes reflow"
-- "Buffer prevents flicker during fast scroll"
-- "Dynamic heights require prefix-sum structures"
+### Frontend Responsibility
 
-13. When This Scales to Infinite Scroll
-- Backend provides paginated data
-- Frontend virtualizes rendering
-- Data loading ≠ rendering
-Infinite scroll = Data pagination + UI virtualization
+* Append data to cache
+* Virtualize rendering
 
----------------> Data fetching <---------------------
-Cursor-based Pagination.
-Send the ID/Timestamp of the last item seen: GET /feed?after=post_id_123.
-The server returns the next set of items strictly after that specific post, 
-ensuring stable pagination even if new items are added to the top.
+**Why cursor pagination?**
+Stable even when new posts are inserted at the top.
 
-------------------------------------->Intersection observer<------------------------
-Intersection Observer → WHEN to load data
-Virtualized List      → WHAT to render
+---
 
-Virtualized List solves:
-- DOM explosion (too many nodes)
-- Layout thrashing
-- Staying within 16ms frame budget (60 FPS)
-- Smooth scrolling with minimal rendered items + buffer
+## 6.3 Virtualized List (Core Performance Primitive)
 
-Benefits of Using Intersection Observer for Infinite Scroll
-- No custom scroll calculations
-- Browser-optimized visibility detection
-- Reduced jank and layout thrashing
-- Clean separation of concerns:
-  - Virtualization: UI rendering efficiency
-  - IO: Data loading triggers
-- Preload upcoming data with rootMargin (e.g., 500px buffer)
+**One-liner:** Render only what the user sees plus a buffer.
 
+### Architecture
 
--------------------------------> Rich media images <--------------
-Downloading 50 high-res images at once kills bandwidth.
--> Lazy Loading: Use IntersectionObserver or <img loading="lazy" />.
-Only fetch the image when it is ~200px away from the viewport. 
-{ rootMargin: "200px" } like a buffer
+* Outer scroll container
+* Total height spacer
+* Windowed render box translated using transform
 
-observer = new IntersectionObserver(
-  entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        img.src = img.dataset.src;
-        observer.unobserve(img);
-      }
-    });
-  },
-  { rootMargin: "200px" }
-);
--> Responsive Images: Use srcset to serve different sizes based on device width (320w, 720w). 
--> Modern Formats: Serve WebP or AVIF with a JPEG fallback. (add src-set to match the images with multiple device size)
--> BlurHash / Placeholders: Store a tiny base64 string (BlurHash) in the post metadata to show a blurred color blob immediately
-while the image loads to prevent
+**Why transform?**
+Transform is Graphics Processing Unit accelerated and avoids layout recalculation.
 
----------------------> Caching Layer <--------------
-The cache layer stores server responses so we don’t refetch the same data repeatedly and can serve it instantly on navigation.
-It answers only these questions:
-What do we store?
-Where do we store it?
-When do we reuse it?
-When do we throw it away?
-| Question                      | Feed Data (Posts, Feed Pages)                                                                                                                       | Images (Post Media)                                                                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **What do we store?**         | • Feed pages as **post ID lists**<br>• Normalized **post entities** (content, stats)<br>• Pagination cursors<br>• Metadata (lastFetchedAt)          | • **Image URLs & variants** (320w, 720w, WebP/JPEG)<br>• Image metadata (width, height, aspect-ratio)<br>• BlurHash / placeholder strings |
-| **Where do we store it?**     | • **In-memory cache** (JS / query cache)<br>• Optional **persistent cache** (sessionStorage / IndexedDB)                                            | • **Browser HTTP cache** (primary)<br>• Optional **Service Worker cache** (advanced)<br>❌ Not in JS memory                                |
-| **When do we reuse it?**      | • Navigate away → back to feed<br>• Scroll up/down within session<br>• Same post appears in multiple feeds<br>• Cache still within staleness window | • Same image URL requested again<br>• User scrolls back up<br>• Post appears multiple times<br>• Cache headers still valid                |
-| **When do we throw it away?** | • Cache TTL expires<br>• Page limit exceeded (old pages evicted)<br>• Explicit invalidation (edit, delete)<br>• Logout                              | • Cache expiration (`max-age`)<br>• Storage quota eviction<br>• URL changes (hash-based invalidation)<br>• User clears browser cache      |
+---
 
------------------> What happens when the user likes the post <--------------
-Social Action (Like) — Short Notes
-1️⃣ Immediate UI Update (Frontend Cache Layer)
-2️⃣ Backend Sync (Data Consistency Layer)
+## 6.4 Data Fetching Strategy
 
-1️⃣ Immediate UI Update (Frontend Cache Layer)
-Goal: Instant feedback, no waiting.
-Frontend performs an optimistic update
-Only the liked post entity in cache is updated
-posts[postId].likedByMe = true
-posts[postId].likeCount += 1
--> Rendering behavior
-✅ Only that PostItem re-renders
-❌ Feed list does NOT re-render
-❌ No refetch
+**One-liner:** Fetch data incrementally and predictably.
 
--> Why this works
-Cache is normalized
-UI subscribes to entity, not whole feed
+### Techniques
 
-2️⃣ Backend Sync (Data Consistency Layer)
-Goal: Persist change + notify others.
+* REST APIs for feed pages
+* Intersection Observer to trigger next page load
 
-A. API Call (Mandatory)
-POST /posts/{id}/like
-or
-PUT /posts/{id}/reactions
-Runs in parallel with UI update
-Confirms or rejects optimistic change
-On failure → rollback cache
+**What is Intersection Observer?**
+A browser API that asynchronously detects when an element enters the viewport.
 
----------------------------> Creation of POST <---------------------------------
--> Perceived Performance: Do you make the user wait? (Optimistic UI).
--> Reliability: What happens if the upload fails halfway? (Retries/Drafts).
--> Asset Management: Do you clog the application server with heavy video uploads? (Direct-to-Cloud uploads).
--> Security: Do you trust user input? (Sanitization).
+---
 
-A. The Upload Strategy (The "Presigned URL" Pattern) -> upload to s3 (pre-signed url)
-B. Optimistic Updates & Queueing
-      -> Immediate Feedback: As soon as the user clicks "Post", add the item to the Feed state locally with a "Pending" status.
-      -> Background Sync: perform the API request in the background.
-      Reconciliation:
-      -> Success: Replace the local temporary ID with the real Server ID.
-      -> Failure: Mark the post as "Failed" in the UI and offer a "Retry" button. Do not delete the user's text.
-C. Handling Rich Text (Mentions & Hashtags)
-LinkedIn isn't just plain text; 
-it has mentions (@name) and hashtags (#topic).
-Data Structure: Don't just save plain HTML (security risk). 
-Use a structured format like Draft.js Raw or a custom JSON structure:
-JSON
-{
-  "text": "Hello @Elon",
-  "entities": [
-    { "type": "mention", "offset": 6, "length": 5, "id": "user_123" }
-  ]
-}
-The @ Trigger: You need a Trigger logic. When the user types @, detect the cursor position, open a PositionedOverlay, 
-and fetch user suggestions (debounced).
+## 6.5 Rich Media Loading
 
-D. Crash Recovery (Draft Saving)
-The Scenario: The user types a long thought-leadership essay, and their browser crashes or they accidentally refresh. 
-The Solution:
-Local Storage / IndexedDB: Save the text content on every keystroke (debounced by 500ms) to localStorage.
-Hydration: On mount, check localStorage for a draft key. If it exists, pre-fill the editor.
+**One-liner:** Media must never block scrolling.
 
------------------------> Performance <---------
-1. Fast Time to Interactive (TTI)
-2. Code Splitting & Lazy Loading:
-3. Server-Side Rendering (SSR) / Static Site Generation (SSG):
-4. <script> defer, async </script>
-5. Service workers
-6. Implement a Cache-First strategy for application assets (HTML, CSS, JS, logos). 
-Implement a Stale-While-Revalidate strategy for the feed content itself.
-7. Accessibility (A11Y)
-    -> Semantic HTML:
-    -> ARIA Attributes:
-        For the "Like" button, use aria-label="Like post by [Author Name]" for clarity. Use aria-live="polite" for dynamic updates 
-        (like a notification pop-up) so screen readers announce them.
+### Images
 
+* Lazy loading with Intersection Observer
+* Responsive images using srcset
+* Modern formats like WebP or AVIF
+* BlurHash placeholders for instant visual feedback
 
-------------------------> Communication Strategy <----------------------
-| Communication Aspect | Protocol / Technique | Why it's Important |
-| :--- | :--- | :--- |
-| Initial Load | HTTP/2 or HTTP/3 | Faster parallel fetching of the first chunk of data and associated media. |
-| Scrolling/Paging | REST/GraphQL (with Cursor) | Ensures stable, reliable fetching of the next page chunk. |
-| Real-Time Push | SSE or WebSockets | Delivers "New Post" notifications or live counts without manual refreshing. |
-| Efficiency | GraphQL | Allows clients to only fetch the exact fields they need, saving bandwidth. |
-| Caching | HTTP Caching Headers (ETag, Cache-Control) | Reduces repeated transfers for static assets like post media and profile icons. |
+### Videos
+
+* Poster images
+* Autoplay only when visible
+
+---
+
+## 6.6 Client Cache Layer
+
+**One-liner:** Cache data close to the user.
+
+### What Is Cached
+
+* Feed pages as lists of post identifiers
+* Normalized post entities
+* Pagination cursors
+
+### Where It Is Cached
+
+* In-memory cache for live state
+* Indexed Database for persistence
+
+**Why normalization?**
+Ensures only affected posts re-render.
+
+---
+
+## 6.7 Social Actions (Like and Comment)
+
+**One-liner:** Instant feedback through optimistic updates.
+
+### Flow
+
+* Update cache immediately
+* Send API request
+* Confirm or rollback
+
+**Benefit:**
+No feed-level re-render.
+
+---
+
+## 6.8 Post Creation
+
+**One-liner:** Never block user creativity.
+
+### Strategy
+
+* Direct-to-cloud uploads using presigned URLs
+* Optimistic feed insertion
+* Background reconciliation
+
+### Crash Recovery
+
+* Draft saving using browser storage
+
+---
+
+## 6.9 Real-Time Updates
+
+**One-liner:** Push updates instead of polling.
+
+### Communication
+
+* Server-Sent Events for new posts and counters
+
+**Why Server-Sent Events?**
+Feed is server-to-client only.
+
+---
+
+## 6.10 Service Worker Usage
+
+**One-liner:** Control the network.
+
+### Responsibilities
+
+* Cache static assets using cache-first strategy
+* Cache feed snapshots using stale-while-revalidate
+* Enable offline viewing
+
+---
+
+## 6.11 Performance Optimizations
+
+* Code splitting
+* Lazy loading
+* requestAnimationFrame batching
+* Avoid unnecessary reflows
+
+---
+
+## 6.12 Accessibility
+
+**One-liner:** Feed must work without a mouse.
+
+### Practices
+
+* Semantic HTML
+* Accessible labels
+* Live regions for updates
+
+---
+
+## 6.13 Failure Handling
+
+| Scenario        | Strategy                   |
+| --------------- | -------------------------- |
+| Network failure | Serve cached feed          |
+| Like failure    | Rollback optimistic update |
+| Media failure   | Fallback placeholders      |
+
+---
+
+## 6.14 Trade-offs
+
+| Decision           | Pros             | Cons            |
+| ------------------ | ---------------- | --------------- |
+| Virtualization     | Smooth scrolling | Complex logic   |
+| Optimistic UI      | Fast UX          | Rollback needed |
+| Server-Sent Events | Simple push      | One-directional |
+
+---
+
+# 7. Final Interview Summary
+
+**“This feed design separates data pagination from rendering, uses virtualization to control Document Object Model size, applies optimistic updates for instant interactions, leverages Server-Sent Events for real-time delivery, and uses layered caching and service workers to ensure performance, accessibility, and reliability at massive scale.”**
+
+This demonstrates **senior front-end system design maturity**.
