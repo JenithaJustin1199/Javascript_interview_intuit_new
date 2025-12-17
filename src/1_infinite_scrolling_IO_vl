@@ -1,3 +1,30 @@
+HTML:
+<body>
+
+  <h2>Virtualized Infinite Scroll</h2>
+
+  <!-- WHY:
+       Wrapper for virtualization + infinite scroll.
+       Scroll events & IO are scoped to this container. -->
+  <div id="scrollContainer">
+
+    <!-- WHY:
+         Spacer creates illusion of full list height.
+         Scrollbar size depends on this element. -->
+    <div id="spacer">
+
+      <!-- WHY:
+           Only visible rows live here.
+           This node is moved using transform instead of layout properties. -->
+      <div id="window"></div>
+    </div>
+
+    <!-- WHY:
+         Sentinel element.
+         IntersectionObserver watches this to decide WHEN to load more data. -->
+    <div id="loading">Loading more items…</div>
+  </div>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -152,31 +179,7 @@
   </style>
 </head>
 
-<body>
 
-  <h2>Virtualized Infinite Scroll</h2>
-
-  <!-- WHY:
-       Wrapper for virtualization + infinite scroll.
-       Scroll events & IO are scoped to this container. -->
-  <div id="scrollContainer">
-
-    <!-- WHY:
-         Spacer creates illusion of full list height.
-         Scrollbar size depends on this element. -->
-    <div id="spacer">
-
-      <!-- WHY:
-           Only visible rows live here.
-           This node is moved using transform instead of layout properties. -->
-      <div id="window"></div>
-    </div>
-
-    <!-- WHY:
-         Sentinel element.
-         IntersectionObserver watches this to decide WHEN to load more data. -->
-    <div id="loading">Loading more items…</div>
-  </div>
 
   <script>
     /* ===============================
