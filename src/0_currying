@@ -1,0 +1,72 @@
+// infinite currying
+
+function add(a) {
+  return function (b) {
+    if (b) return add(a + b);
+    return a;
+  };
+}
+//Driver code
+console.log(add(5)(2)()); //infinite currying()
+
+// Any function to the curried function
+function curry(fn) {
+  // `fn` is the original function we want to curry
+  // Example: function add(a, b, c) {}
+
+  return function curried(...args) {
+    // `curried` is the function that will be called repeatedly
+    // `args` collects all arguments passed so far across calls
+    //
+    // Example calls:
+    // curried(1)
+    // curried(1, 2)
+    // curried(1, 2, 3)
+
+    // fn.length gives the number of parameters
+    // defined in the original function signature
+    // Example: add.length === 3
+    if (args.length >= fn.length) {
+      // If we have collected enough arguments,
+      // we can now execute the original function
+
+      // `apply` is used to:
+      // 1. Preserve `this` context
+      // 2. Pass arguments as an array
+      return fn.apply(this, args);
+    }
+
+    // If we do NOT have enough arguments yet,
+    // return another function that waits for more arguments
+    return function (...nextArgs) {
+      // `nextArgs` are the new arguments provided
+      // in the next invocation
+
+      // Combine previously collected arguments
+      // with the newly received ones
+      //
+      // Example:
+      // args      = [1]
+      // nextArgs = [2]
+      // combined = [1, 2]
+
+      // We call `curried` again with combined arguments
+      // This recursion continues until args.length >= fn.length
+      return curried.apply(
+        this,                 // preserve `this` across calls
+        args.concat(nextArgs) // merge old + new arguments
+      );
+    };
+  };
+}
+
+
+function add(a, b, c) {
+  return a + b + c;
+}
+
+const curriedAdd = curry(add);
+
+curriedAdd(1)(2)(3);     // 6
+curriedAdd(1, 2)(3);    // 6
+curriedAdd(1)(2, 3);    // 6
