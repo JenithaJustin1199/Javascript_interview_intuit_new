@@ -1,0 +1,178 @@
+
+✅ A **single source of truth (global state)**
+✅ A **publish–subscribe model**
+✅ **Immutable state updates**
+✅ **Selective subscriptions** (only notify when relevant data changes)
+
+---
+
+## 2️⃣ Core concept (say this before coding)
+
+> “Redux at its core is just a **global state container** with a **pub-sub mechanism**.
+> Components subscribe to state changes, `dispatch` updates the state immutably,
+> and subscribers are notified only when the relevant slice changes.”
+
+This framing already puts you in **senior territory**.
+
+---
+
+## 3️⃣ Minimal Redux-like Store (WITH INLINE COMMENTS)
+
+### 🔹 `createStore` – Global State + Pub-Sub
+
+```js
+function createStore(initialState) {
+  // Internal state (single source of truth)
+  let state = initialState;
+
+  // Set is used to avoid duplicate listeners
+  const listeners = new Set();
+
+  return {
+    // Read-only access to current state
+    getState() {
+      return state;
+    },
+
+    // Dispatch is the ONLY way to update state
+    dispatch(action) {
+      // Action is a function that receives old state
+      // and returns a NEW state (immutability)
+      state = action(state);
+
+      // Notify all subscribers that state has changed
+      listeners.forEach((listener) => listener());
+    },
+
+    // Subscribe allows components to listen for changes
+    subscribe(listener) {
+      // Register listener
+      listeners.add(listener);
+
+      // Return unsubscribe function (important to avoid memory leaks)
+      return () => {
+        listeners.delete(listener);
+      };
+    }
+  };
+}
+```
+
+### 🔥 Interview explanation
+
+> “State is private. `dispatch` is the only mutation path,
+> and subscribers are notified after the state changes.”
+
+---
+
+## 4️⃣ `useSelector`-like implementation (WITH INLINE COMMENTS)
+
+### 🔹 Purpose
+
+* Select **only a slice of state**
+* Re-run callback **only if that slice changes**
+
+```js
+function useSelector(store, selector, callback) {
+  // Store the previously selected slice
+  let selectedState = selector(store.getState());
+
+  // Subscribe to store updates
+  const unsubscribe = store.subscribe(() => {
+    // Recalculate selected slice after every dispatch
+    const newSelectedState = selector(store.getState());
+
+    // Shallow comparison (like React-Redux default behavior)
+    if (newSelectedState !== selectedState) {
+      // Update local reference
+      selectedState = newSelectedState;
+
+      // Notify consumer (component re-render simulation)
+      callback(selectedState);
+    }
+  });
+
+  // Return cleanup (like useEffect cleanup)
+  return unsubscribe;
+}
+```
+
+### 🔥 Interview explanation
+
+> “This mimics React-Redux behavior — components re-render
+> only when their selected slice changes.”
+
+---
+
+## 5️⃣ Usage Example (WITH INLINE COMMENTS)
+
+```js
+// Create a global store
+const store = createStore({ count: 0 });
+
+// Subscribe to ONLY count changes
+const unsubscribe = useSelector(
+  store,
+  state => state.count,          // Selector: pick slice of state
+  value => {
+    console.log("Count changed:", value);
+  }
+);
+
+// Dispatch an immutable update
+store.dispatch(state => {
+  return {
+    ...state,                    // Create new state object
+    count: state.count + 1
+  };
+});
+
+// Optional cleanup (important in real apps)
+unsubscribe();
+```
+
+---
+
+## 6️⃣ Execution Flow (EXPLAIN THIS OUT LOUD)
+
+1️⃣ `dispatch` is called
+2️⃣ New state is created immutably
+3️⃣ All subscribers are notified
+4️⃣ Each `useSelector` recalculates its slice
+5️⃣ Callback runs **only if slice changed**
+
+---
+
+## 7️⃣ Why this is Redux (Concept Mapping)
+
+| Redux Concept          | This Implementation |
+| ---------------------- | ------------------- |
+| Store                  | `createStore`       |
+| Single source of truth | `state`             |
+| Dispatch               | `dispatch(action)`  |
+| Reducer                | `action(state)`     |
+| Subscription           | `subscribe()`       |
+| useSelector            | `useSelector()`     |
+
+---
+
+## 8️⃣ 🔥 Final Interview Line (Memorize This)
+
+> **“Redux is essentially a pub-sub system with immutable state updates.
+> `dispatch` updates the state, subscribers are notified,
+> and `useSelector` ensures components react only to relevant changes.”**
+
+If you say this confidently **after writing the code**, you’re operating at a **senior-level signal**.
+
+---
+
+## Want to go one level deeper?
+
+I can also show:
+
+* ⚛️ How React-Redux avoids unnecessary renders internally
+* 🧪 Shallow vs deep equality tradeoffs
+* 🔁 How batching works
+* 🧠 Why immutability enables time-travel debugging
+
+Just tell me which one you want next.
