@@ -1,0 +1,47 @@
+class TaskRunner {
+  constructor(concurrency) {
+    this.concurrency = concurrency;
+    this.activeCount = 0;
+    this.queue = [];
+  }
+
+  // Adds a task (a function that returns a promise) to the queue
+  push(task) {
+    return new Promise((resolve, reject) => {
+      // We wrap the task so we can track when it finishes
+      const taskWrapper = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeCount--;
+          this.next(); // Try to run the next task in the queue
+        }
+      };
+
+      this.queue.push(taskWrapper);
+      this.next();
+    });
+  }
+
+  next() {
+    // If we haven't reached the limit and there are tasks waiting
+    while (this.activeCount < this.concurrency && this.queue.length > 0) {
+      const task = this.queue.shift();
+      this.activeCount++;
+      task(); // Execute the wrapped task
+    }
+  }
+}
+
+// Usage Example:
+const runner = new TaskRunner(3);
+const task = (id, delay) => () => 
+  new Promise(res => setTimeout(() => {
+    console.log(`Task ${id} done`);
+    res(id);
+  }, delay));
+
+[1, 2, 3, 4, 5].forEach(i => runner.push(task(i, 1000)));
