@@ -1,0 +1,55 @@
+import { useState } from "react";
+
+function UserForm() {
+  // Initialize form state using schema
+  const [formData, setFormData] = useState(schema);
+
+  // Generic change handler for all inputs
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    // Update only the changed field (immutably)
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault(); // Prevent page refresh
+
+    // Final collected schema data
+    console.log("Submitted Data:", formData);
+
+    // Interviewer only cares that schema is updated correctly
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        placeholder="Name"
+      />
+
+      <input
+        name="age"
+        value={formData.age}
+        onChange={handleChange}
+        placeholder="Age"
+      />
+
+      <input
+        name="email"
+        value={formData.email}
+        onChange={handleChange}
+        placeholder="Email"
+      />
+
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+export default UserForm;
