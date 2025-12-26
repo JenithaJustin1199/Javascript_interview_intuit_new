@@ -1,0 +1,175 @@
+const runTask = useAsyncTaskRunner(3);
+
+const handleClick = () => {
+  runTask(() => fetch("/api/data").then(res => res.json()))
+    .then(data => console.log(data))
+    .catch(err => console.error(err));
+};
+
+
+import { useRef, useCallback, useEffect } from "react";
+
+/**
+ * Custom React hook that manages a queue of async tasks
+ * with a fixed concurrency limit.
+ */
+function useAsyncTaskRunner(concurrencyLimit = 3) {
+  // Queue holding pending task executors (FIFO order).
+  // useRef ensures the queue persists across renders
+  // without triggering re-renders when mutated.
+  const queueRef = useRef([]);
+
+  // Tracks how many tasks are currently running.
+  // Stored in a ref to avoid re-renders on every increment/decrement.
+  const runningCountRef = useRef(0);
+
+  /**
+   * Attempts to execute the next task in the queue
+   * while respecting the concurrency limit.
+   *
+   * useCallback is used here to:
+   * 1. Preserve function identity across renders
+   * 2. Prevent stale closures over concurrencyLimit
+   * 3. Allow safe reuse inside other hooks (runTask, effects)
+   */
+  const runNext = useCallback(() => {
+    // If we already reached the concurrency limit,
+    // do not start new tasks
+    if (runningCountRef.current >= concurrencyLimit) return;
+
+    // Remove the next task from the queue (FIFO)
+    const nextTask = queueRef.current.shift();
+
+    // If the queue is empty, nothing to execute
+    if (!nextTask) return;
+
+    // Increment running count BEFORE execution
+    // This avoids race conditions where multiple tasks start together
+    runningCountRef.current++;
+
+    // Execute the task
+    nextTask()
+      .catch(() => {
+        // Errors are handled per-task.
+        // The task runner itself should never crash
+        // due to a single task failure.
+      })
+      .finally(() => {
+        // Task has completed (success or error).
+        // Free up one concurrency slot.
+        runningCountRef.current--;
+
+        // Try executing the next queued task.
+        runNext();
+      });
+  }, [concurrencyLimit]); // Dependency ensures latest concurrencyLimit is used
+
+  /**
+   * Public API exposed to consumers.
+   * Accepts a function that returns a Promise.
+   *
+   * useCallback is used here to:
+   * 1. Avoid recreating runTask on every render
+   * 2. Allow consumers to safely use it in useEffect dependencies
+   * 3. Maintain stable references when passed to child components
+   */
+  const runTask = useCallback(
+    (taskFn) => {
+      // Wrap the task execution inside a Promise
+      // so the caller can await the result of *their* task
+      return new Promise((resolve, reject) => {
+        // Executor function that the task runner will execute
+        const taskExecutor = async () => {
+          try {
+            // Execute the actual async task
+            const result = await taskFn();
+
+            // Resolve the caller's Promise
+            resolve(result);
+          } catch (error) {
+            // Reject only this task's Promise
+            reject(error);
+
+            // Rethrow so the runner knows this task has finished
+            throw error;
+          }
+        };
+
+        // Push the executor into the queue
+        queueRef.current.push(taskExecutor);
+
+        // Attempt to start execution immediately
+        runNext();
+      });
+    },
+    [runNext] // runTask depends on a stable runNext reference
+  );
+
+  /**
+   * Cleanup on component unmount.
+   *
+   * This prevents:
+   * - Queued tasks from running after unmount
+   * - Memory leaks
+   * - State updates on unmounted components
+   */
+  useEffect(() => {
+    return () => {
+      // Clear any pending (not yet executed) tasks
+      queueRef.current = [];
+    };
+  }, []);
+
+  // Expose only the task scheduling function
+  return runTask;
+}
+
+
+---------------- Using class Based ------------
+class TaskRunner {
+  constructor(concurrency) {
+    this.concurrency = concurrency;
+    this.activeCount = 0;
+    this.queue = [];
+  }
+
+  // Adds a task (a function that returns a promise) to the queue
+  push(task) {
+    return new Promise((resolve, reject) => {
+      // We wrap the task so we can track when it finishes
+      const taskWrapper = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeCount--;
+          this.next(); // Try to run the next task in the queue
+        }
+      };
+
+      this.queue.push(taskWrapper);
+      this.next();
+    });
+  }
+
+  next() {
+    // If we haven't reached the limit and there are tasks waiting
+    while (this.activeCount < this.concurrency && this.queue.length > 0) {
+      const task = this.queue.shift();
+      this.activeCount++;
+      task(); // Execute the wrapped task
+    }
+  }
+}
+
+// Usage Example:
+const runner = new TaskRunner(3);
+const task = (id, delay) => () => 
+  new Promise(res => setTimeout(() => {
+    console.log(`Task ${id} done`);
+    res(id);
+  }, delay));
+
+[1, 2, 3, 4, 5].forEach(i => runner.push(task(i, 1000)));
