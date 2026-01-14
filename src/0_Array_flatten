@@ -1,0 +1,58 @@
+function flattenRecursive(arr) {
+  const result = [];
+
+  for (let i = 0; i < arr.length; i++) {
+    const value = arr[i];
+
+    if (Array.isArray(value)) {
+      result.push(...flattenRecursive(value));
+    } else {
+      result.push(value);
+    }
+  }
+
+  return result;
+}
+with depth:
+if (Array.isArray(value) && depth > 0) {
+      result.push(...flattenRecursive(value, depth - 1));
+tc: O(n)
+sc -O(n+d)
+function flattenStack(arr) {
+  const stack = [...arr];
+  const result = [];
+
+  while (stack.length) {
+    const value = stack.pop();
+
+    if (Array.isArray(value)) {
+      stack.push(...value);
+    } else {
+      result.push(value);
+    }
+  }
+
+  return result.reverse();
+}
+tc-O(n)
+sc-O(n)
+with depth stack,
+function flattenStack(arr, depth) {
+  const stack = arr.map(value => ({ value, depth }));
+  const result = [];
+
+  while (stack.length) {
+    const { value, depth } = stack.pop();
+
+    if (Array.isArray(value) && depth > 0) {
+      // push children with depth-1
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push({ value: value[i], depth: depth - 1 });
+      }
+    } else {
+      result.push(value);
+    }
+  }
+
+  return result;
+}
