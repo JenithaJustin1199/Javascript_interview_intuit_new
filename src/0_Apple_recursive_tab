@@ -1,0 +1,77 @@
+const tabs = [
+  { id: 1, name: "Parent 1", parentId: null },
+  { id: 2, name: "Child 1.1", parentId: 1 },
+  { id: 3, name: "Child 1.2", parentId: 1 },
+  { id: 4, name: "Parent 2", parentId: null },
+  { id: 5, name: "Child 2.1", parentId: 4 }
+];
+function buildTree(items) {
+  const map = {};
+  const roots = [];
+
+  // 1. Create a lookup map
+  items.forEach(item => {
+    map[item.id] = { ...item, children: [] };
+  });
+
+  // 2. Assign children to parents
+  items.forEach(item => {
+    if (item.parentId === null) {
+      roots.push(map[item.id]);
+    } else {
+      map[item.parentId].children.push(map[item.id]);
+    }
+  });
+
+  return roots;
+}
+O(n)
+op:
+[
+  {
+    id: 1,
+    name: "Parent 1",
+    children: [
+      { id: 2, name: "Child 1.1", children: [] },
+      { id: 3, name: "Child 1.2", children: [] }
+    ]
+  },
+  {
+    id: 4,
+    name: "Parent 2",
+    children: [
+      { id: 5, name: "Child 2.1", children: [] }
+    ]
+  }
+]
+Recursive rendering:
+function Tab({ node }) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div style={{ marginLeft: "16px" }}>
+      <div
+        style={{ cursor: "pointer", fontWeight: "bold" }}
+        onClick={() => setOpen(!open)}
+      >
+        {node.name}
+      </div>
+
+      {open && node.children.map(child => (
+        <Tab key={child.id} node={child} />
+      ))}
+    </div>
+  );
+}
+export default function NestedTabs() {
+  const treeData = React.useMemo(() => buildTree(tabs), []);
+
+  return (
+    <div>
+      {treeData.map(node => (
+        <Tab key={node.id} node={node} />
+      ))}
+    </div>
+  );
+}
+
