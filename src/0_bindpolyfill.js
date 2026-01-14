@@ -19,14 +19,14 @@ const useBind = printname.bind(obj);
 // Step 5: Extend the Function prototype to create a custom 'myBind' method
 Function.prototype.myBind = function (...args) {
     // Save a reference to the original function
-    let obj = this;
+    let fn = this;
 
     // Extract the context and additional parameters
     let params = args.slice(1);
 
     // Return a new function with the specified context and merged parameters
     return function (...args2) {
-        obj.apply(args[0], [...params, ...args2]);
+        fn.apply(args[0], [...params, ...args2]);
     };
 }
 
