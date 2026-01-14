@@ -1,0 +1,67 @@
+Without using a framework, create a function that finds the shortest path between two nodes in the DOM tree
+Step-by-Step Algorithm
+Step 1: Get ancestors of nodeA
+
+Store each ancestor and its distance from nodeA
+
+Step 2: Walk up from nodeB
+
+The first ancestor also found in nodeA’s ancestor list is the LCA
+
+Step 3: Construct the path
+
+Go up from nodeA to LCA
+
+Go down from LCA to nodeB
+function shortestDOMPath(nodeA, nodeB) {
+  if (nodeA === nodeB) return [nodeA];
+
+  // Map ancestors of nodeA to their distance
+  const ancestorsA = new Map();
+  let current = nodeA;
+  let distance = 0;
+
+  while (current) {
+    ancestorsA.set(current, distance++);
+    current = current.parentNode;
+  }
+
+  // Traverse ancestors of nodeB to find LCA
+  current = nodeB;
+  distance = 0;
+  let lca = null;
+  let distanceToLCAFromB = 0;
+
+  while (current) {
+    if (ancestorsA.has(current)) {
+      lca = current;
+      distanceToLCAFromB = distance;
+      break;
+    }
+    current = current.parentNode;
+    distance++;
+  }
+
+  if (!lca) return null; // Not in same DOM tree
+
+  // Build path from nodeA to LCA
+  const pathA = [];
+  current = nodeA;
+  while (current !== lca) {
+    pathA.push(current);
+    current = current.parentNode;
+  }
+  pathA.push(lca);
+
+  // Build path from LCA to nodeB
+  const pathB = [];
+  current = nodeB;
+  while (current !== lca) {
+    pathB.push(current);
+    current = current.parentNode;
+  }
+
+  pathB.reverse(); // downwards
+
+  return pathA.concat(pathB.slice(1));
+}
