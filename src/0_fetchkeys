@@ -1,0 +1,60 @@
+function fetchkeys(input) {
+  const result = [];
+
+  function traverse(value, path) {
+    // Case 1: value is null or not an object → leaf node
+    if (value === null || typeof value !== "object") {
+      if (path.length > 0) {
+        result.push(path);
+      }
+      return;
+    }
+
+    // Case 2: value is an array
+    if (Array.isArray(value)) {
+      // Empty array edge case
+      if (value.length === 0) {
+        if (path.length > 0) result.push(path);
+        return;
+      }
+
+      for (let i = 0; i < value.length; i++) {
+        const newPath = path ? `${path}.${i}` : `${i}`;
+        traverse(value[i], newPath);
+      }
+      return;
+    }
+
+    // Case 3: value is an object
+    const keys = Object.keys(value);
+
+    // Empty object edge case
+    if (keys.length === 0) {
+      if (path.length > 0) result.push(path);
+      return;
+    }
+
+    for (const key of keys) {
+      const newPath = path ? `${path}.${key}` : key;
+      traverse(value[key], newPath);
+    }
+  }
+
+  traverse(input, "");
+  return result;
+}
+{ a: { b: { c: 1 }, d: 2 }, e: 3 }
+traverse(obj, "")
+→ key = "a" → traverse({b, d}, "a")
+   → key = "b" → traverse({c}, "a.b")
+      → key = "c" → traverse(1, "a.b.c") → PUSH
+   → key = "d" → traverse(2, "a.d") → PUSH
+→ key = "e" → traverse(3, "e") → PUSH
+["a.b.c", "a.d", "e"]
+ime & Space Complexity
+
+Time Complexity: O(n)
+(Each node visited once)
+
+Space Complexity: O(h) recursion stack
+(h = depth of nesting)
