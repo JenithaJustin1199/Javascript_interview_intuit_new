@@ -1,0 +1,52 @@
+function processDomainOperations(operations) {
+  // Defensive check
+  if (!Array.isArray(operations)) return [];
+
+  var domainMap = {};
+  var result = [];
+
+  for (var i = 0; i < operations.length; i++) {
+    var opRow = operations[i];
+
+    if (!Array.isArray(opRow) || opRow.length < 2) {
+      continue; // invalid row
+    }
+
+    var op = opRow[0];
+    var domain = opRow[1];
+
+    // PUT operation
+    if (op === "PUT") {
+      if (opRow.length !== 3) continue;
+      var ip = opRow[2];
+      domainMap[domain] = ip;
+    }
+
+    // GET operation
+    else if (op === "GET") {
+      if (domainMap.hasOwnProperty(domain)) {
+        result.push(domainMap[domain]);
+      } else {
+        result.push("404");
+      }
+    }
+
+    // COUNT operation
+    else if (op === "COUNT") {
+      var count = 0;
+
+      for (var storedDomain in domainMap) {
+        if (
+          storedDomain === domain ||
+          storedDomain.endsWith("." + domain)
+        ) {
+          count++;
+        }
+      }
+
+      result.push(String(count)); // MUST return string
+    }
+  }
+
+  return result;
+}
