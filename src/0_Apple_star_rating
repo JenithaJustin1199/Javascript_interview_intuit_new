@@ -1,0 +1,225 @@
+import React, { useState, useCallback } from "react";
+
+/**
+ * StarRating Component
+ *
+ * Props:
+ * value     → actual selected rating from parent (ex: 3.5)
+ * max       → total number of stars (default: 5)
+ * step      → precision (0.5 supported here)
+ * onChange  → callback to update rating in parent
+ * readOnly  → disables hover & click interaction
+ */
+export default function StarRating({
+  value = 0,
+  max = 5,
+  step = 0.5,
+  onChange,
+  readOnly = false
+}) {
+
+  /**
+   * hoverValue → temporary rating shown ONLY while mouse is hovering
+   * Initial value = null (means: no hover happening)
+   */
+  const [hoverValue, setHoverValue] = useState(null);
+
+  /**
+   * displayValue decides what user sees on UI
+   *
+   * DRY RUN:
+   * - If user is hovering → hoverValue exists → show hoverValue
+   * - If not hovering → hoverValue is null → show actual value
+   *
+   * Example:
+   * value = 3.5
+   * hoverValue = null  → displayValue = 3.5
+   *
+   * hoverValue = 4     → displayValue = 4
+   */
+  const displayValue = hoverValue ?? value;
+
+  /**
+   * handleMouseMove
+   * Triggered whenever mouse moves inside a star
+   */
+  const handleMouseMove = useCallback((index, e) => {
+
+    // If component is read-only, do nothing
+    if (readOnly) return;
+
+    /**
+     * getBoundingClientRect gives star position in viewport
+     *
+     * left  → X coordinate of star's left edge
+     * width → width of the star in pixels
+     */
+    const { left, width } = e.currentTarget.getBoundingClientRect();
+
+    /**
+     * Calculate how far mouse is inside the star (0 → 1)
+     *
+     * DRY RUN:
+     * left = 100px (position of mouse at the star)
+     * width = 20px
+     * mouse at 105px → (105 - 100) / 20 = 0.25 (left half)
+     * mouse at 115px → (115 - 100) / 20 = 0.75 (right half)
+     */
+    const percent = (e.clientX - left) / width;
+
+    /**
+     * Decide half or full star
+     *
+     * index = star position (1-based)
+     *
+     * DRY RUN:
+     * index = 3
+     * percent = 0.3  → newValue = 2.5
+     * percent = 0.7  → newValue = 3
+     */
+    const newValue =
+      percent <= 0.5
+        ? index - 0.5   // left half → half star
+        : index;        // right half → full star
+
+    /**
+     * Update hoverValue ONLY for preview
+     * This does NOT update actual rating
+     */
+    setHoverValue(newValue);
+
+  }, [readOnly]);
+
+  /**
+   * handleClick
+   * Called when user clicks a star
+   */
+  const handleClick = useCallback((val) => {
+
+    // Prevent updates if read-only or callback missing
+    if (!readOnly && onChange) {
+
+      /**
+       * Send selected rating to parent
+       *
+       * Parent updates `value`
+       * Component re-renders with new value
+       */
+      onChange(val);
+    }
+  }, [onChange, readOnly]);
+
+  /**
+   * JSX RENDER PHASE
+   */
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Star rating"
+      style={{ display: "flex", gap: 4 }}
+    >
+
+      {/**
+       * Create array of size = max (ex: 5 stars)
+       * Loop runs max times
+       */}
+      {Array.from({ length: max }, (_, i) => {
+
+        // Convert 0-based index to 1-based star index
+        const index = i + 1;
+
+        /**
+         * Decide how this star should look
+         *
+         * DRY RUN (displayValue = 3.5):
+         * index = 1 → full
+         * index = 2 → full
+         * index = 3 → full
+         * index = 4 → half
+         * index = 5 → empty
+         */
+        const fill =
+          displayValue >= index
+            ? "full"
+            : displayValue >= index - 0.5
+            ? "half"
+            : "empty";
+
+        /**
+         * Render individual Star
+         */
+        return (
+          <Star
+            key={index}
+
+            // Determines visual state (full / half / empty)
+            fill={fill}
+
+            /**
+             * Mouse movement inside star
+             * Used to calculate half or full hover
+             */
+            onMouseMove={(e) => handleMouseMove(index, e)}
+
+            /**
+             * When mouse leaves star,
+             * remove hover preview
+             */
+            onMouseLeave={() => setHoverValue(null)}
+
+            /**
+             * On click, commit rating
+             * Uses displayValue (hover or actual)
+             */
+            onClick={() => handleClick(displayValue)}
+
+            /**
+             * Accessibility
+             */
+            ariaChecked={value === index}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+<Star svg>
+const Star = React.memo(function Star({
+  fill,
+  onMouseMove,
+  onMouseLeave,
+  onClick
+}) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+      style={{ cursor: "pointer" }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="half">
+          <stop offset="50%" stopColor="#FFD700" />
+          <stop offset="50%" stopColor="#E0E0E0" />
+        </linearGradient>
+      </defs>
+
+      <path
+        d="M12 2l2.9 6.6L22 9.2l-5 4.9 1.2 7-6.2-3.5-6.2 3.5L7 14.1l-5-4.9 7.1-0.6z"
+        fill={
+          fill === "full"
+            ? "#FFD700"
+            : fill === "half"
+            ? "url(#half)"
+            : "#E0E0E0"
+        }
+      />
+    </svg>
+  );
+});
+
