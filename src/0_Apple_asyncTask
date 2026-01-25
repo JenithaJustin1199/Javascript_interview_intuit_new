@@ -1,0 +1,43 @@
+function asyncTask(tasks, limit){
+    let running = 0
+    let index = 0
+    let result = []
+    return new Promise((resolve, reject)=>{
+        function nextTask(){
+            if(index === tasks.length && running ===0){
+                resolve(result)
+                return
+            }
+            while(running < limit && index<tasks.length){
+            running++
+            let currIdx = index
+            let task = tasks[index]
+            index++
+            console.log("START Task", currIdx, "Running:", running);
+            Promise.resolve().then(()=>{
+               return task()
+            }).then((val)=>{
+                result[currIdx] = val
+            }).catch((err)=>{
+                result[currIdx] = err
+            }).finally(()=>{
+                running--
+                nextTask()
+            })
+        }
+        }
+        nextTask()
+    })
+}
+
+let createAsyncTask = (time, value) => () =>
+  new Promise(res => setTimeout(() => res(value), time));
+let tasks = [
+    createAsyncTask(10000, "A"),
+    createAsyncTask(5000, "B"),
+    createAsyncTask(1000, "C"),
+    createAsyncTask(3000, "D"),
+    createAsyncTask(900, "E"),
+    
+    ]
+  asyncTask(tasks, 2).then((val)=>console.log(val))
