@@ -1,0 +1,19 @@
+Object.myCreate = function(proto){
+
+  if (proto !== null && typeof proto !== "object") {
+    throw new TypeError("Prototype must be object or null");
+  }
+
+  function F(){}
+
+  F.prototype = proto;
+
+  const obj = new F();
+
+  // If proto is null → manually remove prototype
+  if (proto === null) {
+    obj.__proto__ = null;
+  }
+
+  return obj;
+};
