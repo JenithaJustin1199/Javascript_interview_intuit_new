@@ -1,0 +1,43 @@
+class EventEmitter{
+    constructor(){
+        this.events = new Map()
+    }
+    subscribe(event, callback){
+        if(!this.events.has(event)){
+            this.events.set(event, new Set())
+        }
+        let listners = this.events.get(event)
+        listners.add(callback)
+        
+        return ()=>{
+            listners.delete(callback)
+            if(listners.size === 0){
+                this.events.delete(event)
+            }
+        }
+        
+    }
+    emit(event, ...args){
+        if(!this.events.get(event)) return
+        let toBePublished = this.events.get(event)
+        for(let cb of toBePublished){
+            cb(...args)
+        }
+    }
+}
+
+let emitter = new EventEmitter()
+let unsubscribe1 = emitter.subscribe("Initiated Order",(a)=>{
+    console.log("order 1",a)
+})
+let unsubscribe2 = emitter.subscribe("Initiated Order",(b)=>{
+    console.log("order 2",b)
+})
+let unsubscribe3 = emitter.subscribe("Payment processing",(st)=>{
+    console.log("Payment 3",st)
+})
+
+emitter.emit("Initiated Order","first")
+unsubscribe1()
+emitter.emit("Payment processing","order1")
+emitter.emit("Initiated Order","second")
