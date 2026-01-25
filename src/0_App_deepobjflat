@@ -1,0 +1,26 @@
+function deepObjectFlat(obj,parentKey="",result={}){
+    for(let key in obj){
+        if(!obj.hasOwnProperty(key)) continue;
+        const newKey = parentKey?parentKey+'.'+key:key
+        if(obj[key] !== null && typeof obj[key] === "object" && !Array.isArray(obj[key])){
+            deepObjectFlat(obj[key],newKey,result )
+        }else{
+            result[newKey] = obj[key]
+        }
+    }
+    return result
+
+}
+let obj1 = {
+    a:{
+        b:{
+            c:{
+                d:{
+                    e:[1,2,3,4]
+                }
+            }
+        }
+    }
+}
+
+console.log(deepObjectFlat(obj1))
