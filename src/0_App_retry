@@ -1,0 +1,38 @@
+async function retry(fn, retries, delay){
+
+  let attempt = 0;
+
+  while(attempt <= retries){
+    try{
+      return await fn();   // success → exit immediately
+    } 
+    catch(err){
+      if(attempt === retries){
+        throw err;        // no retries left → fail
+      }
+
+      await wait(delay); // wait before retry
+      attempt++;
+    }
+  }
+}
+function wait(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+let count = 0;
+
+async function unstableTask(){
+  count++;
+
+  console.log("Attempt:", count);
+
+  if(count < 3){
+    throw "Failed";
+  }
+
+  return "Success!";
+}
+
+retry(unstableTask, 5, 1000)
+  .then(console.log)
+  .catch(console.error);
