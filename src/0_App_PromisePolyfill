@@ -94,6 +94,22 @@ function delayMyName(name) {
         }, 1000);
     });
 }
+let p = new myPromise((resolve, reject)=>{
+    setTimeout(()=>{
+        resolve(10)
+    },1000)
+})
+p.then((v)=>console.log(v))
+
+let p1 = new myPromise((resolve, reject)=>{
+    resolve(100)
+})
+p1.then((v)=>console.log(v))
+
+let p2 = new myPromise((resolve, reject)=>{
+    reject("err")
+})
+p2.then((v)=>console.log(v),(err)=>console.log(err))
 
 
 // ============================================================================
@@ -226,3 +242,4 @@ const async_p3 = new Promise((resolve, reject) => {
 myPromise.any([async_p1, async_p2, async_p3])
     .then(res => console.log(res))
     .catch(err => console.log(err, "I'm from catch block"));
+
