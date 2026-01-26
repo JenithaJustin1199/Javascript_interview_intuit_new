@@ -1,0 +1,22 @@
+function groupBy(arr, key){
+    let result = {}
+    for(const ele of arr){
+        let newKey = typeof key === "function"?key(ele):ele[key]
+        if(!result[newKey]){
+            result[newKey]=[]
+        }
+        result[newKey].push(ele)
+    }
+    return result
+}
+
+
+const users = [
+  { name: "Jeni", role: "admin" },
+  { name: "Bob", role: "user" },
+  { name: "Alice", role: "admin" }
+];
+const nums = [2,3,4,5,6]
+console.log(groupBy(nums, n => n % 2 === 0 ? "even" : "odd"));
+console.log(groupBy(users, "role"));
+
