@@ -1,0 +1,44 @@
+function curry(fn){
+    return function curried(...args){
+        if(args.length >= fn.length){
+            return fn.apply(this,args)
+        }
+        return function(...nextArgs){
+            return curried.apply(this,[...args,...nextArgs])
+        }
+    }
+}
+function add(a,b,c){
+    return a+b+c;
+}
+let curried = curry(add)
+console.log(curried(1)(2)(3))
+console.log(curried(1,2)(3))
+console.log(curried(1,2,3))
+console.log(curried())
+
+function sum(initial){
+
+  let total = 0;
+
+  function curried(value){
+
+    // if no argument → return result
+    if(value === undefined){
+      return total;
+    }
+
+    total += value;
+    return curried;
+  }
+
+  // start chain if initial provided
+  if(initial !== undefined){
+    total += initial;
+  }
+
+  return curried;
+}
+console.log(sum(1)(2)(3)());   // 6
+console.log(sum(5)(10)());    // 15
+console.log(sum());           // 0
