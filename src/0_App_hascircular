@@ -1,0 +1,34 @@
+function hasCircular(obj){
+    let set = new WeakSet()
+    function detect(val){
+        if(val !== null && typeof val === "object"){
+            if(set.has(val)){
+                return true
+            }
+            set.add(val)
+            for(let key in val){
+                if(detect(val[key])) return true
+            }
+        }
+       return false 
+    }
+    return detect(obj)
+    
+}
+
+const a = {};
+a.self = a;
+
+console.log(hasCircular(a)); // true
+
+
+const b = { x: 1, y: { z: 2 } };
+
+console.log(hasCircular(b)); // false
+
+
+const c = {};
+const d = { c };
+c.d = d;
+
+console.log(hasCircular(c)); // true
