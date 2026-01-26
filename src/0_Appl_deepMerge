@@ -1,0 +1,40 @@
+function deepMerge(obj1, obj2){
+
+  const result = { ...obj1 }; // copy first object
+
+  for(const key in obj2){
+
+    const val1 = obj1[key];
+    const val2 = obj2[key];
+
+    if(isObject(val1) && isObject(val2)){
+      // both objects → merge recursively
+      result[key] = deepMerge(val1, val2);
+    } 
+    else {
+      // otherwise override
+      result[key] = val2;
+    }
+  }
+
+  return result;
+}
+function isObject(val){
+  return val !== null && typeof val === "object" && !Array.isArray(val);
+}
+const a = {
+  user: {
+    name: "Jeni",
+    skills: { js: true }
+  },
+  age: 20
+};
+
+const b = {
+  user: {
+    age: 25,
+    skills: { react: true }
+  }
+};
+
+console.log(deepMerge(a, b));
