@@ -1,0 +1,29 @@
+function renderVDOM(vnode){
+    if(typeof vnode === "string"){
+        return document.createTextNode(vnode)
+    }
+   
+    let element = document.createElement(vnode.tag)
+     if(vnode.props){
+        for(const key in vnode.props){
+            element.setAttribute(key, vnode.props[key])
+        }
+    }
+    if(vnode.children){
+        for(const child of vnode.children){
+            element.appendchild(renderVDOM(child))
+        }
+    }
+    return element
+}
+
+const vdom = {
+  tag: "div",
+  props: { id: "container" },
+  children: [
+    { tag: "h1", children: ["Hello"] },
+    { tag: "p", children: ["Welcome to Virtual DOM"] }
+  ]
+};
+
+console.log(renderVDOM(vdom))
