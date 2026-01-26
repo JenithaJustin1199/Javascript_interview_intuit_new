@@ -1,0 +1,35 @@
+function deepEqual(a,b){
+    if(a===b) return true
+    if(a === null || b===null){
+        return false
+    }
+    if(typeof a !== 'object' || typeof b !== 'object'){
+        return false
+    }
+    let isArrayA = Array.isArray(a)
+    let isArrayB = Array.isArray(b)
+    
+    if(isArrayA !== isArrayB) return false
+    let objKeysA = Object.keys(a)
+    let objKeysB = Object.keys(b)
+    if(objKeysA.length !== objKeysB.length) return false
+    for(let key in a){
+        if(!objKeysB.includes(key)) return false
+        
+    if(!deepEqual(a[key], b[key])) return false;
+    }
+    return true
+}
+
+let obj1 = {
+    a:{
+        b:[1,2,3]
+    }
+}
+let obj2 = {
+    a:{
+        b:[1,2,9]
+    }
+}
+
+console.log(deepEqual(obj1, obj2))
