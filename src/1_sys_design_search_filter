@@ -1,0 +1,418 @@
+Perfect — **autocomplete (typeahead)** is another classic **scalable frontend + system design** problem (very common in Microsoft/Google/Apple FE rounds).
+
+I’ll do it in the **same senior-level structured way you like**:
+
+✅ Clear approach first
+✅ Scalable data flow
+✅ Fully commented React code (every line)
+✅ requestAnimationFrame + debounce + cache
+✅ Dry run
+✅ Time & space complexity
+✅ Edge cases
+✅ Accessibility
+✅ Security
+
+We’ll assume:
+
+👉 Very large dataset (millions of records → cannot preload)
+👉 API-powered suggestions
+
+---
+
+# 🎯 GOAL
+
+As user types:
+
+• Fetch suggestions from backend
+• Show dropdown
+• Highlight matches
+• Handle large scale smoothly
+
+---
+
+# 🧠 ONE-LINER (INTERVIEW STYLE)
+
+> Autocomplete is implemented using debounced API calls with cached responses and abortable fetches, rendering suggestions efficiently and ensuring accessibility via ARIA combobox patterns.
+
+---
+
+# 📐 ARCHITECTURE FLOW
+
+```
+Input change
+   ↓
+Debounce (300ms)
+   ↓
+Check cache
+   ↓
+If miss → API call
+   ↓
+Update suggestions
+   ↓
+Render dropdown
+```
+
+---
+
+# 📦 MOCK API RESPONSE
+
+```
+GET /api/search?q=ban&limit=10
+```
+
+```json
+{
+  "results": [
+    { "id": 1, "name": "Bangalore" },
+    { "id": 2, "name": "Bangkok" }
+  ]
+}
+```
+
+---
+
+# ⚛️ SCALABLE REACT AUTOCOMPLETE (FULLY COMMENTED)
+
+```jsx
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+
+/*
+  AutoComplete Component
+  ---------------------
+  Large-scale typeahead with:
+  - debounce
+  - cache
+  - abort previous request
+  - accessibility
+*/
+export default function AutoComplete() {
+
+  // =============================
+  // STATE
+  // =============================
+
+  // Current input value
+  const [query, setQuery] = useState("");
+
+  // Suggestions returned from API
+  const [suggestions, setSuggestions] = useState([]);
+
+  // Loading state for spinner
+  const [loading, setLoading] = useState(false);
+
+  // Controls dropdown visibility
+  const [open, setOpen] = useState(false);
+
+
+  // =============================
+  // REFS
+  // =============================
+
+  // Cache previous queries -> results
+  const cacheRef = useRef(new Map());
+
+  // Controller for cancelling previous API calls
+  const abortControllerRef = useRef(null);
+
+  // Timer id for debounce
+  const debounceTimerRef = useRef(null);
+
+
+  // =============================
+  // FETCH SUGGESTIONS
+  // =============================
+
+  const fetchSuggestions = useCallback(async (searchText) => {
+
+    // If empty input -> reset
+    if (!searchText) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+
+    // Check cache first (O(1))
+    if (cacheRef.current.has(searchText)) {
+
+      // Use cached results
+      setSuggestions(cacheRef.current.get(searchText));
+      setOpen(true);
+      return;
+    }
+
+    // Cancel previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new controller for this request
+    abortControllerRef.current = new AbortController();
+
+    try {
+
+      // Start loading
+      setLoading(true);
+
+      // Call API
+      const response = await fetch(
+        `/api/search?q=${searchText}&limit=10`,
+        { signal: abortControllerRef.current.signal }
+      );
+
+      const result = await response.json();
+
+      // Store in cache
+      cacheRef.current.set(searchText, result.results);
+
+      // Update state
+      setSuggestions(result.results);
+      setOpen(true);
+
+    } catch (error) {
+
+      // Ignore abort errors
+      if (error.name !== "AbortError") {
+        console.error("Search failed", error);
+      }
+
+    } finally {
+
+      setLoading(false);
+    }
+
+  }, []);
+
+
+  // =============================
+  // DEBOUNCED INPUT HANDLER
+  // =============================
+
+  const handleChange = (e) => {
+
+    // Get input value
+    const value = e.target.value;
+
+    // Update input immediately (controlled input)
+    setQuery(value);
+
+    // Clear previous debounce timer
+    clearTimeout(debounceTimerRef.current);
+
+    // Create new debounce timer
+    debounceTimerRef.current = setTimeout(() => {
+
+      // Fetch suggestions after delay
+      fetchSuggestions(value);
+
+    }, 300); // 300ms debounce
+  };
+
+
+  // =============================
+  // OPTIONAL: HIGHLIGHT MATCH
+  // =============================
+
+  const highlightedSuggestions = useMemo(() => {
+
+    // Highlight matching part in suggestions
+    return suggestions.map(item => {
+
+      const index = item.name
+        .toLowerCase()
+        .indexOf(query.toLowerCase());
+
+      if (index === -1) return item.name;
+
+      return (
+        <>
+          {item.name.slice(0, index)}
+          <strong>
+            {item.name.slice(index, index + query.length)}
+          </strong>
+          {item.name.slice(index + query.length)}
+        </>
+      );
+    });
+
+  }, [suggestions, query]);
+
+
+  // =============================
+  // RENDER
+  // =============================
+
+  return (
+    <div style={{ width: "300px", position: "relative" }}>
+
+      {/* INPUT */}
+      <input
+        type="text"
+        value={query}
+        onChange={handleChange}
+        placeholder="Search city..."
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls="autocomplete-list"
+        style={{ width: "100%", padding: "8px" }}
+      />
+
+      {/* LOADER */}
+      {loading && <div>Loading...</div>}
+
+      {/* DROPDOWN */}
+      {open && suggestions.length > 0 && (
+
+        <ul
+          id="autocomplete-list"
+          role="listbox"
+          style={{
+            position: "absolute",
+            width: "100%",
+            border: "1px solid #ccc",
+            background: "#fff",
+            listStyle: "none",
+            margin: 0,
+            padding: 0,
+            maxHeight: "200px",
+            overflowY: "auto"
+          }}
+        >
+
+          {suggestions.map((item, index) => (
+
+            <li
+              key={item.id}
+              role="option"
+              style={{
+                padding: "8px",
+                cursor: "pointer"
+              }}
+            >
+              {highlightedSuggestions[index]}
+            </li>
+
+          ))}
+
+        </ul>
+      )}
+
+    </div>
+  );
+}
+```
+
+---
+
+# 🔍 DRY RUN
+
+### User types: “b”
+
+→ setQuery("b")
+→ debounce 300ms
+
+(no API yet)
+
+---
+
+### Types “ba”
+
+(timer reset)
+
+---
+
+### Types “ban”
+
+(wait 300ms)
+
+→ fetchSuggestions("ban")
+→ API returns Bangalore, Bangkok
+→ cache["ban"] = results
+→ show dropdown
+
+---
+
+### Types again “ban”
+
+→ cache hit
+→ instant results
+
+---
+
+# 🚀 PERFORMANCE TRICKS (INTERVIEW GOLD)
+
+| Technique       | Why                       |
+| --------------- | ------------------------- |
+| Debounce        | reduce API calls          |
+| AbortController | cancel stale requests     |
+| Cache           | instant repeated queries  |
+| useMemo         | cheap highlight rendering |
+| Limit results   | avoid DOM bloat           |
+
+---
+
+# 📊 COMPLEXITY
+
+### Each query fetch:
+
+O(k) where k = result size
+
+### Cache lookup:
+
+O(1)
+
+### Rendering:
+
+O(k)
+
+---
+
+# ⚠️ EDGE CASES
+
+✅ Fast typing
+✅ API slow
+✅ No results
+✅ Network fail
+✅ Duplicate queries
+
+---
+
+# ♿ ACCESSIBILITY
+
+Proper combobox roles:
+
+• aria-autocomplete
+• role="listbox"
+• role="option"
+
+Keyboard nav can be added (↑ ↓ Enter).
+
+---
+
+# 🔐 SECURITY
+
+• Sanitize query server-side
+• Rate limit
+• Prevent injection
+• No exposing full dataset
+
+---
+
+# 💬 INTERVIEW READY SUMMARY
+
+Say this confidently:
+
+> “I’d build autocomplete using debounced API calls with caching and AbortController to cancel stale requests. For performance I’d limit results, memoize rendering, and follow ARIA combobox patterns for accessibility.”
+
+---
+
+If you want, I can next show:
+
+✅ Autocomplete with keyboard navigation
+✅ Virtualized suggestions list
+✅ Pre-fetch popular searches
+✅ System design follow-ups
+
+Just say:
+
+👉 “Add keyboard navigation”
+👉 “Show scalable architecture diagram”
