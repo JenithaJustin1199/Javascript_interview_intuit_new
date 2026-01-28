@@ -1,0 +1,289 @@
+Great — a **custom `useFetch` hook** is something interviewers love because it shows:
+
+✅ Abstraction
+✅ Performance thinking
+✅ Error handling
+✅ Caching
+✅ Cancellation
+✅ Scalability
+
+I’ll do it in your **preferred senior-frontend structured way**:
+
+• Clear approach first
+• Fully commented (every line)
+• Supports big apps (cache, abort, debounce optional)
+• Dry run
+• Complexity
+• Edge cases
+
+---
+
+# 🎯 GOAL
+
+Create a reusable hook that:
+
+✔ Fetches data
+✔ Handles loading + error
+✔ Cancels stale requests
+✔ Caches responses
+✔ Scales for large apps
+
+---
+
+# 🧠 ONE-LINER (INTERVIEW)
+
+> A custom useFetch hook abstracts network logic with built-in loading, error handling, caching, and request cancellation to prevent race conditions and unnecessary re-fetching.
+
+---
+
+# 📐 BASIC API
+
+```js
+const { data, loading, error } = useFetch(url, options);
+```
+
+---
+
+# ⚛️ SCALABLE `useFetch` HOOK (FULLY COMMENTED)
+
+```jsx
+import { useState, useEffect, useRef } from "react";
+
+/*
+  useFetch Hook
+  -------------
+  Features:
+  - loading state
+  - error handling
+  - abort stale requests
+  - in-memory cache
+*/
+export default function useFetch(url, options = {}) {
+
+  // =============================
+  // STATE
+  // =============================
+
+  // Holds API response
+  const [data, setData] = useState(null);
+
+  // Loading flag
+  const [loading, setLoading] = useState(false);
+
+  // Error state
+  const [error, setError] = useState(null);
+
+
+  // =============================
+  // REFS
+  // =============================
+
+  // Cache map (URL -> response)
+  const cacheRef = useRef(new Map());
+
+  // Abort controller for cancelling old requests
+  const abortControllerRef = useRef(null);
+
+
+  // =============================
+  // EFFECT
+  // =============================
+
+  useEffect(() => {
+
+    // If no URL, skip fetch
+    if (!url) return;
+
+    // Check cache first
+    if (cacheRef.current.has(url)) {
+
+      // Use cached data instantly
+      setData(cacheRef.current.get(url));
+      return;
+    }
+
+    // Cancel previous request if running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new controller
+    abortControllerRef.current = new AbortController();
+
+    // Start loading
+    setLoading(true);
+
+    // Reset error
+    setError(null);
+
+    // Perform fetch
+    fetch(url, {
+      ...options,
+      signal: abortControllerRef.current.signal
+    })
+      .then(response => {
+
+        // Handle HTTP errors
+        if (!response.ok) {
+          throw new Error(`Status ${response.status}`);
+        }
+
+        // Convert to JSON
+        return response.json();
+      })
+      .then(result => {
+
+        // Save in cache
+        cacheRef.current.set(url, result);
+
+        // Update state
+        setData(result);
+      })
+      .catch(err => {
+
+        // Ignore aborted fetch
+        if (err.name !== "AbortError") {
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+
+        // Stop loader
+        setLoading(false);
+      });
+
+    // Cleanup on unmount or URL change
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+
+  }, [url]);
+
+
+  // =============================
+  // RETURN VALUES
+  // =============================
+
+  return { data, loading, error };
+}
+```
+
+---
+
+# ✅ USAGE EXAMPLE
+
+```jsx
+function UserList() {
+
+  const { data, loading, error } = useFetch("/api/users");
+
+  if (loading) return <p>Loading...</p>;
+
+  if (error) return <p>Error: {error}</p>;
+
+  return (
+    <ul>
+      {data.map(user => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+---
+
+# 🔍 DRY RUN
+
+### First render:
+
+url = "/api/users"
+
+→ cache empty
+→ fetch called
+→ loading = true
+
+---
+
+### API responds:
+
+→ data stored in cache
+→ loading = false
+
+---
+
+### Component re-renders:
+
+→ same URL
+→ cache hit
+→ no fetch
+
+---
+
+### URL changes:
+
+→ abort old request
+→ fetch new one
+
+---
+
+# 🚀 PERFORMANCE BENEFITS
+
+✅ No duplicate requests
+✅ Cancel race conditions
+✅ Fast repeated loads
+✅ Centralized logic
+
+---
+
+# 📊 COMPLEXITY
+
+Fetch → O(n) where n = payload size
+Cache lookup → O(1)
+
+---
+
+# ⚠️ EDGE CASES
+
+✅ Rapid URL changes
+✅ Slow network
+✅ API failure
+✅ Component unmount mid-fetch
+
+---
+
+# 🔐 SECURITY NOTES
+
+• Always validate server side
+• Never trust client cache
+• Handle auth tokens carefully
+
+---
+
+# 📈 SCALABILITY UPGRADES (MENTION IN INTERVIEW)
+
+👉 TTL based cache expiry
+👉 Retry with backoff
+👉 Global cache (React Query style)
+👉 Dedup concurrent requests
+
+---
+
+# 💬 INTERVIEW READY SUMMARY
+
+Say:
+
+> “I built a custom useFetch hook with loading, error handling, abortable requests and in-memory caching to avoid redundant calls and race conditions. It centralizes network logic and scales similar to React Query’s core principles.”
+
+---
+
+If you want next:
+
+✅ useFetch with retry + exponential backoff
+✅ TTL cache expiry
+✅ Pagination support
+✅ Comparison with React Query
+
+Just say:
+
+👉 “Add retry and TTL cache”
