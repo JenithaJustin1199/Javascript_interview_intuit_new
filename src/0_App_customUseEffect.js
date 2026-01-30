@@ -1,65 +1,66 @@
-import { type } from "@testing-library/user-event/dist/type";
-import { useRef } from "react";
+const CustomUseEffect = (effect, deps) => {
 
-const CustomUseEffect = (effect,deps)=>{
-    // first render
-    let firstRender = useRef(true)
-    let prevDeps = useRef([])
-    if(firstRender.current){
-        const cleanup =effect()
-        
+    // Tracks first mount
+    const firstRender = useRef(true)
+
+    // Stores previous deps array
+    const prevDeps = useRef([])
+
+    // Stores cleanup function between renders
+    const cleanupRef = useRef(null)
+
+    // -------------------
+    // MOUNT
+    // -------------------
+
+    if (firstRender.current) {
+
+        // Run effect on mount
+        const cleanup = effect()
+
+        // Save cleanup for future (update/unmount)
+        cleanupRef.current = cleanup
+
         firstRender.current = false
-        return ()=>{
-            if (cleanup && typeof cleanup == "function"){
-                cleanup()
-            }
+
+        // Nothing cleaned now (same as React)
+        return
+    }
+
+    // -------------------
+    // UPDATE
+    // -------------------
+
+    let depsChanged = deps
+        ? !deps.every((dep, i) => Object.is(dep, prevDeps.current[i]))
+        : true
+
+    if (depsChanged) {
+
+        // 👉 cleanup previous effect BEFORE running new one
+        if (cleanupRef.current) {
+            cleanupRef.current()
+        }
+
+        // 👉 run new effect
+        const cleanup = effect()
+
+        // 👉 store its cleanup
+        cleanupRef.current = cleanup
+    }
+
+    // Save deps for next render
+    prevDeps.current = deps || []
+
+    // -------------------
+    // UNMOUNT (simulation idea)
+    // -------------------
+    // In real React this runs when component is destroyed
+    return () => {
+        if (cleanupRef.current) {
+            cleanupRef.current()
         }
     }
-
-    //deps array changed / no deps array
-    let depsChanged = deps?JSON.stringify(prevDeps.current)===JSON.stringify(deps):true
-    if(depsChanged){
-       const cleanup = effect()
-       if (cleanup && typeof cleanup == "function"){
-        cleanup()
-    }
-    }
-    prevDeps.current = deps ||[]
-    //return or clean up function
-
-
 }
 
-export default CustomUseEffect;
-
-
-//Driver code
-import { useEffect,useState } from 'react';
-import './App.css';
-import CustomUseEffect from './hooks/customUseEffect';
-
-function App() {
-const [count, setCount] = useState(0)
-const [count2, setCount2] = useState(0)
-CustomUseEffect(()=>{
-  console.log("From useEffect",count)
-  return ()=>{
-    console.log("cleanup called")
-  }
-},[count])
-
-const handleCounterIncrement =()=>{
-  setCount(count+1)
-}
-const handleCounterDecrement =()=>{
-  setCount(count-1)
-}
-  return (
-    <div className="App">
-      <button onClick={handleCounterIncrement}>Increment</button>
-      <button onClick={handleCounterDecrement}>Decrement</button>
-    </div>
-  );
-}
-
-export default App;
+export default CustomUseEffect
