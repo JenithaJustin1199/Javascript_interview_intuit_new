@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tabs</title>
+
+  <style>
+    /*
+      NAMING: BEM (Block__Element--Modifier)
+      - Block:   .tabs
+      - Elements: .tabs__list, .tabs__tab, .tabs__panel
+      STATE: styled with the ARIA attribute [aria-selected="true"]
+      instead of a BEM modifier like .tabs__tab--active.
+      Why: aria-selected must exist anyway for screen readers. Styling from it
+      gives ONE source of truth: the visual state and the accessible state
+      can never get out of sync. (BEM for structure, ARIA for state.)
+    */
+
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+    }
+
+    /* ---------- Block: tabs ---------- */
+    .tabs {
+      max-width: 600px;
+    }
+
+    .tabs__list {
+      display: flex;                    /* tabs sit in a row */
+      border-bottom: 1px solid #ddd;
+    }
+
+    .tabs__tab {
+      padding: 12px 16px;
+      border: none;                     /* reset default <button> look */
+      background: none;
+      font: inherit;                    /* buttons don't inherit font by default */
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;  /* reserve space → no layout jump when selected */
+      margin-bottom: -1px;              /* overlap the list's bottom border */
+    }
+
+    .tabs__tab:hover {
+      color: #000;
+    }
+
+    /* Selected state comes from ARIA (see note above) */
+    .tabs__tab[aria-selected="true"] {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+      font-weight: 600;
+    }
+
+    /* Keyboard focus ring: visible only for keyboard users */
+    .tabs__tab:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: -2px;
+    }
+
+    .tabs__panel {
+      padding: 16px 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    DATA-DRIVEN: tabs and panels are cloned from <template>s and filled from the
+    TABS array in the script. Adding a tab = adding one line to TABS.
+  -->
+  <div class="tabs">
+    <div id="tab-list" class="tabs__list" role="tablist" aria-label="Profile sections"></div>
+    <div id="tab-panels" class="tabs__panels"></div>
+  </div>
+
+  <!-- Blueprints, same idea as inv-template / card-template -->
+  <template id="tab-template">
+    <button class="tabs__tab" type="button" role="tab" aria-selected="false" tabindex="-1"></button>
+  </template>
+
+  <template id="panel-template">
+    <div class="tabs__panel" role="tabpanel" tabindex="0" hidden></div>
+  </template>
+
+  <script>
+    // 1. Data - adding a tab = add one line here
+    const TABS = [
+      { id: "posts",    label: "Posts",    content: "12 recent posts would render here." },
+      { id: "comments", label: "Comments", content: "34 comments would render here." },
+      { id: "images",   label: "Images",   content: "8 images would render here." },
+    ];
+
+    const list = document.getElementById("tab-list");
+    const panels = document.getElementById("tab-panels");
+    const tabTemplate = document.getElementById("tab-template");
+    const panelTemplate = document.getElementById("panel-template");
+
+    // 2. Create one tab / one panel by cloning the template (like createItem / createCard)
+    function createTab({ id, label }) {
+      const tab = tabTemplate.content.firstElementChild.cloneNode(true);
+      tab.id = `tab-${id}`;
+      tab.textContent = label;
+      tab.setAttribute("aria-controls", `panel-${id}`);
+      return tab;
+    }
+
+    function createPanel({ id, content }) {
+      const panel = panelTemplate.content.firstElementChild.cloneNode(true);
+      panel.id = `panel-${id}`;
+      panel.textContent = content;
+      panel.setAttribute("aria-labelledby", `tab-${id}`);
+      return panel;
+    }
+
+    // 3. Render once on load (same as render() in invitations / pymk)
+    function render() {
+      list.replaceChildren(...TABS.map(createTab));
+      panels.replaceChildren(...TABS.map(createPanel));
+    }
+
+    render();
+
+    const tabs = [...list.children];
+
+    // 4. ONE function owns all state changes → click and keyboard share it.
+    // focus = false on first load so the page doesn't grab focus on open.
+    function selectTab(newTab, focus = true) {
+      tabs.forEach((tab) => {
+        const selected = tab === newTab;
+        tab.setAttribute("aria-selected", selected);   // drives CSS + screen readers
+        tab.tabIndex = selected ? 0 : -1;              // roving tabindex
+        document.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
+      });
+      if (focus) newTab.focus();
+    }
+
+    // 5. EVENT DELEGATION: one listener on the tablist, not one per tab.
+    list.addEventListener("click", (e) => {
+      const tab = e.target.closest(".tabs__tab");
+      if (tab) selectTab(tab);
+    });
+
+    // KEYBOARD: arrows wrap around, Home/End jump to first/last.
+    list.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(document.activeElement);
+      if (i === -1) return;
+
+      let next = null;
+      if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
+      if (e.key === "ArrowLeft")  next = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (e.key === "Home")       next = tabs[0];
+      if (e.key === "End")        next = tabs[tabs.length - 1];
+
+      if (next) {
+        e.preventDefault();   // stop Home/End from scrolling the page
+        selectTab(next);
+      }
+    });
+
+    selectTab(tabs[0]);   // open the first tab without stealing focus
+
+    /*
+      MENTION IF ASKED (not coded):
+      - Lazy loading: give each TABS entry a render() and call it the first time
+        its tab opens, then cache.
+      - URL sync: update location.hash (#comments) so the tab survives refresh / sharing.
+    */
+  </script>
+</body>
+</html>
