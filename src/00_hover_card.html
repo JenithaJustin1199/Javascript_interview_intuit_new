@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hover card</title>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+    }
+
+    .people-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      line-height: 2;
+    }
+
+    .people-list__link {
+      color: #2563eb;
+    }
+
+    .hovercard {
+      position: absolute;
+      width: 260px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .hovercard__title,
+    .hovercard__mutual {
+      margin: 4px 0;
+      color: #555;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <ul class="people-list" id="people"></ul>
+
+  <template id="person-template">
+    <li><a class="people-list__link"></a></li>
+  </template>
+
+  <!-- ONE card reused for every name -->
+  <div class="hovercard" id="hovercard" role="dialog" aria-label="Profile preview" hidden>
+    <strong class="hovercard__name"></strong>
+    <p class="hovercard__title"></p>
+    <p class="hovercard__mutual"></p>
+    <button type="button" class="hovercard__button">Connect</button>
+  </div>
+
+  <script>
+    const PEOPLE = [
+      { id: 1, name: "Jeni Rao",   title: "Frontend Engineer at Acme",    mutual: 12 },
+      { id: 2, name: "Asha Menon", title: "Product Designer at Orbit",     mutual: 4 },
+      { id: 3, name: "Ravi Kumar", title: "Engineering Manager at Nimbus", mutual: 27 },
+      { id: 4, name: "Meera Iyer", title: "Data Scientist at Quanta",      mutual: 9 },
+    ];
+
+    const list = document.getElementById("people");
+    const template = document.getElementById("person-template");
+    const card = document.getElementById("hovercard");
+
+    let showTimer, hideTimer;
+
+    function createItem({ id, name }) {
+      const li = template.content.firstElementChild.cloneNode(true);
+      const link = li.querySelector("a");
+      link.href = `#profile-${id}`;
+      link.dataset.id = id;
+      link.textContent = name;
+      return li;
+    }
+
+    function render() {
+      list.replaceChildren(...PEOPLE.map(createItem));
+    }
+
+    function showCard(target) {
+      const person = PEOPLE.find((p) => p.id === Number(target.dataset.id));
+
+      card.querySelector(".hovercard__name").textContent = person.name;
+      card.querySelector(".hovercard__title").textContent = person.title;
+      card.querySelector(".hovercard__mutual").textContent = `${person.mutual} mutual connections`;
+      card.hidden = false;
+
+      // To the right of the name; flip to the left if there's no room
+      const rect = target.getBoundingClientRect();
+      const fitsRight = rect.right + 8 + card.offsetWidth <= window.innerWidth;
+      const left = fitsRight ? rect.right + 8 : rect.left - 8 - card.offsetWidth;
+
+      // rect is measured from the visible window, but an absolute card is placed
+      // from the top of the page → add how far the page is scrolled to convert.
+      card.style.top = `${rect.top + window.scrollY}px`;
+      card.style.left = `${left + window.scrollX}px`;
+    }
+
+    function scheduleShow(target) {
+      clearTimeout(hideTimer);
+      clearTimeout(showTimer);
+      showTimer = setTimeout(() => showCard(target), 300);   // hover intent
+    }
+
+    function scheduleHide() {
+      clearTimeout(showTimer);
+      hideTimer = setTimeout(() => (card.hidden = true), 200); // time to move into the card
+    }
+
+    // Event delegation (mouseover/focusin bubble; mouseenter/focus don't)
+    list.addEventListener("mouseover", (e) => {
+      const target = e.target.closest("a");
+      if (target) scheduleShow(target);
+    });
+    list.addEventListener("mouseout", (e) => {
+      if (e.target.closest("a")) scheduleHide();
+    });
+    list.addEventListener("focusin", (e) => {
+      const target = e.target.closest("a");
+      if (target) scheduleShow(target);
+    });
+    list.addEventListener("focusout", scheduleHide);
+
+    // Keep the card open while the mouse is on it
+    card.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    card.addEventListener("mouseleave", scheduleHide);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        clearTimeout(showTimer);
+        card.hidden = true;
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
