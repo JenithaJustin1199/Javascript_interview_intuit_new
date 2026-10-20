@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nav bar</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f3f2ef;
+    }
+
+    /* sticky: stays on top while scrolling but stays in normal flow (fixed would overlap content) */
+    .navbar {
+      position: sticky;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      padding: 0 24px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .navbar__list {
+      display: flex;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar__item {
+      position: relative;           /* anchor for the dropdown */
+    }
+
+    .navbar__link {
+      position: relative;           /* anchor for the badge */
+      display: flex;
+      flex-direction: column;       /* icon on top, label below */
+      align-items: center;
+      justify-content: center;
+      min-width: 80px;
+      height: 56px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: none;
+      font: inherit;
+      font-size: 12px;
+      color: #666;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* Active page styled from aria-current → visual + screen reader state can't disagree */
+    .navbar__link[aria-current="page"] {
+      color: #000;
+      border-bottom-color: #000;
+    }
+
+    .navbar__badge {
+      position: absolute;
+      top: 6px;
+      right: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      background: #d93025;
+      color: #fff;
+      font-size: 11px;
+    }
+
+    .navbar__menu {
+      position: absolute;
+      top: 100%;                    /* right below the button */
+      right: 0;                     /* align right → doesn't overflow the screen */
+      min-width: 160px;
+      margin: 0;
+      padding: 8px 0;
+      list-style: none;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .navbar__menu a {
+      display: block;               /* whole row clickable */
+      padding: 8px 16px;
+      color: #333;
+      text-decoration: none;
+    }
+
+    /* Visible to screen readers only */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    /* Small screens: icons only */
+    @media (max-width: 768px) {
+      .navbar__label {
+        display: none;
+      }
+      .navbar__link {
+        min-width: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="#" aria-label="Home">Logo</a>
+
+    <nav aria-label="Primary">
+      <ul class="navbar__list">
+        <!-- Links NAVIGATE → <a>. aria-hidden on emoji so it isn't read aloud. -->
+        <li class="navbar__item">
+          <a href="#home" class="navbar__link" aria-current="page">
+            <span aria-hidden="true">🏠</span>
+            <span class="navbar__label">Home</span>
+          </a>
+        </li>
+        <li class="navbar__item">
+          <a href="#network" class="navbar__link">
+            <span aria-hidden="true">👥</span>
+            <span class="navbar__label">My Network</span>
+          </a>
+        </li>
+        <li class="navbar__item">
+          <a href="#jobs" class="navbar__link">
+            <span aria-hidden="true">💼</span>
+            <span class="navbar__label">Jobs</span>
+          </a>
+        </li>
+        <li class="navbar__item">
+          <a href="#messaging" class="navbar__link">
+            <span aria-hidden="true">💬</span>
+            <span class="navbar__label">Messaging</span>
+            <span class="navbar__badge">3<span class="sr-only"> unread</span></span>
+          </a>
+        </li>
+
+        <!-- "Me" opens a menu → an ACTION → <button>, with aria-expanded kept in sync -->
+        <li class="navbar__item">
+          <button type="button" class="navbar__link" id="me-button"
+                  aria-expanded="false" aria-controls="me-menu">
+            <span aria-hidden="true">👤</span>
+            <span class="navbar__label">Me ▾</span>
+          </button>
+          <ul class="navbar__menu" id="me-menu" hidden>
+            <li><a href="#profile">View profile</a></li>
+            <li><a href="#settings">Settings</a></li>
+            <li><a href="#signout">Sign out</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <main style="height: 1500px; padding: 24px;">Scroll: the nav bar stays on top.</main>
+
+  <script>
+    const button = document.getElementById("me-button");
+    const menu = document.getElementById("me-menu");
+
+    // One function owns the state → hidden and aria-expanded never disagree
+    function setMenu(open) {
+      menu.hidden = !open;
+      button.setAttribute("aria-expanded", open);
+    }
+
+    button.addEventListener("click", () => setMenu(menu.hidden));
+
+    // Outside click closes it (ignore the button, or it would reopen-and-close in one click)
+    document.addEventListener("click", (e) => {
+      if (!menu.contains(e.target) && !button.contains(e.target)) setMenu(false);
+    });
+
+    // Active link: move aria-current to the clicked link (CSS underline follows it).
+    // Event delegation → one listener on the list.
+    document.querySelector(".navbar__list").addEventListener("click", (e) => {
+      const link = e.target.closest("a.navbar__link");
+      if (!link) return;
+      document.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
+      link.setAttribute("aria-current", "page");
+    });
+
+    // Escape closes it and returns focus to the button
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !menu.hidden) {
+        setMenu(false);
+        button.focus();
+      }
+    });
+  </script>
+</body>
+</html>
